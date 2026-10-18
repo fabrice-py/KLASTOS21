@@ -1,0 +1,44 @@
+# Environnement virtuel. Jamais versionne : il pese des centaines de Mo et
+# il est lie a un chemin absolu de la machine qui l'a cree.
+.venv/
+venv/
+env/
+
+# Octets compiles et caches d'outils
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Artefacts de build setuptools
+*.egg-info/
+build/
+dist/
+
+# Etat d'execution. `store.py` recree la base et son schema a la demande
+# (CREATE TABLE IF NOT EXISTS), donc rien n'est perdu. La versionner
+# provoquerait des conflits binaires irresolubles a chaque analyse.
+data/historique.sqlite
+data/*.sqlite-journal
+data/*.sqlite-wal
+
+# Secrets Streamlit. Les identifiants de flux (KLASTOS_BMI_API_KEY,
+# KLASTOS_SMM_PASSWORD_MD5, ...) passent par l'environnement ou par ce
+# fichier : il ne doit jamais partir dans un depot, meme prive.
+.streamlit/secrets.toml
+.env
+*.pem
+*.key
+
+# Rapports produits par l'outil
+*.html
+!klastos/**/*.html
+rapport_*.md
+rapport_*.pdf
+
+# Systeme
+.DS_Store
+Thumbs.db
+desktop.ini

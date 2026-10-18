@@ -1,0 +1,10 @@
+# Le depot est edite sous Windows et deploye sous Linux. On normalise les
+# fins de ligne en LF dans l'index : sans ca, chaque aller-retour entre les
+# deux produit un diff de fichier entier qui noie les vraies modifications.
+* text=auto eol=lf
+
+# Binaires : aucune conversion.
+*.sqlite binary
+*.png binary
+*.jpg binary
+*.pdf binary

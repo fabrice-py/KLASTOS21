@@ -1,0 +1,15 @@
+# Dependances d'execution de KLASTOS21.
+#
+# Ce fichier est celui que lisent les plateformes de deploiement
+# (Streamlit Community Cloud, Render, Railway, Hugging Face Spaces). Il doit
+# rester en accord avec [project.dependencies] de pyproject.toml, qui ne
+# declare pour l'instant que les trois dependances de calcul : streamlit et
+# altair n'y figurent pas alors que l'interface ne demarre pas sans elles.
+#
+# Les planchers sont ceux valides en local (Python 3.14.6).
+
+streamlit>=1.65
+altair>=6.3
+pandas>=2.0
+numpy>=1.26
+scipy>=1.11

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "klastos21"
+version = "0.1.0"
+description = "Analyse predictive des matieres premieres secondaires"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26", "scipy>=1.11", "pandas>=2.0"]
+
+[project.scripts]
+klastos = "klastos.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["klastos*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

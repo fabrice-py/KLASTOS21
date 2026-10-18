@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "PHOTOGRAPHIE DE PRIX - DEMONSTRATION ET TESTS UNIQUEMENT.",
+    "Ce fichier n'est PAS une source de prix de production.",
+    "En exploitation, il est remplace par un flux (API, export du fournisseur",
+    "d'indices, ou saisie datee). Le code ne contient aucun prix en dur.",
+    "Toute valorisation opposable exige un instantane de moins de 7 jours."
+  ],
+  "label": "Photographie 2-4 septembre 2026 - demonstration uniquement",
+  "currency": "USD",
+  "is_production_source": false,
+  "prices": {
+    "Ni": {
+      "value_per_tonne": 16811.13,
+      "as_of": "2026-09-04",
+      "source": "Trading Economics, contrat de reference nickel",
+      "reference_name": "Nickel, prix de reference",
+      "note": ""
+    },
+    "Co": {
+      "value_per_tonne": 52359.78,
+      "as_of": "2026-09-02",
+      "source": "Fastmarkets MB-CO-0005, avis de correction du 2 septembre 2026",
+      "reference_name": "Cobalt standard grade, in-whs Rotterdam, point bas",
+      "note": "Fourchette publiee 23,75-27,15 $/lb ; point bas 23,75 $/lb retenu."
+    },
+    "Li": {
+      "value_per_tonne": 19750.0,
+      "as_of": "2026-09-02",
+      "source": "Benchmark Mineral Intelligence",
+      "reference_name": "Carbonate de lithium qualite batterie, spot, CIF Asie",
+      "note": "Prix du CARBONATE. Conversion en lithium contenu appliquee par le code.",
+      "basis": "Li2CO3"
+    },
+    "Cu": {
+      "value_per_tonne": 12841.84,
+      "as_of": "2026-09-04",
+      "source": "Indice FMI / Cbonds, cathode grade A, CIF ports europeens",
+      "reference_name": "Cuivre cathode grade A",
+      "note": "Moyenne 2026 (fourchette 12 529 - 12 987 $/t), non spot."
+    }
+  }
+}

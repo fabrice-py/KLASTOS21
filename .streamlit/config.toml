@@ -1,0 +1,18 @@
+# Theme KLASTOS21. Clair uniquement : l'interface et le rapport imprime
+# doivent parler le meme langage visuel, et un rapport s'imprime sur blanc.
+[theme]
+base = "light"
+primaryColor = "#1F45C8"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F8FA"
+textColor = "#13171E"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+# PAS de headless ici. Il empecherait le navigateur de s'ouvrir tout seul au
+# lancement, alors que c'est le comportement voulu sur un poste de travail.
+# `klastos ui --sans-navigateur` le pose au cas par cas, quand on lance
+# l'interface sur une machine distante.

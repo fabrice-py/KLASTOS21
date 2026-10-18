@@ -1,0 +1,5 @@
+metal,value,unit,currency,as_of,source,reference_name,basis,note
+Ni,16811.13,USD/t,USD,2026-09-04,Abonnement client,LME Nickel cash official,metal,
+Co,23.75,USD/lb,USD,2026-09-02,Abonnement client,Cobalt standard grade in-whs Rotterdam point bas,metal,Fourchette 23.75-27.15 USD/lb
+Li,19750.00,USD/t,USD,2026-09-02,Abonnement client,Carbonate de lithium qualite batterie CIF Asie,Li2CO3,Prix du carbonate
+Cu,12841.84,USD/t,USD,2026-09-04,Abonnement client,Cuivre cathode grade A,metal,

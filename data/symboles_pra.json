@@ -1,0 +1,130 @@
+{
+  "_comment": [
+    "CATALOGUE DE SYMBOLES DES AGENCES D'EVALUATION.",
+    "",
+    "Ces codes et leurs unites proviennent de la documentation publique et des",
+    "avis de methodologie des agences. Ils sont ici DONNEES, pas code : les",
+    "corriger ne demande aucune modification de logique.",
+    "",
+    "A VERIFIER AVEC VOS DROITS : l'endpoint Instruments de Fastmarkets ne",
+    "renvoie que les symboles que votre abonnement autorise. Lancez",
+    "`klastos prix --catalogue` pour confronter ce fichier a vos droits reels",
+    "avant de vous y fier.",
+    "",
+    "Le champ `field` indique QUELLE borne de l'evaluation retenir. Il ne",
+    "s'agit pas d'un detail : les payables de black mass de Fastmarkets se",
+    "referent au POINT BAS du cobalt standard grade, pas au point median.",
+    "Retenir le median surestimerait la valeur du lot."
+  ],
+  "fastmarkets": {
+    "auth_url": "https://auth.fastmarkets.com/connect/token",
+    "base_url": "https://api.fastmarkets.com/physical/v2",
+    "scope": "fastmarkets.physicalprices.api",
+    "symbols": {
+      "MB-CO-0005": {
+        "metal": "Co",
+        "unit": "USD/lb",
+        "field": "low",
+        "reference_name": "Cobalt standard grade, in-whs Rotterdam, point bas",
+        "note": "Reference des payables cobalt. Le point bas est la borne contractuelle."
+      },
+      "MB-BMS-0001": {
+        "payable_for": "Ni",
+        "market": "cif_coree_sud",
+        "reference_name": "Black mass NCM, payable nickel, CIF Coree du Sud, % du LME Ni cash official"
+      },
+      "MB-BMS-0002": {
+        "payable_for": "Co",
+        "market": "cif_coree_sud",
+        "reference_name": "Black mass NCM, payable cobalt, CIF Coree du Sud, % du cobalt standard grade point bas"
+      },
+      "MB-BMS-0003": {
+        "payable_for": "Li",
+        "market": "cif_coree_sud",
+        "reference_name": "Black mass NCM, payable lithium, CIF Coree du Sud, % du carbonate de lithium qualite batterie"
+      },
+      "MB-BMS-0004": {
+        "payable_for": "Ni",
+        "market": "exw_europe",
+        "reference_name": "Black mass NCM, payable nickel, EXW Europe, % du LME Ni cash official"
+      },
+      "MB-BMS-0005": {
+        "payable_for": "Co",
+        "market": "exw_europe",
+        "reference_name": "Black mass NCM, payable cobalt, EXW Europe, % du cobalt standard grade point bas"
+      },
+      "MB-BMS-0006": {
+        "payable_for": "Co",
+        "market": "exw_europe_lco",
+        "reference_name": "Black mass LCO, payable cobalt, EXW Europe"
+      },
+      "MB-BMS-0007": {
+        "payable_for": "Ni",
+        "market": "cif_asie_sud_est",
+        "reference_name": "Black mass NCM, payable nickel, CIF Asie du Sud-Est"
+      },
+      "MB-BMS-0008": {
+        "payable_for": "Co",
+        "market": "cif_asie_sud_est",
+        "reference_name": "Black mass NCM, payable cobalt, CIF Asie du Sud-Est"
+      },
+      "MB-BMS-0009": {
+        "payable_for": "Li",
+        "market": "cif_asie_sud_est",
+        "reference_name": "Black mass NCM, payable lithium, CIF Asie du Sud-Est"
+      },
+      "MB-BMS-0020": {
+        "payable_for": "Ni",
+        "market": "cif_chine_poudre",
+        "reference_name": "Poudre noire de cathode NCM haut nickel, payable nickel, CIF Chine"
+      },
+      "MB-BMS-0021": {
+        "payable_for": "Co",
+        "market": "cif_chine_poudre",
+        "reference_name": "Poudre noire de cathode NCM, payable cobalt, CIF Chine"
+      }
+    },
+    "retires": {
+      "MB-BMS-0014": "Payable cobalt EXW USA, suspendu par Fastmarkets le 1er septembre 2026.",
+      "MB-BMS-0015": "Payable nickel EXW USA, suspendu par Fastmarkets le 1er septembre 2026."
+    }
+  },
+  "benchmark": {
+    "base_url": "https://api.benchmarkminerals.com/v3/prices",
+    "auth_header": "x-api-key",
+    "markets": {
+      "Co": {
+        "endpoint": "cobalt",
+        "scope": "prices:cobalt",
+        "reference_name": "Benchmark, indice cobalt"
+      },
+      "Li": {
+        "endpoint": "lithium",
+        "scope": "prices:lithium",
+        "reference_name": "Benchmark, carbonate de lithium qualite batterie",
+        "basis": "Li2CO3"
+      },
+      "Ni": {
+        "endpoint": "nickel",
+        "scope": "prices:nickel",
+        "reference_name": "Benchmark, indice nickel"
+      }
+    },
+    "recycling": {
+      "endpoint": "recycling",
+      "scope": "prices:black-mass",
+      "reference_name": "Benchmark, prix et payables black mass"
+    }
+  },
+  "smm": {
+    "auth_url": "https://platform.smm.cn/usercenter/auth",
+    "base_url": "https://dataapi.smm.cn/GetDataEn",
+    "series": {
+      "_comment": [
+        "A COMPLETER. Les identifiants de series SMM ne sont pas documentes",
+        "publiquement pour les metaux de batterie. Recuperez-les dans votre",
+        "espace client et renseignez-les ici : {metal: {serie, unit, field}}."
+      ]
+    }
+  }
+}

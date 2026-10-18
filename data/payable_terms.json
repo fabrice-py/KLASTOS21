@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "CONDITIONS COMMERCIALES DE REFERENCE - DEMONSTRATION UNIQUEMENT.",
+    "Toutes perimees. Conservees comme ordres de grandeur et pour eprouver",
+    "le controle d'anciennete. A remplacer par les conditions reelles du client."
+  ],
+  "terms": {
+    "exw_europe": {
+      "market": "EXW Europe",
+      "payables": {"Ni": 0.5775, "Co": 0.5775},
+      "as_of": "2024-06-30",
+      "source": "Fastmarkets, moyenne juin 2024 des indicateurs de payable",
+      "lithium_included_in_ni_co": true,
+      "validated": false,
+      "note": "PERIME. Ordre de grandeur historique. Le lithium etait alors integre aux payables nickel et cobalt."
+    },
+    "cif_coree_sud": {
+      "market": "CIF Coree du Sud",
+      "payables": {"Ni": 0.72, "Co": 0.72},
+      "as_of": "2024-06-30",
+      "source": "Fastmarkets, moyenne juin 2024",
+      "lithium_included_in_ni_co": true,
+      "validated": false,
+      "note": "PERIME. Des lots ont ete traites entre 70 et 78 % sur la periode."
+    }
+  }
+}
