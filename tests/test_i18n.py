@@ -145,7 +145,9 @@ def test_les_deux_langues_disent_des_choses_differentes():
     #: entree est une decision, pas un oubli - d'ou la liste explicite.
     IDENTIQUES_ADMIS = {
         "rapport.doc.client",            # « Client » / "Client"
+        "ui.lot.client",                 # idem
         "rapport.doc.unite_points",      # « points » / "points"
+        "ui.nav.libelle",                # « Navigation » / "Navigation"
         "rapport.valeur.drx_avant_apres",  # purement numerique
     }
     for cle, entree in i18n.CATALOGUE.items():

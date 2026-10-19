@@ -306,11 +306,19 @@ def test_un_profil_non_arbitre_est_signale_dans_l_interface():
     Le profil `deee` n'a pas ete arbitre metier. Personne ne doit s'appuyer
     dessus sans le savoir.
     """
+    from klastos import i18n
     from klastos.provenance import PROVENANCE_PROFILES
 
     assert PROVENANCE_PROFILES["deee"].validated is False
+    # Le texte a quitte app.py pour le catalogue i18n : on verifie
+    # desormais qu'il existe DANS LES DEUX LANGUES, plutot que sa
+    # presence en clair dans la source de l'interface.
+    for langue in i18n.LANGUES:
+        suffixe = i18n.t("ui.provenance.non_arbitre", langue).strip()
+        assert suffixe, langue
+        assert i18n.t("ui.provenance.avert_non_arbitre", langue)
     src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
-    assert "non arbitré" in src
+    assert "ui.provenance.non_arbitre" in src
 
 
 # ==========================================================================
@@ -408,9 +416,18 @@ def test_l_interface_expose_le_taux_de_conflit():
 
 
 def test_l_interface_exige_l_incertitude_de_la_drx():
-    src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
-    assert "OBLIGATOIRE" in src
-    assert "Rietveld" in src
+    """
+    L'exigence est portee par le catalogue depuis que l'interface est
+    bilingue. On la verifie DANS LES DEUX LANGUES : un avertissement qui ne
+    sortirait qu'en francais laisserait un operateur anglophone deposer une
+    quantification sans incertitude, et cette mesure passerait pour exacte.
+    """
+    from klastos import i18n
+
+    for langue in i18n.LANGUES:
+        aide = i18n.t("ui.drx.aide", langue)
+        assert "Rietveld" in aide, langue
+        assert ("OBLIGATOIRE" in aide or "MANDATORY" in aide), langue
 
 
 def test_la_demande_transporte_la_quantification():
@@ -434,3 +451,77 @@ def test_la_demande_sans_drx_reste_inchangee():
         tirages=5, graine=0, seuil_alerte=0.06, seuil_rejet=0.20)
     assert d.drx is None
     assert d.conseil_drx is False
+
+# ==========================================================================
+# Interface bilingue
+# ==========================================================================
+
+def test_les_cles_de_pages_ne_sont_pas_des_libelles():
+    """
+    LE VERROU DE LA NAVIGATION. `PAGES` contenait les libelles francais, et
+    `main()` routait sur `page == "Analyse"`. Traduire la navigation aurait
+    donc envoye toutes les pages sur la page d'aide - la branche `else` -
+    sans erreur, sans trace, et avec un ecran qui s'affiche quand meme.
+    """
+    from klastos import app, i18n
+
+    for cle in app.PAGES:
+        assert cle.islower() and " " not in cle, cle
+        # Chaque cle doit avoir un libelle dans les deux langues.
+        for langue in i18n.LANGUES:
+            assert i18n.t(f"ui.page.{cle}", langue)
+
+
+def test_le_routage_couvre_toutes_les_pages_declarees():
+    """Une page declaree sans branche de routage tomberait sur l'aide."""
+    src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
+    routage = src.split("def main(")[1]
+    for cle in ("analyse", "prix", "historique"):
+        assert f'== "{cle}"' in routage, cle
+
+
+def test_l_interface_transporte_la_langue_jusqu_au_rapport():
+    """
+    Le rapport doit sortir dans la langue de l'ecran. Sans ce passage, un
+    operateur travaillant en anglais telechargeait un document francais.
+    """
+    from klastos import i18n
+    from klastos.app import construire_demande
+
+    for langue in i18n.LANGUES:
+        d = construire_demande(
+            {"Ni (%)": "16.2"}, lot_id="L", client="C",
+            provenance="non_declaree", attestee=False, grades=None,
+            tirages=20, graine=0, seuil_alerte=0.06, seuil_rejet=0.2,
+            langue=langue)
+        assert d.langue == langue
+
+
+def test_la_langue_par_defaut_de_la_demande_est_le_francais():
+    from klastos import i18n
+    from klastos.app import construire_demande
+
+    d = construire_demande(
+        {"Ni (%)": "16.2"}, lot_id="L", client="C",
+        provenance="non_declaree", attestee=False, grades=None,
+        tirages=20, graine=0, seuil_alerte=0.06, seuil_rejet=0.2)
+    assert d.langue == i18n.DEFAUT
+
+
+def test_le_separateur_est_pose_a_cote_du_televersement():
+    """
+    Il vivait dans le volet « Seuils et calcul », ou personne ne cherche un
+    reglage de lecture de fichier. Deux analyses d'affilee ont echoue sur un
+    CSV en point-virgule, l'erreur ne disant qu'« Aucune colonne
+    exploitable ». Il est desormais sous le depot du fichier, et son aide
+    nomme le cas Excel francais.
+    """
+    from klastos import i18n
+
+    src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
+    avant_volet = src.split('T("ui.volet.seuils")')[0]
+    assert 'key="separateur"' in avant_volet, (
+        "le separateur est repasse apres le volet des seuils")
+    for langue in i18n.LANGUES:
+        aide = i18n.t("ui.separateur.aide", langue)
+        assert ";" in aide and "Excel" in aide, langue

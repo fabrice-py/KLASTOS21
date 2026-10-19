@@ -586,6 +586,303 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "this report internally (destinataire='interne').",
     },
 
+    # ======================================================================
+    # Interface
+    # ======================================================================
+
+    # ------------------------------------------------- choix de la langue
+    "ui.langue.libelle": {"fr": "Langue", "en": "Language"},
+    "ui.langue.aide": {
+        "fr": "Langue de l'interface et du rapport produit. Le protocole "
+              "méthodologique reste en français.",
+        "en": "Language of the interface and of the report produced. The "
+              "methodological protocol remains in French.",
+    },
+    "ui.langue.nom.fr": {"fr": "Français", "en": "French"},
+    "ui.langue.nom.en": {"fr": "Anglais", "en": "English"},
+
+    # --------------------------------------------- en-tete page d'analyse
+    "ui.analyse.titre": {
+        "fr": "Analyse minéralogique de black mass",
+        "en": "Mineralogical analysis of black mass",
+    },
+    "ui.analyse.chapeau": {
+        "fr": "Importez votre bulletin d'analyse et obtenez la "
+              "reconstitution minéralogique de votre échantillon, avec ce "
+              "qui est déterminé et ce qui ne peut pas l'être.",
+        "en": "Import your assay certificate and obtain the mineralogical "
+              "reconstruction of your sample, together with what is "
+              "determined and what cannot be.",
+    },
+    "ui.analyse.garantie_titre": {
+        "fr": "Ce que l'outil garantit", "en": "What the tool guarantees",
+    },
+    "ui.analyse.garantie": {
+        "fr": "Aucun chiffre que la donnée ne porte. Une grandeur non "
+              "identifiable sort en domaine, jamais en valeur unique.",
+        "en": "No figure the data does not carry. A non-identifiable "
+              "quantity comes out as a range, never as a single value.",
+    },
+
+    # ----------------------------------------------------------------- DRX
+    "ui.drx.titre": {
+        "fr": "Quantification par diffraction",
+        "en": "Diffraction quantification",
+    },
+    "ui.drx.facultatif": {
+        "fr": "Facultatif. C'est le levier le plus puissant du lot.",
+        "en": "Optional. It is the most powerful lever available.",
+    },
+    "ui.drx.fichier": {
+        "fr": "Fichier de quantification DRX",
+        "en": "XRD quantification file",
+    },
+    "ui.drx.aide": {
+        "fr": "Une phase par ligne : phase, valeur, incertitude. La colonne "
+              "d'incertitude est OBLIGATOIRE — une mesure Rietveld est "
+              "précise à 1 ou 3 points, et sans son incertitude elle "
+              "passerait pour exacte.",
+        "en": "One phase per row: phase, value, uncertainty. The "
+              "uncertainty column is MANDATORY — a Rietveld measurement is "
+              "precise to 1 or 3 points, and without its uncertainty it "
+              "would pass for exact.",
+    },
+    "ui.drx.base": {
+        "fr": "Base de normalisation", "en": "Normalisation basis",
+    },
+    "ui.drx.base_aide": {
+        "fr": "Un diffractogramme ne voit que le cristallin. Sur base "
+              "cristalline, les niveaux ne sont pas contraints : seuls les "
+              "rapports entre phases le sont, et il faut donc une phase de "
+              "plus.",
+        "en": "A diffractogram sees only the crystalline fraction. On a "
+              "crystalline basis the levels are not constrained: only the "
+              "ratios between phases are, so one more phase is needed.",
+    },
+    "ui.drx.conseil": {
+        "fr": "Calculer quelle phase faire quantifier",
+        "en": "Compute which phase to have quantified",
+    },
+    "ui.drx.conseil_aide": {
+        "fr": "Classe les phases par le resserrement qu'une mesure "
+              "apporterait, au pire placement. Quelques secondes.",
+        "en": "Ranks the phases by the narrowing a measurement would bring, "
+              "at its worst placement. A few seconds.",
+    },
+    "ui.drx.incertitude": {
+        "fr": "Incertitude supposée du laboratoire (points)",
+        "en": "Assumed laboratory uncertainty (points)",
+    },
+
+    # ------------------------------------------------- lancement et verdict
+    "ui.prix.absent": {
+        "fr": "Aucun prix chargé : le rapport sortira sans valorisation. "
+              "Onglet **Prix** pour en fournir.",
+        "en": "No prices loaded: the report will come out without a "
+              "valuation. Use the **Prices** tab to supply some.",
+    },
+    "ui.prix.charge": {"fr": "Prix : {label}", "en": "Prices: {label}"},
+    "ui.analyse.lancer": {
+        "fr": "Lancer l'analyse", "en": "Run the analysis",
+    },
+    "ui.analyse.en_cours": {
+        "fr": "Reconstitution et propagation d'incertitude…",
+        "en": "Reconstruction and uncertainty propagation…",
+    },
+    "ui.verdict.ok": {"fr": "Analyse terminée", "en": "Analysis complete"},
+    "ui.verdict.alerte": {
+        "fr": "Analyse terminée — à vérifier",
+        "en": "Analysis complete — needs checking",
+    },
+    "ui.verdict.rejet": {
+        "fr": "Lot inexploitable en l'état",
+        "en": "Lot unusable as it stands",
+    },
+    "ui.verdict.ok_sous": {
+        "fr": "Votre rapport est prêt.", "en": "Your report is ready.",
+    },
+    "ui.verdict.alerte_sous": {
+        "fr": "Le rapport est disponible, mais le bouclage massique demande "
+              "une explication.",
+        "en": "The report is available, but the mass closure calls for an "
+              "explanation.",
+    },
+    "ui.verdict.rejet_sous": {
+        "fr": "Le bouclage est hors tolérance.",
+        "en": "The closure is out of tolerance.",
+    },
+    "ui.demo.avert": {
+        "fr": "Document de démonstration — non opposable.",
+        "en": "Demonstration document — not binding.",
+    },
+
+    # -------------------------------------------------------------- onglets
+    "ui.onglet.ensemble": {"fr": "Vue d'ensemble", "en": "Overview"},
+    "ui.onglet.composition": {
+        "fr": "Composition minéralogique", "en": "Mineralogical composition",
+    },
+    "ui.onglet.reduire": {
+        "fr": "Réduire l'incertitude", "en": "Reduce the uncertainty",
+    },
+    "ui.onglet.rapport": {"fr": "Rapport", "en": "Report"},
+
+    # ------------------------------------------------- import du bulletin
+    "ui.import.titre": {
+        "fr": "Importer votre bulletin", "en": "Import your assay",
+    },
+    "ui.import.depot": {
+        "fr": "Glissez-déposez votre fichier",
+        "en": "Drag and drop your file",
+    },
+    "ui.import.aide": {
+        "fr": "Format large (intitulés puis valeurs) ou long (élément, "
+              "valeur). Les unités se déclarent dans l'intitulé : "
+              "« Ni (%) », « Fe (mg/kg) ». L'oxygène n'est pas attendu, il "
+              "est prédit.",
+        "en": "Wide format (headers then values) or long format (element, "
+              "value). Units are declared in the header: \"Ni (%)\", "
+              "\"Fe (mg/kg)\". Oxygen is not expected, it is predicted.",
+    },
+    "ui.import.invite": {
+        "fr": "Déposez un bulletin pour lancer une analyse. Un exemple est "
+              "fourni dans <b>data/exemples/</b>.",
+        "en": "Drop an assay to start an analysis. An example is provided in "
+              "<b>data/exemples/</b>.",
+    },
+    "ui.import.lu": {
+        "fr": "Ce que KLASTOS21 a lu dans votre fichier",
+        "en": "What KLASTOS21 read in your file",
+    },
+    "ui.import.col_colonne": {"fr": "Colonne", "en": "Column"},
+    "ui.import.col_valeur": {"fr": "Valeur lue", "en": "Value read"},
+
+    # ------------------------------------------------- identification du lot
+    "ui.lot.titre": {"fr": "Identifier le lot", "en": "Identify the lot"},
+    "ui.lot.identifiant": {"fr": "Identifiant du lot", "en": "Lot reference"},
+    "ui.lot.client": {"fr": "Client", "en": "Client"},
+    "ui.lot.echantillon": {"fr": "Échantillon", "en": "Sample"},
+
+    # -------------------------------------------------------- navigation
+    "ui.nav.libelle": {"fr": "Navigation", "en": "Navigation"},
+    "ui.page.analyse": {"fr": "Analyse", "en": "Analysis"},
+    "ui.page.prix": {"fr": "Prix", "en": "Prices"},
+    "ui.page.historique": {"fr": "Historique", "en": "History"},
+    "ui.page.aide": {"fr": "Aide", "en": "Help"},
+
+    # --------------------------------------------------------- provenance
+    "ui.provenance.libelle": {
+        "fr": "Provenance déclarée", "en": "Declared provenance",
+    },
+    "ui.provenance.non_arbitre": {
+        "fr": "  (non arbitré)", "en": "  (not arbitrated)",
+    },
+    "ui.provenance.avert_non_arbitre": {
+        "fr": "Ce profil d'exclusion n'a pas été arbitré métier. Les phases "
+              "qu'il écarte relèvent d'une hypothèse, pas d'une décision.",
+        "en": "This exclusion profile has not been arbitrated by the "
+              "business. The phases it rules out rest on an assumption, not "
+              "on a decision.",
+    },
+    "ui.attestation.libelle": {
+        "fr": "Le client a signé l'attestation de provenance.",
+        "en": "The client has signed the provenance attestation.",
+    },
+    "ui.attestation.aide": {
+        "fr": "SANS CETTE ATTESTATION, AUCUNE PHASE N'EST EXCLUE, quelle que "
+              "soit la provenance choisie. Exclure une phase sur une simple "
+              "déclaration orale reviendrait à sous-estimer un lot sans "
+              "trace.",
+        "en": "WITHOUT THIS ATTESTATION, NO PHASE IS EXCLUDED, whatever "
+              "provenance is chosen. Ruling out a phase on a spoken "
+              "declaration alone would mean undervaluing a lot with no "
+              "record of why.",
+    },
+    "ui.attestation.sans": {
+        "fr": "Provenance renseignée sans attestation : aucune phase ne sera "
+              "exclue. Le rapport le dira.",
+        "en": "Provenance given without attestation: no phase will be "
+              "excluded. The report will say so.",
+    },
+    "ui.grades.libelle": {
+        "fr": "Grades produits sur le site",
+        "en": "Grades produced on site",
+    },
+
+    # -------------------------------------------------------- destinataire
+    "ui.destinataire.libelle": {
+        "fr": "Destinataire du rapport", "en": "Report recipient",
+    },
+    "ui.destinataire.tiers": {
+        "fr": "Un tiers (client)", "en": "A third party (client)",
+    },
+    "ui.destinataire.interne": {
+        "fr": "Usage interne", "en": "Internal use",
+    },
+    "ui.destinataire.aide": {
+        "fr": "Des prix d'agence sans licence de rediffusion font refuser un "
+              "document destiné à un tiers.",
+        "en": "Agency prices without a redistribution licence cause a "
+              "document intended for a third party to be refused.",
+    },
+
+    # ------------------------------------------------- volets de reglages
+    "ui.volet.valorisation": {"fr": "Valorisation", "en": "Valuation"},
+    "ui.spec.libelle": {
+        "fr": "Spécification à contrôler",
+        "en": "Specification to check against",
+    },
+    "ui.spec.aucune": {"fr": "(aucune)", "en": "(none)"},
+    "ui.cout.libelle": {
+        "fr": "Coût de traitement (par tonne)",
+        "en": "Processing cost (per tonne)",
+    },
+    "ui.marge.libelle": {"fr": "Marge visée", "en": "Target margin"},
+
+    "ui.volet.seuils": {
+        "fr": "Seuils et calcul", "en": "Thresholds and computation",
+    },
+    "ui.seuils.arbitres": {
+        "fr": "Seuils arbitrés : alerte {alerte:.0%}, rejet {rejet:.0%}.",
+        "en": "Arbitrated thresholds: alert {alerte:.0%}, "
+              "rejection {rejet:.0%}.",
+    },
+    "ui.seuil.alerte": {"fr": "Seuil d'alerte", "en": "Alert threshold"},
+    "ui.seuil.rejet": {
+        "fr": "Seuil de rejet", "en": "Rejection threshold",
+    },
+    "ui.tirages.libelle": {
+        "fr": "Tirages de propagation", "en": "Propagation draws",
+    },
+    "ui.graine.libelle": {"fr": "Graine aléatoire", "en": "Random seed"},
+    "ui.graine.aide": {
+        "fr": "Même graine, même résultat.", "en": "Same seed, same result.",
+    },
+    "ui.separateur.libelle": {
+        "fr": "Séparateur du CSV", "en": "CSV separator",
+    },
+    "ui.separateur.aide": {
+        "fr": "Virgule par défaut. Mettez « ; » si votre fichier vient d'un "
+              "Excel en locale française, qui écrit nativement des "
+              "points-virgules.",
+        "en": "Comma by default. Set it to \";\" if your file comes from a "
+              "French-locale Excel, which natively writes semicolons.",
+    },
+
+    "ui.volet.historique": {"fr": "Historique", "en": "History"},
+    "ui.historique.enregistrer": {
+        "fr": "Enregistrer les analyses", "en": "Record analyses",
+    },
+    "ui.historique.fichier": {
+        "fr": "Fichier d'historique", "en": "History file",
+    },
+
+    # ------------------------------------------------------ etat du systeme
+    "ui.etat.pret": {"fr": "Système prêt", "en": "System ready"},
+    "ui.etat.pret_detail": {
+        "fr": "Prêt à traiter un nouveau bulletin.",
+        "en": "Ready to process a new assay.",
+    },
+
     # ------------------------------------------------------------- protocole
     "rapport.protocole.renvoi": {
         "fr": "Les engagements méthodologiques figurent au protocole joint.",

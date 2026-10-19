@@ -50,7 +50,7 @@ import tempfile
 
 import streamlit as st
 
-from klastos import charts, theme
+from klastos import charts, i18n, theme
 from klastos.ingestion import IngestionError, parse_rows
 from klastos.market import (MissingPriceError, NotAProductionSourceError,
                             REFERENCE_SPECS, StalePriceError)
@@ -64,9 +64,32 @@ from klastos.structural import (BASE_ABSOLUE, BASE_CRISTALLINE, BASES,
 from klastos.units import ImplausiblePriceError
 
 TITRE = "KLASTOS21"
-SOUS_TITRE = "Analyse prédictive des matières premières secondaires"
 
-PAGES = ["Analyse", "Prix", "Historique", "Aide"]
+#: Cles STABLES des pages. Elles etaient les libelles francais eux-memes, et
+#: le routage comparait `page == "Analyse"` : traduire la navigation aurait
+#: donc envoye toutes les pages sur la page d'aide, sans erreur visible.
+#: Meme faute que les titres de sections du rapport. Voir klastos/i18n.py.
+PAGES = ["analyse", "prix", "historique", "aide"]
+
+
+def _langue() -> str:
+    """
+    La langue choisie dans la barre laterale.
+
+    Lue dans l'etat de session parce que le selecteur est rendu APRES
+    certains textes de la barre : sans memoire, le premier affichage sortirait
+    dans la langue precedente a chaque changement.
+    """
+    return i18n.langue_valide(st.session_state.get("langue", i18n.DEFAUT))
+
+
+def T(cle: str, **champs: object) -> str:
+    """Raccourci de traduction, dans la langue courante de l'interface."""
+    return i18n.t(cle, _langue(), **champs)
+
+
+def SOUS_TITRE() -> str:
+    return T("rapport.doc.soustitre")
 
 
 # ==========================================================================
@@ -111,10 +134,12 @@ def construire_demande(
     base_drx: str = BASE_ABSOLUE,
     conseil_drx: bool = False,
     incertitude_drx: float = CONSEIL_U_DEFAUT,
+    langue: str = i18n.DEFAUT,
 ) -> Demande:
     """Assemble la demande. Fonction pure : c'est elle qui est testee."""
     return Demande(
         lignes=lignes,
+        langue=langue,
         lot_id=lot_id.strip(),
         client=client.strip() or "Client",
         provenance=provenance,
@@ -181,7 +206,7 @@ def _marque() -> None:
               <div class="marque-cube">K21</div>
               <div>
                 <div class="marque-nom">KLASTOS<span>21</span></div>
-                <div class="marque-sous">{SOUS_TITRE}</div>
+                <div class="marque-sous">{SOUS_TITRE()}</div>
               </div>
             </div>""",
         unsafe_allow_html=True)
@@ -221,37 +246,35 @@ def _tuile(cle: str, valeur: str, note: str = "", classe: str = "") -> str:
 # ==========================================================================
 
 def _page_analyse(reglages: dict) -> None:
-    _fil("Analyse")
+    _fil(T("ui.page.analyse"))
     _heros(
-        "Analyse minéralogique de black mass",
-        "Importez votre bulletin d'analyse et obtenez la reconstitution "
-        "minéralogique de votre échantillon, avec ce qui est déterminé et "
-        "ce qui ne peut pas l'être.",
-        "Ce que l'outil garantit",
-        "Aucun chiffre que la donnée ne porte. Une grandeur non "
-        "identifiable sort en domaine, jamais en valeur unique.")
+        T("ui.analyse.titre"),
+        T("ui.analyse.chapeau"),
+        T("ui.analyse.garantie_titre"),
+        T("ui.analyse.garantie"))
 
     gauche, droite = st.columns([1, 2], gap="medium")
 
     with gauche:
         with st.container(border=True):
-            st.markdown(_carte_titre("1", "Importer votre bulletin"),
+            st.markdown(_carte_titre("1", T("ui.import.titre")),
                         unsafe_allow_html=True)
             fichier = st.file_uploader(
-                "Glissez-déposez votre fichier",
+                T("ui.import.depot"),
                 type=["csv"], label_visibility="collapsed",
-                help="Format large (intitulés puis valeurs) ou long "
-                     "(élément, valeur). Les unités se déclarent dans "
-                     "l'intitulé : « Ni (%) », « Fe (mg/kg) ». L'oxygène "
-                     "n'est pas attendu, il est prédit.")
-            st.caption("Format accepté : **CSV**  ·  séparateur réglable "
-                       "dans les paramètres")
+                help=T("ui.import.aide"))
+            # Le separateur est ICI, et non dans un volet de reglages : il
+            # porte sur le fichier qu'on vient de deposer. Enfoui ailleurs,
+            # il a fait echouer deux analyses d'affilee sur un CSV en
+            # point-virgule, l'erreur ne disant qu'« Aucune colonne
+            # exploitable ».
+            st.text_input(T("ui.separateur.libelle"), value=",",
+                          key="separateur", help=T("ui.separateur.aide"))
 
         if fichier is None:
             st.markdown(
-                '<div class="methode">Déposez un bulletin pour lancer une '
-                'analyse. Un exemple est fourni dans '
-                '<b>data/exemples/</b>.</div>', unsafe_allow_html=True)
+                f'<div class="methode">{T("ui.import.invite")}</div>',
+                unsafe_allow_html=True)
             return
 
         try:
@@ -262,46 +285,40 @@ def _page_analyse(reglages: dict) -> None:
             st.error(f"**{titre}** — {detail}")
             return
 
-        with st.expander("Ce que KLASTOS21 a lu dans votre fichier"):
-            st.dataframe([{"Colonne": k, "Valeur lue": v}
+        with st.expander(T("ui.import.lu")):
+            st.dataframe([{T("ui.import.col_colonne"): k,
+                           T("ui.import.col_valeur"): v}
                           for k, v in lignes.items()],
                          use_container_width=True, hide_index=True)
 
         with st.container(border=True):
-            st.markdown(_carte_titre("2", "Identifier le lot"),
+            st.markdown(_carte_titre("2", T("ui.lot.titre")),
                         unsafe_allow_html=True)
-            lot_id = st.text_input("Identifiant du lot",
+            lot_id = st.text_input(T("ui.lot.identifiant"),
                                    value=pathlib.Path(fichier.name).stem)
-            client = st.text_input("Client", value="Client")
+            client = st.text_input(T("ui.lot.client"), value="Client")
 
         with st.container(border=True):
             st.markdown(
-                _carte_titre("3", "Quantification par diffraction"),
+                _carte_titre("3", T("ui.drx.titre")),
                 unsafe_allow_html=True)
-            st.caption("Facultatif. C'est le levier le plus puissant du lot.")
+            st.caption(T("ui.drx.facultatif"))
             f_drx = st.file_uploader(
-                "Fichier de quantification DRX",
+                T("ui.drx.fichier"),
                 type=["csv"], label_visibility="collapsed",
                 key="drx_upload",
-                help="Une phase par ligne : phase, valeur, incertitude. "
-                     "La colonne d'incertitude est OBLIGATOIRE — une mesure "
-                     "Rietveld est précise à 1 ou 3 points, et sans son "
-                     "incertitude elle passerait pour exacte.")
+                help=T("ui.drx.aide"))
             base = st.radio(
-                "Base de normalisation", list(BASES),
+                T("ui.drx.base"), list(BASES),
                 format_func=lambda b: LIBELLE_BASE[b],
                 horizontal=False, key="drx_base",
-                help="Un diffractogramme ne voit que le cristallin. Sur base "
-                     "cristalline, les niveaux ne sont pas contraints : seuls "
-                     "les rapports entre phases le sont, et il faut donc une "
-                     "phase de plus.")
+                help=T("ui.drx.base_aide"))
             conseil = st.checkbox(
-                "Calculer quelle phase faire quantifier",
+                T("ui.drx.conseil"),
                 value=False, key="drx_conseil",
-                help="Classe les phases par le resserrement qu'une mesure "
-                     "apporterait, au pire placement. Quelques secondes.")
+                help=T("ui.drx.conseil_aide"))
             u_drx = st.number_input(
-                "Incertitude supposée du laboratoire (points)",
+                T("ui.drx.incertitude"),
                 min_value=0.1, max_value=10.0, step=0.5,
                 value=CONSEIL_U_DEFAUT * 100, key="drx_u",
                 disabled=not conseil)
@@ -319,12 +336,11 @@ def _page_analyse(reglages: dict) -> None:
 
         prix = st.session_state.get("prix")
         if prix is None:
-            st.caption("Aucun prix chargé : le rapport sortira sans "
-                       "valorisation. Onglet **Prix** pour en fournir.")
+            st.caption(T("ui.prix.absent"))
         else:
-            st.caption(f"Prix : {prix.label}")
+            st.caption(T("ui.prix.charge", label=prix.label))
 
-        lancer = st.button("Lancer l'analyse", type="primary",
+        lancer = st.button(T("ui.analyse.lancer"), type="primary",
                            use_container_width=True)
 
     if lancer:
@@ -343,8 +359,12 @@ def _page_analyse(reglages: dict) -> None:
             drx=chemin_drx,
             base_drx=base,
             conseil_drx=conseil,
-            incertitude_drx=u_drx / 100.0)
-        with st.spinner("Reconstitution et propagation d'incertitude…"):
+            incertitude_drx=u_drx / 100.0,
+            # Le rapport sort dans la langue de l'interface : sans cette
+            # ligne, un operateur en anglais telechargeait un document
+            # francais sans comprendre pourquoi.
+            langue=reglages["langue"])
+        with st.spinner(T("ui.analyse.en_cours")):
             try:
                 st.session_state["analyse"] = analyser(demande)
                 st.session_state["enregistre"] = False
@@ -372,12 +392,8 @@ def _resultats(a: Analyse, reglages: dict) -> None:
     bouclage = a.incertitude.meta.get("closure")
     statut = bouclage.status if bouclage else "ok"
     teinte, fond = theme.TEINTE_BOUCLAGE.get(statut, theme.TEINTE_BOUCLAGE["ok"])
-    verdict = {"ok": "Analyse terminée", "alerte": "Analyse terminée — à vérifier",
-               "rejet": "Lot inexploitable en l'état"}[statut]
-    sous = {"ok": "Votre rapport est prêt.",
-            "alerte": "Le rapport est disponible, mais le bouclage massique "
-                      "demande une explication.",
-            "rejet": "Le bouclage est hors tolérance."}[statut]
+    verdict = T(f"ui.verdict.{statut}")
+    sous = T(f"ui.verdict.{statut}_sous")
 
     st.markdown(
         f"""<div class="bandeau" style="background:{fond};border-color:{teinte};
@@ -386,14 +402,16 @@ def _resultats(a: Analyse, reglages: dict) -> None:
                    <div class="bandeau-sous">{sous}</div></div>
               <div class="bandeau-droite">
                 {a.rapport.issued_on.isoformat()}<br>
-                Échantillon : {a.rapport.lot_id}</div>
+                {T("ui.lot.echantillon")} : {a.rapport.lot_id}</div>
             </div>""", unsafe_allow_html=True)
 
     if a.rapport.is_demo:
-        st.warning("Document de démonstration — non opposable.")
+        st.warning(T("ui.demo.avert"))
 
-    t1, t2, t3, t4 = st.tabs(["Vue d'ensemble", "Composition minéralogique",
-                              "Réduire l'incertitude", "Rapport"])
+    t1, t2, t3, t4 = st.tabs([T("ui.onglet.ensemble"),
+                              T("ui.onglet.composition"),
+                              T("ui.onglet.reduire"),
+                              T("ui.onglet.rapport")])
     with t1:
         _vue_ensemble(a)
     with t2:
@@ -892,85 +910,96 @@ def _page_aide() -> None:
 # ==========================================================================
 
 def _reglages() -> dict:
+    # Le selecteur de langue vient en PREMIER, avant la marque : c'est le
+    # seul reglage dont depend l'affichage de tous les autres.
+    st.sidebar.selectbox(
+        T("ui.langue.libelle"), i18n.LANGUES, key="langue",
+        format_func=lambda lg: T(f"ui.langue.nom.{lg}"),
+        help=T("ui.langue.aide"))
+
     _marque()
-    page = st.sidebar.radio("Navigation", PAGES, label_visibility="collapsed")
+    page = st.sidebar.radio(
+        T("ui.nav.libelle"), PAGES, label_visibility="collapsed",
+        format_func=lambda cle: T(f"ui.page.{cle}"))
     st.sidebar.markdown("---")
 
     def _libelle_profil(cle: str) -> str:
         p = PROVENANCE_PROFILES[cle]
-        suffixe = "" if getattr(p, "validated", True) else "  (non arbitré)"
+        suffixe = ("" if getattr(p, "validated", True)
+                   else T("ui.provenance.non_arbitre"))
         return f"{p.label}{suffixe}"
 
     provenance = st.sidebar.selectbox(
-        "Provenance déclarée", sorted(PROVENANCE_PROFILES),
+        T("ui.provenance.libelle"), sorted(PROVENANCE_PROFILES),
         index=sorted(PROVENANCE_PROFILES).index("non_declaree"),
         format_func=_libelle_profil)
     if not getattr(PROVENANCE_PROFILES[provenance], "validated", True):
-        st.sidebar.warning(
-            "Ce profil d'exclusion n'a pas été arbitré métier. Les phases "
-            "qu'il écarte relèvent d'une hypothèse, pas d'une décision.")
+        st.sidebar.warning(T("ui.provenance.avert_non_arbitre"))
 
     attestee = st.sidebar.checkbox(
-        "Le client a signé l'attestation de provenance.",
-        help="SANS CETTE ATTESTATION, AUCUNE PHASE N'EST EXCLUE, quelle que "
-             "soit la provenance choisie. Exclure une phase sur une simple "
-             "déclaration orale reviendrait à sous-estimer un lot sans trace.")
+        T("ui.attestation.libelle"), help=T("ui.attestation.aide"))
     if not attestee and provenance != "non_declaree":
-        st.sidebar.info("Provenance renseignée sans attestation : aucune "
-                        "phase ne sera exclue. Le rapport le dira.")
+        st.sidebar.info(T("ui.attestation.sans"))
 
     grades = None
     if provenance == "chutes_gigafactory":
+        # Les noms de grade sont des designations techniques : ils ne se
+        # traduisent pas.
         saisis = st.sidebar.multiselect(
-            "Grades produits sur le site",
+            T("ui.grades.libelle"),
             ["NMC111", "NMC532", "NMC622", "NMC811", "NCA", "LFP", "LCO",
              "LMO"])
         grades = tuple(saisis) if saisis else None
 
     destinataire = st.sidebar.radio(
-        "Destinataire du rapport", [DESTINATAIRE_TIERS, DESTINATAIRE_INTERNE],
-        format_func=lambda x: "Un tiers (client)" if x == DESTINATAIRE_TIERS
-                              else "Usage interne",
-        help="Des prix d'agence sans licence de rediffusion font refuser un "
-             "document destiné à un tiers.")
+        T("ui.destinataire.libelle"),
+        [DESTINATAIRE_TIERS, DESTINATAIRE_INTERNE],
+        format_func=lambda x: T("ui.destinataire.tiers")
+        if x == DESTINATAIRE_TIERS else T("ui.destinataire.interne"),
+        help=T("ui.destinataire.aide"))
 
-    with st.sidebar.expander("Valorisation"):
-        spec = st.selectbox("Spécification à contrôler",
-                            ["(aucune)"] + sorted(REFERENCE_SPECS))
-        cout = st.number_input("Coût de traitement (par tonne)",
+    with st.sidebar.expander(T("ui.volet.valorisation")):
+        aucune = T("ui.spec.aucune")
+        spec = st.selectbox(T("ui.spec.libelle"),
+                            [aucune] + sorted(REFERENCE_SPECS))
+        cout = st.number_input(T("ui.cout.libelle"),
                                min_value=0.0, value=0.0, step=10.0)
-        marge = st.slider("Marge visée", 0.0, 0.6, 0.0, 0.01)
+        marge = st.slider(T("ui.marge.libelle"), 0.0, 0.6, 0.0, 0.01)
 
-    with st.sidebar.expander("Seuils et calcul"):
-        st.caption(f"Seuils arbitrés : alerte {CLOSURE_ALERT:.0%}, "
-                   f"rejet {CLOSURE_REJECT:.0%}.")
-        seuil_alerte = st.number_input("Seuil d'alerte", 0.0, 1.0,
+    with st.sidebar.expander(T("ui.volet.seuils")):
+        st.caption(T("ui.seuils.arbitres",
+                     alerte=CLOSURE_ALERT, rejet=CLOSURE_REJECT))
+        seuil_alerte = st.number_input(T("ui.seuil.alerte"), 0.0, 1.0,
                                        CLOSURE_ALERT, 0.01)
-        seuil_rejet = st.number_input("Seuil de rejet", 0.0, 1.0,
+        seuil_rejet = st.number_input(T("ui.seuil.rejet"), 0.0, 1.0,
                                       CLOSURE_REJECT, 0.01)
-        tirages = st.slider("Tirages de propagation", 40, 500, 200, 20)
-        graine = st.number_input("Graine aléatoire", 0, 10_000, 0, 1,
-                                 help="Même graine, même résultat.")
-        separateur = st.text_input("Séparateur du CSV", value=",")
+        tirages = st.slider(T("ui.tirages.libelle"), 40, 500, 200, 20)
+        graine = st.number_input(T("ui.graine.libelle"), 0, 10_000, 0, 1,
+                                 help=T("ui.graine.aide"))
 
-    with st.sidebar.expander("Historique"):
-        historique = st.checkbox("Enregistrer les analyses", value=True)
-        base = st.text_input("Fichier d'historique",
+    with st.sidebar.expander(T("ui.volet.historique")):
+        historique = st.checkbox(T("ui.historique.enregistrer"), value=True)
+        base = st.text_input(T("ui.historique.fichier"),
                              value=str(pathlib.Path("data")
                                        / "historique.sqlite"))
 
     st.sidebar.markdown(
-        '<div class="etat-systeme"><span class="pastille-verte"></span>'
-        '<b>Système prêt</b><br>Prêt à traiter un nouveau bulletin.</div>',
+        f'<div class="etat-systeme"><span class="pastille-verte"></span>'
+        f'<b>{T("ui.etat.pret")}</b><br>{T("ui.etat.pret_detail")}</div>',
         unsafe_allow_html=True)
 
     return dict(
-        page=page, provenance=provenance, attestee=attestee, grades=grades,
-        destinataire=destinataire,
-        specification=REFERENCE_SPECS.get(spec) if spec != "(aucune)" else None,
+        page=page, langue=_langue(), provenance=provenance,
+        attestee=attestee, grades=grades, destinataire=destinataire,
+        specification=REFERENCE_SPECS.get(spec) if spec != aucune else None,
         cout=cout, marge=marge, seuil_alerte=seuil_alerte,
         seuil_rejet=seuil_rejet, tirages=tirages, graine=int(graine),
-        separateur=separateur or ",", historique=historique, base=base,
+        # Le separateur a quitte ce volet : il est desormais pose a cote du
+        # televersement, ou l'utilisateur le cherche. Enfoui sous « Seuils et
+        # calcul », il a fait echouer deux analyses d'affilee sur un CSV en
+        # point-virgule, avec pour seul indice « Aucune colonne exploitable ».
+        separateur=st.session_state.get("separateur") or ",",
+        historique=historique, base=base,
         emis_le=_dt.date.today())
 
 
@@ -985,11 +1014,11 @@ def main() -> None:
     reglages = _reglages()
 
     page = reglages["page"]
-    if page == "Analyse":
+    if page == "analyse":
         _page_analyse(reglages)
-    elif page == "Prix":
+    elif page == "prix":
         _page_prix(reglages)
-    elif page == "Historique":
+    elif page == "historique":
         _page_historique(reglages)
     else:
         _page_aide()
