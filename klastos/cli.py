@@ -127,16 +127,18 @@ def _ajouter_drx(p: argparse.ArgumentParser) -> None:
 
 def _ajouter_seuils(p: argparse.ArgumentParser) -> None:
     """
-    Seuils de bouclage, exposes parce qu'ils ne sont PAS arbitres.
+    Seuils de bouclage, exposes parce qu'un lot peut demander un reglage
+    propre - et non parce qu'ils seraient en attente d'arbitrage.
 
     Mesure a l'appui : sur des lots entierement decrits par le modele, le
     seul bruit analytique de 6 % produit une masse apparemment inexpliquee
     de 1,8 % en mediane, 5,7 % au 95e centile, et jusqu'a 10,3 % au pire.
-    Les valeurs par defaut du module (alerte 3 %, rejet 8 %) sont donc sous
-    le plancher de bruit : elles refusent des lots sains.
+    Les premiers seuils proposes (3 % et 8 %) etaient donc SOUS le plancher
+    de bruit : ils refusaient des lots sains.
 
-    Ces options permettent de travailler des aujourd'hui. Les valeurs par
-    defaut du module restent inchangees en attente d'arbitrage metier.
+    Arbitrage du geometallurgiste, inscrit au protocole 2.6 ter : alerte a
+    6 %, rejet a 20 %. `solver.py` porte les valeurs et le drapeau
+    CLOSURE_THRESHOLDS_VALIDATED ; ce module ne fait que les exposer.
     """
     from .solver import CLOSURE_ALERT, CLOSURE_REJECT
 
@@ -144,13 +146,13 @@ def _ajouter_seuils(p: argparse.ArgumentParser) -> None:
         "--seuil-alerte", type=float, default=CLOSURE_ALERT, metavar="X",
         dest="seuil_alerte",
         help=f"ecart de bouclage declenchant une alerte, en fraction "
-             f"(defaut : {CLOSURE_ALERT}, NON ARBITRE)",
+             f"(defaut : {CLOSURE_ALERT}, ARBITRE contre le plancher de bruit)",
     )
     p.add_argument(
         "--seuil-rejet", type=float, default=CLOSURE_REJECT, metavar="X",
         dest="seuil_rejet",
         help=f"ecart de bouclage rendant le lot inexploitable "
-             f"(defaut : {CLOSURE_REJECT}, NON ARBITRE)",
+             f"(defaut : {CLOSURE_REJECT}, ARBITRE contre le plancher de bruit)",
     )
 
 

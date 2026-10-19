@@ -1,0 +1,14 @@
+﻿Element,Valeur,Commentaire — colonne ignoree par le parseur
+Echantillon,BM-2026-0001,"Identifiant du lot. Non lu par le modele, conserve pour la tracabilite du document."
+Li (%),3.28,REQUIS. Le lithium porte une large part de la valeur et contraint la deconvolution. Non mesurable par XRF : exiger une ICP-OES ou une absorption atomique apres mise en solution.
+Ni (%),16.20,REQUIS. Element de cathode.
+Co (%),4.01,REQUIS. Element de cathode.
+Mn (%),3.74,REQUIS. Element de cathode. Son absence est signalee au rapport.
+Al (%),3.20,Collecteur de cathode et aluminium de boitier.
+Cu (%),2.70,Collecteur d'anode. En ppm ou mg/kg si le laboratoire le rend ainsi.
+Fe (mg/kg),35860,"Unite differente dans la meme colonne : elle est lue dans l'intitule, pas devinee."
+P (%),1.89,Trace un LFP eventuel et les residus d'electrolyte.
+C total (%),29.79,"Graphite d'anode et noir de carbone. Non mesurable par XRF. Intitules acceptes : C, Carbone, Carbone total, C total, Ctot."
+F (%),1.70,Liant PVDF et sels de fluor de l'electrolyte.
+Humidite (%),1.9,"Non lue par le modele, signalee au journal. A conserver : elle explique un bouclage degrade."
+Densite,2.4,"Idem : non lue, utile au relecteur."

@@ -249,10 +249,25 @@ def test_les_seuils_sont_exposes_car_non_arbitres():
     assert args.seuil_rejet == pytest.approx(0.18)
 
 
-def test_l_aide_signale_que_les_seuils_ne_sont_pas_arbitres(capsys):
+def test_l_aide_dit_d_ou_viennent_les_seuils_de_bouclage(capsys):
+    """
+    L'aide doit porter l'origine des seuils, pas seulement leur valeur.
+
+    Ce test a longtemps verifie l'inverse : il exigeait « NON ARBITRE »,
+    etat anterieur a l'arbitrage du geometallurgiste. Depuis, le protocole
+    2.6 ter arbitre 6 % et 20 %, `solver.py` pose
+    CLOSURE_THRESHOLDS_VALIDATED a True, et test_protocole.py l'affirme -
+    pendant que cette aide-ci soutenait encore le contraire a l'utilisateur.
+    Deux tests du depot se contredisaient donc sur le meme sujet.
+
+    L'assertion negative est la part qui mord : sans elle, « ARBITRE » est
+    un sous-mot de « NON ARBITRE » et le texte perime repasserait.
+    """
     with pytest.raises(SystemExit):
         build_parser().parse_args(["diag", "--help"])
-    assert "NON ARBITRE" in capsys.readouterr().out
+    aide = capsys.readouterr().out
+    assert "ARBITRE contre le plancher de bruit" in aide
+    assert "NON ARBITRE" not in aide
 
 
 def test_l_aide_signale_qu_il_n_y_a_pas_de_prix_par_defaut(capsys):
