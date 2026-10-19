@@ -16,8 +16,11 @@ from klastos.identifiability import NOTE_CARBONE, NOTE_NON_IDENTIFIABLE
 from klastos.market import (REFERENCE_SPECS, MetalPrice, PayableTerms,
                             PriceSet, demo_payable_terms, demo_price_set)
 from klastos.provenance import ProvenanceDeclaration
+from klastos import i18n
 from klastos.report import (MENTION_DETECTION, MENTION_MAL_DETERMINE,
-                            LotReport, ReportRefused, build_report)
+                            SECTION_FERMES, SECTION_REDUIRE, LotReport,
+                            ReportRefused,
+                            build_report)
 from klastos.uncertainty import (AVERTISSEMENT_SOMMET, UncertaintyConfig,
                                  propagate)
 from klastos.valuation import value_lot
@@ -123,7 +126,7 @@ def test_la_mention_de_non_identifiabilite_figure(rapport):
 
 
 def test_aucun_grade_nmc_dans_les_grandeurs_fermes(rapport):
-    fermes = rapport.section("Grandeurs fermes")
+    fermes = rapport.section(SECTION_FERMES)
     for row in fermes.rows:
         assert not row.label.startswith("NMC 1")
         assert not row.label.startswith("NMC 6")
@@ -131,7 +134,7 @@ def test_aucun_grade_nmc_dans_les_grandeurs_fermes(rapport):
 
 
 def test_les_teneurs_elementaires_sont_fermes(rapport):
-    fermes = rapport.section("Grandeurs fermes")
+    fermes = rapport.section(SECTION_FERMES)
     labels = {row.label for row in fermes.rows}
     for el in ("Ni total", "Co total", "Li total"):
         assert el in labels
@@ -142,7 +145,7 @@ def test_les_teneurs_elementaires_sont_fermes(rapport):
 # ==========================================================================
 
 def test_le_statut_mal_determine_existe(rapport):
-    fermes = rapport.section("Grandeurs fermes")
+    fermes = rapport.section(SECTION_FERMES)
     statuts = {row.status for row in fermes.rows}
     assert "ferme_large" in statuts, "aucune grandeur mal determinee detectee"
     assert "ferme" in statuts
@@ -150,12 +153,23 @@ def test_le_statut_mal_determine_existe(rapport):
 
 def test_le_rendu_distingue_les_deux_statuts(rapport):
     md = rapport.to_markdown()
-    assert "mal determine" in md
+    # Par le catalogue, pas en dur : le libelle est traduit, et un texte
+    # francais fige ici ferait echouer le test sur un rapport anglais.
+    assert i18n.t("rapport.statut.ferme_large", rapport.langue) in md
     assert MENTION_MAL_DETERMINE in md
 
 
 def test_les_grandeurs_mal_determinees_sont_listees_en_avertissement(rapport):
-    assert any("mal determinee" in w for w in rapport.warnings)
+    """
+    Le libelle vient du catalogue, donc on en extrait la part INVARIANTE :
+    ce qui est entre les champs de format. Figer la phrase entiere
+    obligerait a reproduire ici le nombre et la liste du lot d'exemple, et
+    figer un texte francais ferait echouer le test en anglais.
+    """
+    modele = i18n.CATALOGUE["rapport.note.mal_determinees"][rapport.langue]
+    fragment = modele.split("{liste}")[0].split("}")[-1].strip()
+    assert fragment, "modele sans part invariante : le test ne mord plus"
+    assert any(fragment in w for w in rapport.warnings), fragment
 
 
 def test_le_critere_est_relatif_pas_absolu(rapport):
@@ -163,7 +177,7 @@ def test_le_critere_est_relatif_pas_absolu(rapport):
     Une teneur en nickel de 19 % connue a plus ou moins 1 point est bonne.
     Une phase a 0,9 % connue a plus ou moins 1 point ne l'est pas.
     """
-    fermes = rapport.section("Grandeurs fermes")
+    fermes = rapport.section(SECTION_FERMES)
     par_label = {row.label: row for row in fermes.rows}
     assert par_label["Ni total"].status == "ferme"
     assert par_label["Cathodes totales"].status == "ferme"
@@ -174,7 +188,7 @@ def test_le_critere_est_relatif_pas_absolu(rapport):
 # ==========================================================================
 
 def test_les_goulots_structurels_sont_expliques(rapport):
-    lev = rapport.section("Comment reduire l'incertitude")
+    lev = rapport.section(SECTION_REDUIRE)
     assert lev is not None and lev.rows
     for row in lev.rows:
         assert "DRX" in row.note or "structurale" in row.note
@@ -270,9 +284,12 @@ def test_le_markdown_est_complet(rapport):
     md = rapport.to_markdown()
     for titre in ("# Rapport de lot LOT-001", "## Grandeurs fermes",
                   "## Ventilation par grade", "## Valorisation",
-                  "## Limites methodologiques declarees", "## Tracabilite"):
+                  "## Limites méthodologiques déclarées",
+                  "## Traçabilité"):
         assert titre in md, titre
-    assert md.rstrip().endswith("protocole joint.*")
+    # Le renvoi au protocole clot le document, dans les deux langues.
+    assert md.rstrip().endswith("*")
+    assert i18n.t("rapport.protocole.renvoi", rapport.langue) in md
 
 
 def test_le_rapport_porte_client_et_date(rapport):

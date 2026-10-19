@@ -141,10 +141,19 @@ def test_les_deux_langues_disent_des_choses_differentes():
     toujours une traduction non faite. Les exceptions legitimes - un sigle,
     une formule - doivent etre declarees ici explicitement.
     """
-    IDENTIQUES_ADMIS: set[str] = set()
+    #: Mots dont la forme est la meme en francais et en anglais. Chaque
+    #: entree est une decision, pas un oubli - d'ou la liste explicite.
+    IDENTIQUES_ADMIS = {
+        "rapport.doc.client",            # « Client » / "Client"
+        "rapport.doc.unite_points",      # « points » / "points"
+        "rapport.valeur.drx_avant_apres",  # purement numerique
+    }
     for cle, entree in i18n.CATALOGUE.items():
         if entree["fr"] == entree["en"]:
             assert cle in IDENTIQUES_ADMIS, cle
+    # Et l'inverse : une exception devenue inutile doit etre retiree.
+    for cle in IDENTIQUES_ADMIS:
+        assert i18n.CATALOGUE[cle]["fr"] == i18n.CATALOGUE[cle]["en"], cle
 
 
 # ==========================================================================
@@ -215,3 +224,128 @@ def test_le_renvoi_au_protocole_declare_sa_langue_en_anglais():
     en = i18n.t("rapport.protocole.renvoi", "en")
     assert "French" in en
     assert "protocole.md" in en
+
+
+# ==========================================================================
+# 7. Le rapport sort reellement dans les deux langues
+# ==========================================================================
+
+@pytest.fixture(scope="module")
+def rapports():
+    """Le meme lot, rendu en francais puis en anglais."""
+    import datetime as dt
+    import pathlib
+
+    from klastos.render_html import to_html
+    from klastos.service import Demande, analyser
+
+    racine = pathlib.Path(__file__).resolve().parent.parent
+    bulletin = racine / "data" / "exemples" / "bulletin_coherent.csv"
+    if not bulletin.exists():
+        pytest.skip("bulletin d'exemple absent")
+
+    out = {}
+    for langue in i18n.LANGUES:
+        a = analyser(Demande(bulletin=bulletin, langue=langue,
+                             provenance="vehicule_electrique", attestee=True,
+                             tirages=20, graine=0, emis_le=dt.date(2026, 9, 7)))
+        out[langue] = (a.rapport, a.rapport.to_markdown(), to_html(a.rapport))
+    return out
+
+
+def test_le_rapport_porte_la_langue_demandee(rapports):
+    for langue, (rapport, _, html) in rapports.items():
+        assert rapport.langue == langue
+        assert f'<html lang="{langue}">' in html
+
+
+def test_les_titres_de_sections_sont_traduits(rapports):
+    """
+    LE VERROU DE LA TRANCHE. Les titres etaient du texte en dur ; un rapport
+    anglais sortait integralement en francais.
+    """
+    fr = {s.title for s in rapports["fr"][0].sections}
+    en = {s.title for s in rapports["en"][0].sections}
+    assert fr and en
+    assert not (fr & en), f"titres non traduits : {fr & en}"
+
+
+def test_les_cles_de_sections_ne_changent_pas_avec_la_langue(rapports):
+    """
+    Le corollaire : ce que le titre perd en stabilite, la cle le garde. Sans
+    cela les deux rendus ne pourraient plus reconnaitre leurs sections.
+    """
+    fr = [s.cle for s in rapports["fr"][0].sections]
+    en = [s.cle for s in rapports["en"][0].sections]
+    assert fr == en
+    assert all(fr), "une section sans cle : elle redevient introuvable"
+
+
+def test_le_rapport_anglais_ne_laisse_pas_fuir_le_vocabulaire_francais(rapports):
+    """
+    Un mot francais oublie dans le document anglais est invisible en
+    relecture francaise, et saute aux yeux du destinataire.
+
+    On ne teste que des mots sans ambiguite : « déterminé » ou « largeur »
+    n'ont aucune raison d'apparaitre dans un rapport anglais, alors que des
+    noms propres ou des formules chimiques peuvent legitimement y figurer.
+    """
+    _, md, html = rapports["en"]
+    INTERDITS = ("déterminé", "déterminées", "Grandeur", "Statut",
+                 "Traçabilité", "Avertissements", "largeur", "incertitude",
+                 "non identifiable", "réductible", "Valorisation",
+                 "calculée", "référence", "Prix maximal",
+                 "Ventilation", "élémentaire")
+    # « teneurs » n'y figure pas : il n'apparait plus que dans le journal
+    # de provenance, dont la dette est declaree et testee separement.
+    for mot in INTERDITS:
+        assert mot not in md, f"Markdown anglais : « {mot} »"
+        assert mot not in html, f"HTML anglais : « {mot} »"
+
+
+#: Ce qui reste en francais dans un rapport anglais, et pourquoi.
+#:
+#: Le journal de lecture et le journal de provenance sont produits par
+#: `ingestion.py` et `provenance.py`, en amont du rapport et avant que la
+#: langue du livrable soit consultee. Les traduire demande de porter la
+#: langue jusqu'a la lecture du bulletin : c'est l'etape suivante du
+#: chantier, pas un oubli. Le test ci-dessous CONSTATE la dette plutot que
+#: de la laisser passer en silence.
+DETTE_JOURNAL = ("Provenance declaree", "Somme des teneurs lues")
+
+
+def test_la_dette_de_traduction_restante_est_circonscrite(rapports):
+    """
+    Les seules fuites francaises admises sont celles des journaux amont.
+
+    Si ce test echoue en signalant une entree de MOINS, c'est une bonne
+    nouvelle : la dette a ete payee, et il faut retirer la ligne de
+    DETTE_JOURNAL. S'il en signale une de PLUS, une regression a introduit
+    du francais en dur dans le chemin du rapport.
+    """
+    rapport = rapports["en"][0]
+    journaux = rapport.traceability + rapport.warnings
+    presentes = {d for d in DETTE_JOURNAL
+                 if any(d in x for x in journaux)}
+    assert presentes == set(DETTE_JOURNAL), (
+        f"dette attendue {set(DETTE_JOURNAL)}, constatee {presentes}")
+
+
+def test_le_rapport_anglais_renvoie_au_protocole_francais(rapports):
+    """L'arbitrage retenu : le protocole n'est pas traduit, et le document
+    anglais doit le dire au lieu de laisser le lecteur le supposer."""
+    _, md, html = rapports["en"]
+    for doc in (md, html):
+        assert "French" in doc
+        assert "protocole.md" in doc
+
+
+def test_les_deux_rapports_portent_les_memes_chiffres(rapports):
+    """
+    Traduire ne recalcule rien. Les valeurs doivent etre identiques aux deux
+    langues, sans quoi la traduction serait devenue un chemin de calcul.
+    """
+    valeurs = {}
+    for langue, (rapport, _, _) in rapports.items():
+        valeurs[langue] = [r.value for s in rapport.sections for r in s.rows]
+    assert valeurs["fr"] == valeurs["en"]

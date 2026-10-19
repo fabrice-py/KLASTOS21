@@ -28,7 +28,8 @@ from klastos.identifiability import (SCENARIO_ELEMENTS,
 from klastos.ingestion import read_bulletin
 from klastos.phases import cathode_indicator, stoichiometry_matrix
 from klastos.provenance import ProvenanceDeclaration
-from klastos.report import (MENTION_SCENARIO, MENTION_SCENARIO_PIEGE,
+from klastos.report import (SECTION_SCENARIO, MENTION_SCENARIO,
+                            MENTION_SCENARIO_PIEGE,
                             TITRE_SCENARIO, build_report)
 from klastos.solver import solve
 from klastos.uncertainty import UncertaintyConfig, propagate
@@ -546,7 +547,7 @@ def test_le_rendu_a_un_vocabulaire_propre_au_scenario():
     from klastos.render_html import (STATUTS, STATUTS_LARGEUR,
                                      STATUTS_SCENARIO, VOCABULAIRE_LARGEUR)
 
-    assert VOCABULAIRE_LARGEUR[TITRE_SCENARIO] is STATUTS_SCENARIO
+    assert VOCABULAIRE_LARGEUR[SECTION_SCENARIO] is STATUTS_SCENARIO
     for statut in ("ferme", "ouvert"):
         assert (STATUTS_SCENARIO[statut][0] != STATUTS[statut][0]
                 != STATUTS_LARGEUR[statut][0])
@@ -557,7 +558,7 @@ def test_le_rendu_du_scenario_est_une_section_de_largeurs(rapport):
 
     import html as _h
 
-    assert TITRE_SCENARIO in SECTIONS_LARGEUR
+    assert SECTION_SCENARIO in SECTIONS_LARGEUR
     _, r = rapport
     doc = to_html(r)
     # Le titre contient une apostrophe, que le rendu echappe.

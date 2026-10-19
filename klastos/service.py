@@ -31,6 +31,7 @@ import datetime as _dt
 import pathlib
 from dataclasses import dataclass, field
 
+from . import i18n
 from .identifiability import (CONSEIL_U_DEFAUT, ConseilQuantification,
                               analyse as _analyse_systeme,
                               conseil_quantification, IdentifiabilityAnalysis)
@@ -78,6 +79,11 @@ class Demande:
     unite_par_defaut: str = "%"
     censure: str = "half"
     separateur: str = ","
+
+    # --- langue du livrable ------------------------------------------------
+    #: « fr » ou « en ». Le protocole n'etant pas traduit, un rapport
+    #: anglais le cite en declarant sa langue. Voir klastos/i18n.py.
+    langue: str = i18n.DEFAUT
 
     # --- provenance -------------------------------------------------------
     provenance: str = "non_declaree"
@@ -298,6 +304,7 @@ def analyser(demande: Demande) -> Analyse:
         allow_demo=demande.autoriser_demo,
         destinataire=demande.destinataire,
         conseil=conseil,
+        langue=demande.langue,
     )
 
     return Analyse(

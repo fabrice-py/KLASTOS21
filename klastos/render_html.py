@@ -30,14 +30,20 @@ from __future__ import annotations
 
 import html as _html
 
-from .report import (TITRE_CONSEIL, TITRE_DRX, TITRE_SCENARIO, LotReport,
-                     ReportRow, ReportSection)
+from . import i18n
+from .report import (SECTION_CONSEIL, SECTION_DIAGNOSTIC, SECTION_DRX,
+                     SECTION_REDUIRE, SECTION_SCENARIO, SECTION_SENSIBLES,
+                     SECTION_VALORISATION, TITRE_CONSEIL, TITRE_DRX,
+                     TITRE_SCENARIO, LotReport, ReportRow, ReportSection)
 
-# Libellés des statuts, tels que le client les lit.
+# Statuts tels que le client les lit. Les tables portent desormais une CLE
+# i18n et non le texte : le libelle est resolu au rendu, dans la langue du
+# document. Les classes CSS, elles, sont de la presentation et ne se
+# traduisent pas.
 STATUTS = {
-    "ferme": ("ferme", "st-ferme"),
-    "ferme_large": ("ferme, mal déterminé", "st-large"),
-    "ouvert": ("non identifiable", "st-ouvert"),
+    "ferme": ("rapport.statut.html_ferme", "st-ferme"),
+    "ferme_large": ("rapport.statut.html_ferme_large", "st-large"),
+    "ouvert": ("rapport.statut.html_ouvert", "st-ouvert"),
 }
 
 # Sections dont les valeurs sont des largeurs, pas des positions : la barre
@@ -52,43 +58,46 @@ STATUTS = {
 #   status "ferme"  -> largeur d'origine analytique, donc réductible
 #   status "ouvert" -> largeur d'origine structurale, donc irréductible
 STATUTS_LARGEUR = {
-    "ferme": ("réductible", "st-ferme", "b-ferme"),
-    "ferme_large": ("réductible", "st-ferme", "b-ferme"),
-    "ouvert": ("irréductible", "st-ouvert", "b-irr"),
+    "ferme": ("rapport.statut.html_reductible", "st-ferme", "b-ferme"),
+    "ferme_large": ("rapport.statut.html_reductible", "st-ferme", "b-ferme"),
+    "ouvert": ("rapport.statut.html_irreductible", "st-ouvert", "b-irr"),
 }
 
 # La section de scénario rapporte elle aussi des largeurs, mais le statut y
 # répond à une troisième question : le dosage déterminerait-il la grandeur ?
 STATUTS_SCENARIO = {
-    "ferme": ("deviendrait ferme", "st-ferme", "b-ferme"),
-    "ferme_large": ("deviendrait ferme", "st-ferme", "b-ferme"),
-    "ouvert": ("resterait ouverte", "st-ouvert", "b-irr"),
+    "ferme": ("rapport.statut.deviendrait_ferme", "st-ferme", "b-ferme"),
+    "ferme_large": ("rapport.statut.deviendrait_ferme", "st-ferme", "b-ferme"),
+    "ouvert": ("rapport.statut.resterait_ouverte", "st-ouvert", "b-irr"),
 }
 
 # La section de quantification structurale rapporte un resserrement DEJA
 # acquis, pas un potentiel : le statut y repond a une quatrieme question.
 STATUTS_DRX = {
-    "ferme": ("resserrée", "st-ferme", "b-ferme"),
-    "ferme_large": ("resserrée", "st-ferme", "b-ferme"),
-    "ouvert": ("inchangée", "st-ouvert", "b-irr"),
+    "ferme": ("rapport.statut.resserree", "st-ferme", "b-ferme"),
+    "ferme_large": ("rapport.statut.resserree", "st-ferme", "b-ferme"),
+    "ouvert": ("rapport.statut.inchangee", "st-ouvert", "b-irr"),
 }
 
 # La section de conseil rapporte un gain a venir, conditionne a une mesure
 # que le client n'a pas encore commandee.
 STATUTS_CONSEIL = {
-    "ferme": ("gain acquis au pire cas", "st-ferme", "b-ferme"),
-    "ferme_large": ("gain acquis au pire cas", "st-ferme", "b-ferme"),
-    "ouvert": ("sans effet", "st-ouvert", "b-irr"),
+    "ferme": ("rapport.statut.gain_pire_cas", "st-ferme", "b-ferme"),
+    "ferme_large": ("rapport.statut.gain_pire_cas", "st-ferme", "b-ferme"),
+    "ouvert": ("rapport.statut.sans_effet", "st-ouvert", "b-irr"),
 }
 
 #: Vocabulaire applique a chaque section de largeurs. Une section absente de
 #: cette table est une section de positions, pas de largeurs.
+# Indexe par CLE de section, jamais par titre : le titre est du texte
+# affiche, donc traduit. Indexe par titre, cette table se vidait
+# silencieusement des que le document changeait de langue.
 VOCABULAIRE_LARGEUR = {
-    "Comment reduire l'incertitude": STATUTS_LARGEUR,
-    "Grandeurs sensibles a la qualite du bulletin": STATUTS_LARGEUR,
-    TITRE_SCENARIO: STATUTS_SCENARIO,
-    TITRE_DRX: STATUTS_DRX,
-    TITRE_CONSEIL: STATUTS_CONSEIL,
+    SECTION_REDUIRE: STATUTS_LARGEUR,
+    SECTION_SENSIBLES: STATUTS_LARGEUR,
+    SECTION_SCENARIO: STATUTS_SCENARIO,
+    SECTION_DRX: STATUTS_DRX,
+    SECTION_CONSEIL: STATUTS_CONSEIL,
 }
 
 SECTIONS_LARGEUR = frozenset(VOCABULAIRE_LARGEUR)
@@ -353,25 +362,30 @@ def _barre(ligne: ReportRow, echelle: float, vocabulaire: dict | None = None) ->
             f'style="left:{gauche:.2f}%;width:{largeur:.2f}%"></span></div>')
 
 
-def _tableau(section: ReportSection) -> str:
+def _tableau(section: ReportSection, lg: str = i18n.DEFAUT) -> str:
     echelle = _echelle(section)
     avec_barres = any(r.has_bar for r in section.rows)
-    vocabulaire = VOCABULAIRE_LARGEUR.get(section.title)
+    # Par la CLE, jamais par le titre : le titre est traduit.
+    vocabulaire = VOCABULAIRE_LARGEUR.get(section.cle)
     largeur = vocabulaire is not None
 
     L: list[str] = ["<table>", "<thead><tr>",
-                    '<th class="c-lab">Grandeur</th>']
+                    f'<th class="c-lab">'
+                    f'{_e(i18n.t("rapport.doc.col_grandeur", lg))}</th>']
     if avec_barres:
-        entete = "Largeur de la fourchette" if largeur else "Domaine"
+        entete = i18n.t("rapport.doc.col_largeur" if largeur
+                        else "rapport.doc.col_domaine", lg)
         L.append(f'<th class="c-bar">{_e(entete)}</th>')
-    L += ['<th class="c-val">Valeur</th>', '<th class="c-st">Statut</th>',
+    L += [f'<th class="c-val">{_e(i18n.t("rapport.doc.col_valeur", lg))}</th>',
+          f'<th class="c-st">{_e(i18n.t("rapport.doc.col_statut", lg))}</th>',
           "</tr></thead><tbody>"]
 
     for r in section.rows:
         if largeur:
-            libelle, classe, _ = vocabulaire.get(r.status, ("", "", ""))
+            cle_st, classe, _ = vocabulaire.get(r.status, ("", "", ""))
         else:
-            libelle, classe = STATUTS.get(r.status, ("", ""))
+            cle_st, classe = STATUTS.get(r.status, ("", ""))
+        libelle = i18n.t(cle_st, lg) if cle_st else ""
         L.append("<tr>")
         L.append(f'<td class="c-lab">{_e(r.label)}</td>')
         if avec_barres:
@@ -383,7 +397,7 @@ def _tableau(section: ReportSection) -> str:
     L.append("</tbody></table>")
 
     if avec_barres:
-        unite = "points" if largeur else "%"
+        unite = i18n.t("rapport.doc.unite_points", lg) if largeur else "%"
         L.append(f'<div class="echelle"><span>0 {_e(unite)}</span>'
                  f'<span>{echelle * 100:.0f} {_e(unite)}</span></div>')
         statuts = {r.status for r in section.rows if r.has_bar}
@@ -393,13 +407,16 @@ def _tableau(section: ReportSection) -> str:
             # ne peuvent donc pas se contredire, ce qui est arrive.
             if any(r.point is not None and r.high is not None
                    and r.point > r.high for r in section.rows):
-                items.append('<span><i class="lg-avant"></i>'
-                             'largeur actuelle</span>')
+                items.append(
+                    f'<span><i class="lg-avant"></i>'
+                    f'{_e(i18n.t("rapport.legende.largeur_actuelle", lg))}'
+                    f"</span>")
             vus: set[str] = set()
             for statut in ("ferme", "ferme_large", "ouvert"):
                 if statut not in statuts or statut not in vocabulaire:
                     continue
-                libelle, _, classe_barre = vocabulaire[statut]
+                cle_lib, _, classe_barre = vocabulaire[statut]
+                libelle = i18n.t(cle_lib, lg)
                 if libelle in vus:
                     continue
                 vus.add(libelle)
@@ -407,14 +424,14 @@ def _tableau(section: ReportSection) -> str:
                 items.append(f'<span><i class="{pastille}"></i>'
                              f'{_e(libelle)}</span>')
         else:
-            if "ferme" in statuts:
-                items.append('<span><i class="lg-ferme"></i>ferme</span>')
-            if "ferme_large" in statuts:
-                items.append('<span><i class="lg-large"></i>'
-                             'mal déterminé</span>')
-            if "ouvert" in statuts:
-                items.append('<span><i class="lg-ouvert"></i>'
-                             'domaine compatible</span>')
+            for statut, classe, cle_lib in (
+                ("ferme", "lg-ferme", "rapport.legende.ferme"),
+                ("ferme_large", "lg-large", "rapport.legende.mal_determine"),
+                ("ouvert", "lg-ouvert", "rapport.legende.domaine"),
+            ):
+                if statut in statuts:
+                    items.append(f'<span><i class="{classe}"></i>'
+                                 f'{_e(i18n.t(cle_lib, lg))}</span>')
         if items:
             L.append(f'<div class="legende">{"".join(items)}</div>')
     return "".join(L)
@@ -429,7 +446,7 @@ def _tuiles(rapport: LotReport) -> str:
     message : le message d'un bouclage dégradé ne contient pas le mot
     « alerte », et un lot en alerte s'affichait en bleu comme conforme.
     """
-    diag = rapport.section("Diagnostic du bulletin")
+    diag = rapport.section(SECTION_DIAGNOSTIC)
     if diag is None or not diag.rows:
         return ""
     autorisees = {"ok", "alerte", "rejet"}
@@ -449,33 +466,35 @@ def _tuiles(rapport: LotReport) -> str:
 
 def _verdict(rapport: LotReport) -> str:
     """Le prix maximal à payer, en tête : c'est ce que le lecteur cherche."""
-    val = rapport.section("Valorisation")
+    lg = i18n.langue_valide(rapport.langue)
+    val = rapport.section(SECTION_VALORISATION)
     if val is None:
         return (
-            '<div class="verdict"><div class="verdict-k">Valorisation</div>'
-            '<div class="verdict-v" style="font-size:13pt">non calculée</div>'
-            '<div class="verdict-n">Aucun prix de référence n\'a été fourni '
-            'pour ce rapport. La reconstitution, les domaines compatibles et '
-            'les diagnostics ci-dessous restent valides.</div></div>'
+            '<div class="verdict"><div class="verdict-k">'
+            f'{_e(i18n.t("rapport.section.valorisation", lg))}</div>'
+            '<div class="verdict-v" style="font-size:13pt">'
+            f'{_e(i18n.t("rapport.verdict.non_calculee", lg))}</div>'
+            '<div class="verdict-n">'
+            f'{_e(i18n.t("rapport.verdict.sans_prix", lg))}</div></div>'
         )
     ligne = next((r for r in val.rows if "MAXIMAL" in r.label.upper()), None)
     if ligne is None:
         return ""
     return (
         '<div class="verdict">'
-        '<div class="verdict-k">Prix maximal à payer</div>'
+        '<div class="verdict-k">'
+        f'{_e(i18n.t("rapport.verdict.prix_maximal", lg))}</div>'
         f'<div class="verdict-v">{_e(ligne.value)}</div>'
-        '<div class="verdict-n">Calculé sur les seules teneurs élémentaires, '
-        'qui sont identifiables. Aucune ventilation par grade n\'entre dans '
-        'ce chiffre. La largeur de la fourchette reflète l\'incertitude '
-        'analytique.</div></div>'
+        '<div class="verdict-n">'
+        f'{_e(i18n.t("rapport.verdict.base_prix", lg))}</div></div>'
     )
 
 
 def to_html(rapport: LotReport) -> str:
     """Rend le rapport en un document HTML autonome, prêt à imprimer."""
+    lg = i18n.langue_valide(rapport.langue)
     L: list[str] = [
-        "<!doctype html>", '<html lang="fr">', "<head>",
+        "<!doctype html>", f'<html lang="{lg}">', "<head>",
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>KLASTOS21 — lot {_e(rapport.lot_id)}</title>",
@@ -490,14 +509,17 @@ def to_html(rapport: LotReport) -> str:
     L += [
         "<header>",
         '<div class="marque">KLASTOS<span>21</span></div>',
-        '<div class="soustitre">Analyse prédictive des matières premières '
-        'secondaires</div>',
+        f'<div class="soustitre">'
+        f'{_e(i18n.t("rapport.doc.soustitre", lg))}</div>',
         '<div class="titre-bloc">',
-        f"<h1>Rapport de lot<br>{_e(rapport.lot_id)}</h1>",
+        f'<h1>{_e(i18n.t("rapport.doc.titre_nu", lg))}<br>'
+        f"{_e(rapport.lot_id)}</h1>",
         '<div class="meta">'
-        f"Client&nbsp;: <b>{_e(rapport.client)}</b><br>"
-        f"Émis le <b>{_e(rapport.issued_on.isoformat())}</b><br>"
-        f"Degrés de liberté&nbsp;: <b>"
+        f'{_e(i18n.t("rapport.doc.client", lg))}&nbsp;: '
+        f"<b>{_e(rapport.client)}</b><br>"
+        f'{_e(i18n.t("rapport.doc.emis_le", lg))} '
+        f"<b>{_e(rapport.issued_on.isoformat())}</b><br>"
+        f'{_e(i18n.t("rapport.doc.degres", lg))}&nbsp;: <b>'
         f"{_e(rapport.meta.get('degeneracy', '—'))}</b>"
         "</div>",
         "</div>", "</header>",
@@ -516,24 +538,25 @@ def to_html(rapport: LotReport) -> str:
 
     # --- sections --------------------------------------------------------
     for s in rapport.sections:
-        if s.title == "Diagnostic du bulletin":
+        if s.cle == SECTION_DIAGNOSTIC:
             continue                      # déjà rendu en tuiles
         L.append("<section>")
         L.append(f"<h2>{_e(s.title)}</h2>")
         if s.intro:
             L.append(f'<p class="intro">{_e(s.intro)}</p>')
         if s.rows:
-            L.append(_tableau(s))
+            L.append(_tableau(s, lg))
         for n in s.notes:
             L.append(f'<p class="note">{_e(n)}</p>')
         L.append("</section>")
 
     # --- annexes ---------------------------------------------------------
-    for titre, elements, classe in (
-        ("Avertissements", rapport.warnings, "annexe avert"),
-        ("Limites méthodologiques déclarées", rapport.limitations, "annexe"),
-        ("Traçabilité", rapport.traceability, "annexe"),
+    for cle_titre, elements, classe in (
+        ("rapport.section.avertissements", rapport.warnings, "annexe avert"),
+        ("rapport.section.limites", rapport.limitations, "annexe"),
+        ("rapport.section.tracabilite", rapport.traceability, "annexe"),
     ):
+        titre = i18n.t(cle_titre, lg)
         if not elements:
             continue
         L.append("<section>")
@@ -543,11 +566,8 @@ def to_html(rapport: LotReport) -> str:
         L.append("</ul></section>")
 
     L += [
-        "<footer>Rapport produit par KLASTOS21. Les engagements "
-        "méthodologiques figurent au protocole joint. Les grandeurs marquées "
-        "non identifiables sont des domaines compatibles&nbsp;: toute valeur "
-        "du domaine explique le bulletin aussi bien qu’une autre."
-        "</footer>",
+        f'<footer>{_e(i18n.t("rapport.doc.pied", lg))} '
+        f'{_e(i18n.t("rapport.protocole.renvoi", lg))}</footer>',
         "</body>", "</html>",
     ]
     return "\n".join(L)

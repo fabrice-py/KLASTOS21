@@ -30,6 +30,8 @@ import datetime as _dt
 import pathlib
 import sys
 
+from . import i18n
+
 PROG = "klastos"
 EXIT_OK, EXIT_REFUS, EXIT_USAGE = 0, 1, 2
 
@@ -72,6 +74,12 @@ def _ajouter_lecture(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--separateur", default=",", metavar="CAR",
         help="separateur de colonnes du CSV (defaut : virgule)",
+    )
+    p.add_argument(
+        "--langue", default=i18n.DEFAUT, choices=list(i18n.LANGUES),
+        help=f"langue du rapport (defaut : {i18n.DEFAUT}). Le protocole "
+             f"methodologique reste en francais et le rapport anglais le "
+             f"cite en declarant sa langue.",
     )
 
 
@@ -318,6 +326,7 @@ def cmd_rapport(args) -> int:
         unite_par_defaut=args.unite,
         censure=args.censure,
         separateur=args.separateur,
+        langue=getattr(args, "langue", i18n.DEFAUT),
         provenance=args.provenance,
         attestee=args.atteste,
         grades_declares=tuple(args.grades) if args.grades else None,

@@ -26,7 +26,8 @@ from klastos.identifiability import (UnboundedCompatibleSet,
                                      conseil_quantification, null_space,
                                      projeter_dans_domaine)
 from klastos.phases import stoichiometry_matrix
-from klastos.report import TITRE_CONSEIL, TITRE_DRX, libelle_statut
+from klastos.report import (SECTION_DRX, TITRE_CONSEIL, TITRE_DRX,
+                            libelle_statut)
 from klastos.service import Demande, analyser
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
@@ -144,10 +145,10 @@ def test_un_conflit_eleve_est_signale_dans_le_rapport(tmp_path):
     a = analyser(_demande(drx=_fichier_drx(tmp_path, "NMC 811,18.0,3.0\n")))
     if a.incertitude.structural_conflict_rate <= 0.20:
         pytest.skip("taux de conflit faible sur ce lot")
-    sec = [s for s in a.rapport.sections if s.title == TITRE_DRX]
+    sec = [s for s in a.rapport.sections if s.cle == SECTION_DRX]
     assert sec, "section DRX absente"
     joint = " ".join(sec[0].notes)
-    assert "conflit" in joint and "CONSERVES" in joint
+    assert "conflit" in joint and "CONSERVÉS" in joint
 
 
 # ==========================================================================
@@ -349,22 +350,29 @@ def test_les_deux_rendus_disent_la_meme_chose_sur_les_statuts():
     Regression. Le Markdown affichait "ferme" la ou le HTML affichait
     "reductible" : deux documents issus du meme objet se contredisaient sur
     la meme ligne. La table de vocabulaire est desormais unique.
+
+    Le test porte maintenant sur LES DEUX LANGUES. Un vocabulaire traduit
+    donne deux occasions de diverger plutot qu'une : il suffit qu'une seule
+    entree anglaise manque a l'un des deux rendus pour que les documents se
+    contredisent a nouveau, dans la langue que personne ne relit.
     """
-    from klastos import render_html
+    import unicodedata
 
-    for titre, table in render_html.VOCABULAIRE_LARGEUR.items():
-        for statut, (libelle_html, *_) in table.items():
-            md = libelle_statut(titre, statut)
-            # On compare sans accents ni emphase : les deux rendus ont leurs
-            # conventions typographiques, pas leur propre vocabulaire.
-            import unicodedata
+    from klastos import i18n, render_html
 
-            def nu(t):
-                t = unicodedata.normalize("NFKD", t)
-                t = "".join(ch for ch in t if not unicodedata.combining(ch))
-                return t.replace("*", "").strip().lower()
+    def nu(t):
+        """Sans accents ni emphase : chaque rendu garde sa typographie."""
+        t = unicodedata.normalize("NFKD", t)
+        t = "".join(ch for ch in t if not unicodedata.combining(ch))
+        return t.replace("*", "").strip().lower()
 
-            assert nu(md) == nu(libelle_html), (titre, statut, md, libelle_html)
+    for langue in i18n.LANGUES:
+        for cle_section, table in render_html.VOCABULAIRE_LARGEUR.items():
+            for statut, (cle_html, *_) in table.items():
+                md = libelle_statut(cle_section, statut, langue)
+                html = i18n.t(cle_html, langue)
+                assert nu(md) == nu(html), (langue, cle_section, statut,
+                                            md, html)
 
 
 # ==========================================================================

@@ -591,7 +591,7 @@ def test_le_verrou_contre_la_precision_fictive_est_ecrit(texte):
 
     assert contient(texte, "Le scénario balaie, il ne se pose jamais sur un point")
     assert contient(texte, "piège du sommet dans sa forme la plus pure")
-    assert "ne reinjecte jamais" in MENTION_SCENARIO_PIEGE
+    assert "ne réinjecte jamais" in MENTION_SCENARIO_PIEGE
     assert "balayant toute la plage compatible" in MENTION_SCENARIO_PIEGE
 
 

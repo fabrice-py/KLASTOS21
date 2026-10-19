@@ -19,12 +19,14 @@ import html.parser
 
 import pytest
 
+from klastos import i18n
 from klastos.generator import NoiseModel, make_lot
 from klastos.market import MetalPrice, PayableTerms, PriceSet
 from klastos.provenance import ProvenanceDeclaration
 from klastos.render_html import (SECTIONS_LARGEUR, STATUTS, STATUTS_LARGEUR,
                                  _barre, _echelle, to_html)
-from klastos.report import (LotReport, ReportRow, ReportSection, build_report)
+from klastos.report import (SECTION_VENTILATION, LotReport, ReportRow,
+                            ReportSection, build_report)
 from klastos.uncertainty import UncertaintyConfig, propagate
 from klastos.valuation import value_lot
 
@@ -194,7 +196,11 @@ def test_la_degenerescence_n_est_pas_une_alerte(rapport, document):
     rapport la rend visible ; il ne la signale pas comme une anomalie.
     """
     assert rapport.meta["degeneracy"] > 0
-    assert _tuile_de(document, "degres de liberte") == "ok"
+    # Le libelle passe par le catalogue : fige en dur et non accentue, il
+    # ne correspondait plus des que le rapport a porte ses accents.
+    assert _tuile_de(
+        document,
+        i18n.t("rapport.ligne.degres", rapport.langue)) == "ok"
 
 
 # ==========================================================================
@@ -293,9 +299,15 @@ def _bloc_de_section(document: str, titre: str) -> str:
 
 
 def test_les_sections_de_largeurs_existent_dans_le_rapport(rapport):
-    """Garde-fou : si un titre change dans report.py, le rendu se trompe."""
-    titres = {s.title for s in rapport.sections}
-    assert SECTIONS_LARGEUR & titres, (
+    """
+    Garde-fou : si une CLE change dans report.py, le rendu se trompe.
+
+    Le test comparait les titres. Il ne pouvait donc pas survivre a la
+    traduction du rapport : en anglais, aucun titre ne correspondait plus,
+    et le garde-fou aurait signale une desynchronisation inexistante.
+    """
+    cles = {s.cle for s in rapport.sections}
+    assert SECTIONS_LARGEUR & cles, (
         "aucune section de largeurs reconnue ; SECTIONS_LARGEUR est "
         "desynchronise de report.py"
     )
@@ -311,13 +323,14 @@ def test_une_largeur_n_est_jamais_etiquetee_ferme(rapport, document):
     import re
 
     section = next((s for s in rapport.sections
-                    if s.title in SECTIONS_LARGEUR and s.rows), None)
+                    if s.cle in SECTIONS_LARGEUR and s.rows), None)
     if section is None:
         pytest.skip("aucune section de largeurs dans ce lot")
 
     bloc = _bloc_de_section(document, section.title)
     mentions = set(re.findall(r'class="st st-\w+">([^<]*)</span>', bloc))
-    attendues = {libelle for libelle, _, _ in STATUTS_LARGEUR.values()}
+    attendues = {i18n.t(cle, rapport.langue)
+                 for cle, _, _ in STATUTS_LARGEUR.values()}
     assert mentions and mentions <= attendues, (
         f"vocabulaire inattendu dans une section de largeurs : {mentions}"
     )
@@ -334,7 +347,7 @@ def test_une_largeur_irreductible_est_distinguee_d_une_reductible():
 
 def test_l_echelle_d_une_section_de_largeurs_est_en_points(rapport, document):
     section = next((s for s in rapport.sections
-                    if s.title in SECTIONS_LARGEUR and s.rows), None)
+                    if s.cle in SECTIONS_LARGEUR and s.rows), None)
     if section is None:
         pytest.skip("aucune section de largeurs dans ce lot")
     bloc = _bloc_de_section(document, section.title)
@@ -361,10 +374,11 @@ def test_sans_prix_le_document_le_dit_au_lieu_d_inventer_un_chiffre(rapport):
 
 
 def test_un_domaine_compatible_est_presente_comme_un_domaine(rapport, document):
-    vent = rapport.section("Ventilation par grade")
+    vent = rapport.section(SECTION_VENTILATION)
     if vent is None:
         pytest.skip("lot sans grandeur non identifiable")
-    libelle = STATUTS["ouvert"][0]
+    # La table porte une CLE, pas le texte : il se resout a la langue.
+    libelle = i18n.t(STATUTS["ouvert"][0], rapport.langue)
     assert libelle in document
     for r in vent.rows:
         assert "–" in r.value or "-" in r.value, (

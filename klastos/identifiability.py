@@ -29,20 +29,31 @@ import numpy as np
 from scipy.linalg import null_space as _scipy_null_space
 from scipy.optimize import linprog
 
+from . import i18n
 from .elements import ELEMENTS
 from .phases import (GROUP_NMC, PHASES, cathode_indicator, indicator,
                      nmc_lco_indicator, phase_label, stoichiometry_matrix)
 
 # Mention normalisee, reprise telle quelle dans le rapport client.
-NOTE_NON_IDENTIFIABLE = (
-    "ventilation non identifiable par analyse elementaire seule"
-)
+def _fragment(cle: str) -> str:
+    """
+    Un fragment de phrase, derive du catalogue i18n.
 
-NOTE_CARBONE = (
-    "la separation graphite / noir de carbone necessite des donnees "
-    "texturales ou structurales, non prises en compte dans cette "
-    "premiere version"
-)
+    Ces deux notes existaient ici en clair, sans accents, et le rapport
+    les posait avec `.capitalize()`. Depuis que le livrable est bilingue,
+    le texte de reference vit au catalogue : le deriver evite d'avoir
+    deux ecritures du meme engagement, qui finiraient par diverger.
+
+    On rend la forme fragment - minuscule initiale, sans point final -
+    parce que c'est sous cette forme que les appelants la composent.
+    """
+    texte = i18n.t(cle, "fr").rstrip(".")
+    return texte[:1].lower() + texte[1:]
+
+
+NOTE_NON_IDENTIFIABLE = _fragment("rapport.note.non_identifiable")
+
+NOTE_CARBONE = _fragment("rapport.note.carbone")
 
 # Tolerance d'orthogonalite. A 1e-9, une composante residuelle de l'ordre de
 # l'erreur d'arrondi machine (~1e-16) est bien classee comme nulle.

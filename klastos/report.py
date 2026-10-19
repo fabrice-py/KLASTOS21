@@ -27,156 +27,140 @@ from __future__ import annotations
 import datetime as _dt
 from dataclasses import dataclass, field
 
+from . import i18n
 from .identifiability import NOTE_CARBONE, NOTE_NON_IDENTIFIABLE
 from .uncertainty import (AVERTISSEMENT_SOMMET, SOURCE_STRUCTURELLE,
                           WELL_DETERMINED_WIDTH, UncertaintyReport)
 from .valuation import Valuation
 
-# Mentions reprises telles quelles du protocole.
-MENTION_DETECTION = (
-    "Le controle du residu ne detecte pas une declaration de provenance "
-    "inexacte en dessous d'environ 5 % de phase non declaree. Une absence "
-    "d'alerte ne vaut pas certification de la declaration."
-)
+# Mentions reprises telles quelles du protocole. Vue francaise du catalogue.
+MENTION_DETECTION = i18n.t("rapport.mention.detection", "fr")
 
-MENTION_VALORISATION = (
-    "La valorisation ne repose que sur les teneurs elementaires, qui sont "
-    "identifiables. Aucune ventilation par grade n'entre dans le calcul du prix."
-)
+MENTION_VALORISATION = i18n.t("rapport.mention.valorisation", "fr")
 
-MENTION_MAL_DETERMINE = (
-    "Grandeur identifiable mais mal determinee : le systeme la contraint en "
-    "theorie, mais son conditionnement est tel que la fourchette reste trop "
-    "large pour etre exploitee en l'etat. L'identifiabilite est binaire, le "
-    "conditionnement est continu."
-)
+MENTION_MAL_DETERMINE = i18n.t("rapport.mention.mal_determine", "fr")
 
-MENTION_FOURCHETTE = (
-    "Les valeurs sont rapportees en fourchette. La largeur reflete "
-    "l'incertitude analytique sur les teneurs fermes."
-)
+MENTION_FOURCHETTE = i18n.t("rapport.mention.fourchette", "fr")
 
 #: Destinataires possibles d'un rapport. Le systeme ne devine pas si un
 #: document sort de la maison : il le demande.
 DESTINATAIRE_TIERS = "tiers"
 DESTINATAIRE_INTERNE = "interne"
 
-REFUS_REDIFFUSION = (
-    "Prix d'agence sans licence de rediffusion ({label}). Un abonnement "
-    "d'agence couvre l'usage interne, pas l'affichage dans un document "
-    "remis a un tiers. Trois issues : obtenir l'autorisation ecrite de "
-    "l'agence et relancer la recuperation avec la licence, demander au "
-    "client ses propres prix, ou emettre ce rapport en interne "
-    "(destinataire='interne')."
-)
+#: Les textes du rapport vivent desormais au catalogue i18n. Les constantes
+#: ci-dessous en sont la VUE FRANCAISE, conservee parce qu'une quinzaine
+#: d'appelants et de tests les importent par leur nom. Le rendu, lui, ne les
+#: utilise pas : il demande la langue du rapport au catalogue.
+REFUS_REDIFFUSION = i18n.CATALOGUE["rapport.mention.refus_rediffusion"]["fr"]
 
 #: Titre de la section de scenario. Le rendu HTML s'y reconnait, donc il est
 #: nomme une fois et reutilise.
-TITRE_SCENARIO = "Scenario : et si l'oxygene etait dose"
+TITRE_SCENARIO = i18n.t("rapport.section.scenario", "fr")
 
-TITRE_DRX = "Quantification structurale (diffraction)"
+TITRE_DRX = i18n.t("rapport.section.drx", "fr")
 
-MENTION_DRX = (
-    "Une quantification par diffraction est une MESURE, avec son incertitude. "
-    "Elle entre donc en encadrement et non en egalite : elle resserre les "
-    "plages compatibles, elle ne rend aucune grandeur ferme. Le tableau donne "
-    "la plage avant et apres."
-)
+MENTION_DRX = i18n.t("rapport.mention.drx", "fr")
 
-MENTION_DRX_CONFLIT = (
-    "Taux de conflit eleve entre la quantification et le bulletin : pour une "
-    "part importante des tirages de bruit analytique, aucune repartition des "
-    "phases ne satisfait les deux mesures. Ces tirages ont ete CONSERVES avec "
-    "leurs bornes non contraintes - les ecarter aurait resserre l'incertitude "
-    "du laboratoire au motif d'une mesure qui ne porte pas sur elle. Un taux "
-    "eleve signale une analyse chimique, une quantification ou un modele de "
-    "phases a reprendre."
-)
+MENTION_DRX_CONFLIT = i18n.t("rapport.mention.drx_conflit", "fr")
 
 #: Au-dela de cette part de tirages en conflit, le rapport avertit.
 DRX_CONFLIT_ALERTE = 0.20
 
-TITRE_CONSEIL = "Quelle quantification commander"
+TITRE_CONSEIL = i18n.t("rapport.section.conseil", "fr")
 
-#: Libelles de statut par defaut : le statut repond alors a la question
+#: Identifiants stables des sections. Ils remplacent le titre comme cle :
+#: `LIBELLES_STATUT_PAR_SECTION` etait indexe par le TITRE francais, donc
+#: traduire un titre vidait la colonne « statut » sans lever. Voir i18n.py.
+SECTION_DIAGNOSTIC = "diagnostic"
+SECTION_FERMES = "grandeurs_fermes"
+SECTION_VENTILATION = "ventilation"
+SECTION_REDUIRE = "reduire"
+SECTION_SENSIBLES = "sensibles"
+SECTION_SCENARIO = "scenario"
+SECTION_DRX = "drx"
+SECTION_CONSEIL = "conseil"
+SECTION_VALORISATION = "valorisation"
+SECTION_SPECIFICATION = "specification"
+
+#: Statut -> cle i18n, par defaut : le statut repond alors a la question
 #: "cette grandeur est-elle determinee ?".
-LIBELLES_STATUT = {
-    "ferme": "ferme",
-    "ferme_large": "ferme mais **mal determine**",
-    "ouvert": "**non identifiable**",
+STATUT_DEFAUT: dict[str, str] = {
+    "ferme": "rapport.statut.ferme",
+    "ferme_large": "rapport.statut.ferme_large",
+    "ouvert": "rapport.statut.ouvert",
 }
 
 #: Sections ou le statut repond a une AUTRE question, parce que leurs valeurs
 #: sont des largeurs et non des positions. Table unique, consommee par les
 #: deux rendus : sans elle, le Markdown disait "ferme" la ou le HTML disait
 #: "reductible", et les deux documents se contredisaient sur la meme ligne.
-LIBELLES_STATUT_PAR_SECTION: dict[str, dict[str, str]] = {
-    "Comment reduire l'incertitude": {
-        "ferme": "reductible", "ferme_large": "reductible",
-        "ouvert": "**irreductible**",
+STATUT_PAR_SECTION: dict[str, dict[str, str]] = {
+    SECTION_REDUIRE: {
+        "ferme": "rapport.statut.reductible",
+        "ferme_large": "rapport.statut.reductible",
+        "ouvert": "rapport.statut.irreductible",
     },
-    "Grandeurs sensibles a la qualite du bulletin": {
-        "ferme": "reductible", "ferme_large": "reductible",
-        "ouvert": "**irreductible**",
+    SECTION_SENSIBLES: {
+        "ferme": "rapport.statut.reductible",
+        "ferme_large": "rapport.statut.reductible",
+        "ouvert": "rapport.statut.irreductible",
     },
-    TITRE_SCENARIO: {
-        "ferme": "deviendrait ferme", "ferme_large": "deviendrait ferme",
-        "ouvert": "resterait ouverte",
+    SECTION_SCENARIO: {
+        "ferme": "rapport.statut.deviendrait_ferme",
+        "ferme_large": "rapport.statut.deviendrait_ferme",
+        "ouvert": "rapport.statut.resterait_ouverte",
     },
-    TITRE_DRX: {
-        "ferme": "resserree", "ferme_large": "resserree",
-        "ouvert": "inchangee",
+    SECTION_DRX: {
+        "ferme": "rapport.statut.resserree",
+        "ferme_large": "rapport.statut.resserree",
+        "ouvert": "rapport.statut.inchangee",
     },
-    TITRE_CONSEIL: {
-        "ferme": "gain acquis au pire cas",
-        "ferme_large": "gain acquis au pire cas",
-        "ouvert": "sans effet",
+    SECTION_CONSEIL: {
+        "ferme": "rapport.statut.gain_pire_cas",
+        "ferme_large": "rapport.statut.gain_pire_cas",
+        "ouvert": "rapport.statut.sans_effet",
     },
 }
 
+#: Titres -> cle de section. Transitoire : il existe pour que les appelants
+#: qui designent encore une section par son titre francais continuent de
+#: fonctionner le temps de la migration. Toute nouvelle ecriture passe par
+#: les constantes SECTION_*.
+_CLE_PAR_TITRE: dict[str, str] = {
+    i18n.t(f"rapport.section.{c}", "fr"): c
+    for c in (SECTION_DIAGNOSTIC, SECTION_FERMES, SECTION_VENTILATION,
+              SECTION_REDUIRE, SECTION_SENSIBLES, SECTION_SCENARIO,
+              SECTION_DRX, SECTION_CONSEIL, SECTION_VALORISATION,
+              SECTION_SPECIFICATION)
+}
 
-def libelle_statut(section_title: str, status: str) -> str:
-    """Libelle du statut, selon la question que pose la section."""
-    table = LIBELLES_STATUT_PAR_SECTION.get(section_title, LIBELLES_STATUT)
-    return table.get(status, "")
 
-MENTION_CONSEIL = (
-    "Une quantification par diffraction se paie, et toutes les phases ne la "
-    "valent pas. Les gains annonces sont des PLANCHERS : ils sont pris au "
-    "pire placement de la valeur mesuree dans la plage compatible, parce que "
-    "cette valeur est inconnue avant la mesure."
-)
+def libelle_statut(section: str, status: str,
+                   langue: str = i18n.DEFAUT) -> str:
+    """
+    Libelle du statut, selon la question que pose la section.
 
-MENTION_SCENARIO = (
-    "Aucun chiffre de cette section n'est opposable. Ce sont des LARGEURS "
-    "PROJETEES sous l'hypothese d'un dosage que vous ne possedez pas. Elles "
-    "ne modifient en rien les resultats des sections precedentes, qui restent "
-    "les seuls engages."
-)
+    `section` est une cle SECTION_*. Un titre francais est encore accepte,
+    le temps de la migration, et traduit en cle.
+    """
+    cle_section = section if section in STATUT_PAR_SECTION else \
+        _CLE_PAR_TITRE.get(section, section)
+    table = STATUT_PAR_SECTION.get(cle_section, STATUT_DEFAUT)
+    cle = table.get(status)
+    return i18n.t(cle, langue) if cle else ""
+
+MENTION_CONSEIL = i18n.t("rapport.mention.conseil", "fr")
+
+MENTION_SCENARIO = i18n.t("rapport.mention.scenario", "fr")
 
 #: Base de mesure des largeurs du scenario. Sans cette mention, le client lit
 #: deux largeurs differentes pour la meme grandeur dans deux sections, sans
 #: comprendre qu'elles ne mesurent pas la meme chose.
-MENTION_SCENARIO_BASE = (
-    "Les largeurs de cette section sont les largeurs STRUCTURELLES du "
-    "bulletin central : la part de l'incertitude qui vient de la "
-    "degenerescence, et elle seule. Elles sont plus etroites que les "
-    "fourchettes des sections precedentes, qui ajoutent l'incertitude "
-    "analytique du laboratoire. Un dosage d'oxygene ne reduit que la part "
-    "structurelle ; la part analytique, elle, demande un meilleur "
-    "laboratoire ou des replicats."
-)
+MENTION_SCENARIO_BASE = i18n.t("rapport.mention.scenario_base", "fr")
 
 #: Avertissement de fond, verrouille par un test. Il interdit la seule
 #: facon simple - et fausse - de produire cette section.
-MENTION_SCENARIO_PIEGE = (
-    "Le scenario ne reinjecte jamais la teneur en oxygene predite par la "
-    "reconstitution : elle sort de la solution elle-meme, donc elle "
-    "n'apporterait aucune information et rendrait les grandeurs exactement "
-    "determinees pour la seule raison que le solveur a choisi ce point. Les "
-    "largeurs ci-dessus sont obtenues en balayant toute la plage compatible "
-    "de l'oxygene."
-)
+MENTION_SCENARIO_PIEGE = i18n.t("rapport.mention.scenario_piege", "fr")
 
 
 class ReportRefused(RuntimeError):
@@ -223,6 +207,11 @@ class ReportSection:
     rows: list[ReportRow] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
+    # Identifiant stable, independant de la langue. `title` est du TEXTE
+    # AFFICHE : il change avec la langue du rapport, donc il ne peut pas
+    # servir a reconnaitre une section. Les rendus s'appuient sur `cle`.
+    cle: str = ""
+
 
 @dataclass
 class LotReport:
@@ -238,50 +227,71 @@ class LotReport:
     is_demo: bool = False
     meta: dict = field(default_factory=dict)
 
-    def section(self, title: str) -> ReportSection | None:
-        return next((s for s in self.sections if s.title == title), None)
+    #: Langue du document. Le protocole n'etant pas traduit, un rapport
+    #: anglais le cite en declarant sa langue : voir i18n.py.
+    langue: str = i18n.DEFAUT
+
+    def section(self, ref: str) -> ReportSection | None:
+        """
+        Rend une section par sa CLE, ou par son titre.
+
+        La recherche par cle d'abord : c'est la seule qui survive a un
+        changement de langue. La recherche par titre reste acceptee pour les
+        appelants ecrits avant l'introduction des cles.
+        """
+        par_cle = next((s for s in self.sections if s.cle and s.cle == ref),
+                       None)
+        if par_cle is not None:
+            return par_cle
+        return next((s for s in self.sections if s.title == ref), None)
 
     # ------------------------------------------------------------------
     def to_markdown(self) -> str:
+        lg = i18n.langue_valide(self.langue)
+
+        def tr(cle: str, **champs: object) -> str:
+            return i18n.t(cle, lg, **champs)
+
         L: list[str] = []
-        titre = f"# Rapport de lot {self.lot_id}"
-        L += [titre, ""]
-        L += [f"**Client** : {self.client}  ",
-              f"**Date d'emission** : {self.issued_on.isoformat()}", ""]
+        L += [f"# {tr('rapport.doc.titre', lot=self.lot_id)}", ""]
+        L += [f"**{tr('rapport.doc.client')}** : {self.client}  ",
+              f"**{tr('rapport.doc.emis_le')}** : "
+              f"{self.issued_on.isoformat()}", ""]
 
         if self.is_demo:
-            L += ["> **DOCUMENT DE DEMONSTRATION — NON OPPOSABLE.** "
-                  "Il repose sur des donnees ou des prix non destines a la "
-                  "production.", ""]
+            L += [f"> {tr('rapport.doc.demo')}", ""]
 
+        entete = (f"| {tr('rapport.doc.col_grandeur')} "
+                  f"| {tr('rapport.doc.col_valeur')} "
+                  f"| {tr('rapport.doc.col_statut')} |")
         for s in self.sections:
             L += [f"## {s.title}", ""]
             if s.intro:
                 L += [s.intro, ""]
             if s.rows:
-                L += ["| Grandeur | Valeur | Statut |", "|---|---|---|"]
+                L += [entete, "|---|---|---|"]
                 for r in s.rows:
-                    statut = libelle_statut(s.title, r.status)
+                    # Par la CLE, jamais par le titre : le titre est traduit.
+                    statut = libelle_statut(s.cle or s.title, r.status, lg)
                     L.append(f"| {r.label} | {r.value} | {statut} |")
                 L.append("")
             for n in s.notes:
                 L += [f"*{n}*", ""]
 
         if self.warnings:
-            L += ["## Avertissements", ""]
+            L += [f"## {tr('rapport.section.avertissements')}", ""]
             L += [f"- {w}" for w in self.warnings] + [""]
 
         if self.limitations:
-            L += ["## Limites methodologiques declarees", ""]
+            L += [f"## {tr('rapport.section.limites')}", ""]
             L += [f"- {m}" for m in self.limitations] + [""]
 
         if self.traceability:
-            L += ["## Tracabilite", ""]
+            L += [f"## {tr('rapport.section.tracabilite')}", ""]
             L += [f"- {t}" for t in self.traceability] + [""]
 
         L += ["---", "",
-              "*Rapport produit par KLASTOS21. Les engagements methodologiques "
-              "figurent au protocole joint.*"]
+              f"*{tr('rapport.doc.pied')} {tr('rapport.protocole.renvoi')}*"]
         return "\n".join(L)
 
 
@@ -300,6 +310,7 @@ def build_report(
     allow_demo: bool = False,
     destinataire: str = DESTINATAIRE_TIERS,
     conseil=None,
+    langue: str = i18n.DEFAUT,
 ) -> LotReport:
     """
     Assemble le rapport client.
@@ -326,6 +337,7 @@ def build_report(
             f"destinataire inconnu : {destinataire!r}. "
             f"Attendu {DESTINATAIRE_TIERS!r} ou {DESTINATAIRE_INTERNE!r}."
         )
+    lg = i18n.langue_valide(langue)
     issued_on = issued_on or _dt.date.today()
     demo = False
 
@@ -343,9 +355,7 @@ def build_report(
         if any("demonstration" in w.lower() for w in valuation.warnings):
             if not allow_demo:
                 raise ReportRefused(
-                    f"Jeu de prix non destine a la production ({label}). "
-                    "Brancher un flux avant emission."
-                )
+                    i18n.t("rapport.refus.prix_demo", lg, label=label))
             demo = True
 
         # Un abonnement d'agence couvre l'usage interne, pas la rediffusion.
@@ -353,17 +363,19 @@ def build_report(
         # sur la SORTIE du document. Un rapport interne passe.
         if (not valuation.meta.get("redistribution_licensed", True)
                 and destinataire == DESTINATAIRE_TIERS):
-            raise ReportRefused(REFUS_REDIFFUSION.format(label=label))
+            raise ReportRefused(
+                i18n.t("rapport.mention.refus_rediffusion", lg,
+                       label=label))
 
     bouclage = uncertainty.meta.get("closure")
     if bouclage is not None and not bouclage.is_exploitable and not allow_demo:
         raise ReportRefused(
-            f"Bouclage massique hors tolerance ({bouclage.total * 100:.2f} %). "
-            "Une analyse complementaire est requise avant valorisation."
-        )
+            i18n.t("rapport.refus.bouclage", lg,
+                   ecart=bouclage.total * 100))
 
     rapport = LotReport(
         lot_id=lot_id, client=client, issued_on=issued_on, is_demo=demo,
+        langue=lg,
         meta={"degeneracy": uncertainty.degeneracy,
               "n_draws": uncertainty.n_draws},
     )
@@ -385,7 +397,8 @@ def build_report(
         par_bloc.setdefault(r.block, []).append(r)
 
     # --- 1. Diagnostic du bulletin ---------------------------------------
-    diag = ReportSection(title="Diagnostic du bulletin")
+    diag = ReportSection(cle=SECTION_DIAGNOSTIC,
+                         title=i18n.t("rapport.section.diagnostic", lg))
     if bouclage is not None:
         diag.rows.append(ReportRow(
             label="Bouclage massique",
@@ -396,11 +409,10 @@ def build_report(
         if bouclage.status != "ok":
             rapport.warnings.append(bouclage.message)
     diag.rows.append(ReportRow(
-        label="Degres de liberte non contraints",
+        label=i18n.t("rapport.ligne.degres", lg),
         value=str(uncertainty.degeneracy),
-        note=("Le systeme est bien pose." if uncertainty.degeneracy == 0
-              else "Certaines grandeurs ne sont pas identifiables par analyse "
-                   "elementaire seule."),
+        note=i18n.t("rapport.note.bien_pose" if uncertainty.degeneracy == 0
+                    else "rapport.note.degenere", lg),
         # Une degenerescence non nulle n'est pas une anomalie : c'est la
         # realite du systeme Li-Ni-Mn-Co-O, et le rapport la rend visible
         # au lieu de la masquer. Donc "ok", jamais "alerte".
@@ -415,10 +427,9 @@ def build_report(
 
     # --- 2. Grandeurs fermes ---------------------------------------------
     fermes = ReportSection(
-        title="Grandeurs fermes",
-        intro=("Ces valeurs sont determinees par l'analyse elementaire, quelle "
-               "que soit la ventilation retenue par le solveur. Ce sont les "
-               "seules opposables."),
+        cle=SECTION_FERMES,
+        title=i18n.t("rapport.section.grandeurs_fermes", lg),
+        intro=i18n.t("rapport.intro.grandeurs_fermes", lg),
     )
     for r in sorted(par_bloc.get("ferme_attendu", []), key=lambda x: x.key):
         if not r.identifiable:
@@ -440,13 +451,12 @@ def build_report(
 
     mal_determinees = [row for row in fermes.rows if row.status == "ferme_large"]
     if mal_determinees:
-        fermes.notes.append(MENTION_MAL_DETERMINE)
+        fermes.notes.append(i18n.t("rapport.mention.mal_determine", lg))
         rapport.warnings.append(
-            f"{len(mal_determinees)} grandeur(s) identifiable(s) mais mal "
-            "determinee(s) : "
-            + ", ".join(row.label for row in mal_determinees)
-            + f". Seuil d'exploitabilite retenu : "
-              f"{WELL_DETERMINED_WIDTH * 100:.0f} points."
+            i18n.t("rapport.note.mal_determinees", lg,
+                   n=len(mal_determinees),
+                   liste=", ".join(row.label for row in mal_determinees),
+                   seuil=WELL_DETERMINED_WIDTH * 100)
         )
     rapport.sections.append(fermes)
 
@@ -454,17 +464,16 @@ def build_report(
     ouvertes = [r for r in uncertainty.results if not r.identifiable]
     if ouvertes:
         vent = ReportSection(
-            title="Ventilation par grade",
-            intro=("Les valeurs ci-dessous sont des DOMAINES COMPATIBLES, pas "
-                   "des estimations. Toute valeur du domaine explique le "
-                   "bulletin aussi bien qu'une autre."),
+            cle=SECTION_VENTILATION,
+            title=i18n.t("rapport.section.ventilation", lg),
+            intro=i18n.t("rapport.intro.ventilation", lg),
         )
         for r in sorted(ouvertes, key=lambda x: x.key):
             vent.rows.append(ReportRow(
                 label=r.label, value=r.format_value(), status="ouvert",
                 note=r.note, low=r.total_lower, high=r.total_upper,
             ))
-        vent.notes.append(NOTE_NON_IDENTIFIABLE.capitalize() + ".")
+        vent.notes.append(i18n.t("rapport.note.non_identifiable", lg))
         if any(r.apparent_uniqueness_risk for r in ouvertes):
             vent.notes.append(AVERTISSEMENT_SOMMET)
             rapport.warnings.append(AVERTISSEMENT_SOMMET)
@@ -477,8 +486,10 @@ def build_report(
             f"{q.label} {q.value * 100:.2f} +/- {q.uncertainty * 100:.2f} %"
             for q in structurale.quantifications)
         drx = ReportSection(
-            title=TITRE_DRX,
-            intro=(f"{MENTION_DRX}\n\nMesure(s) declaree(s), base "
+            cle=SECTION_DRX,
+            title=i18n.t("rapport.section.drx", lg),
+            intro=(f'{i18n.t("rapport.mention.drx", lg)}\n\n'
+                   f"Mesure(s) declaree(s), base "
                    f"{structurale.basis} : {mesures}."),
         )
         resserres = [r for r in uncertainty.results
@@ -489,23 +500,22 @@ def build_report(
             apres = max(0.0, (r.struct_upper or 0.0) - (r.struct_lower or 0.0))
             drx.rows.append(ReportRow(
                 label=r.label,
-                value=(f"{r.open_width * 100:.2f} -> {apres * 100:.2f} points"),
+                value=i18n.t("rapport.valeur.drx_avant_apres", lg,
+                             avant=r.open_width * 100, apres=apres * 100),
                 status="ferme",
-                note=f"{(r.structural_gain or 0.0) * 100:.0f} % de largeur en moins",
+                note=i18n.t("rapport.note.drx_gain", lg,
+                            gain=(r.structural_gain or 0.0) * 100),
                 low=0.0, high=apres, point=r.open_width,
             ))
         if not resserres:
-            drx.notes.append(
-                "La quantification fournie ne resserre aucune plage de ce "
-                "lot : les phases qu'elle designe etaient deja determinees, "
-                "ou elle ne contraint pas les directions non identifiables."
-            )
+            drx.notes.append(i18n.t("rapport.aide.drx_sans_effet", lg))
         if uncertainty.structural_conflict_rate > DRX_CONFLIT_ALERTE:
             drx.notes.append(
-                f"{uncertainty.n_structural_conflicts} tirage(s) sur "
-                f"{uncertainty.n_draws} en conflit "
-                f"({uncertainty.structural_conflict_rate * 100:.0f} %). "
-                + MENTION_DRX_CONFLIT
+                i18n.t("rapport.note.drx_conflit_compte", lg,
+                       n=uncertainty.n_structural_conflicts,
+                       total=uncertainty.n_draws,
+                       taux=uncertainty.structural_conflict_rate * 100)
+                + i18n.t("rapport.mention.drx_conflit", lg)
             )
         for ligne in structurale.journal:
             rapport.traceability.append(f"DRX : {ligne}")
@@ -515,10 +525,9 @@ def build_report(
     goulots = uncertainty.structural_bottlenecks()
     if goulots:
         lev = ReportSection(
-            title="Comment reduire l'incertitude",
-            intro=("Toute incertitude n'a pas le meme remede. Le tableau "
-                   "distingue ce qu'une meilleure analyse resoudrait de ce "
-                   "qu'elle ne resoudra pas."),
+            cle=SECTION_REDUIRE,
+            title=i18n.t("rapport.section.reduire", lg),
+            intro=i18n.t("rapport.intro.reduire", lg),
         )
         for r in goulots[:6]:
             lev.rows.append(ReportRow(
@@ -528,53 +537,46 @@ def build_report(
                 note=r.advice(),
                 low=0.0, high=r.total_width,
             ))
-        lev.notes.append(
-            "Une analyse plus fine ne reduira pas ces largeurs. Une donnee "
-            "structurale (DRX) ou une attestation de provenance le ferait."
-        )
+        lev.notes.append(i18n.t("rapport.note.reduire_pied", lg))
         rapport.sections.append(lev)
 
     # --- 4 ter. Quelle quantification commander ---------------------------
     if conseil is not None and conseil.rows:
-        cs = ReportSection(title=TITRE_CONSEIL, intro=MENTION_CONSEIL)
+        cs = ReportSection(
+            cle=SECTION_CONSEIL,
+            title=i18n.t("rapport.section.conseil", lg),
+            intro=i18n.t("rapport.mention.conseil", lg))
         utiles = [r for r in conseil.rows if r.useful]
         for r in utiles[:6]:
             cs.rows.append(ReportRow(
                 label=r.label,
-                value=f"au moins {r.gain * 100:.0f} % de largeur en moins",
+                value=i18n.t("rapport.valeur.gain_largeur", lg,
+                             gain=r.gain * 100),
                 status="ferme",
-                note=(f"plage actuelle {r.width_open * 100:.2f} points, "
-                      f"pour une mesure a "
-                      f"{conseil.uncertainty * 100:.1f} point(s)"),
+                note=i18n.t("rapport.note.plage_pour_mesure", lg,
+                            plage=r.width_open * 100,
+                            u=conseil.uncertainty * 100),
                 low=0.0, high=r.gain,
             ))
         inutiles = conseil.useless
         if inutiles:
-            cs.notes.append(
-                "Sans gain exploitable a cette incertitude : "
-                + ", ".join(r.label for r in inutiles[:10])
-                + ". Commander ces quantifications serait une depense sans "
-                "effet sur les plages de ce lot."
-            )
+            cs.notes.append(i18n.t(
+                "rapport.note.sans_gain", lg,
+                liste=", ".join(r.label for r in inutiles[:10])))
         if not utiles:
-            cs.notes.append(
-                "Aucune quantification ne resserrerait utilement ce lot a "
-                f"{conseil.uncertainty * 100:.1f} point(s) d'incertitude. "
-                "Un laboratoire plus precis changerait la conclusion."
-            )
-        cs.notes.append(
-            f"Largeur cumulee actuelle des phases : "
-            f"{conseil.total_before * 100:.2f} points."
-        )
+            cs.notes.append(i18n.t("rapport.note.aucun_conseil", lg,
+                                   u=conseil.uncertainty * 100))
+        cs.notes.append(i18n.t("rapport.note.largeur_cumulee", lg,
+                               total=conseil.total_before * 100))
         rapport.sections.append(cs)
 
     analytiques = [r for r in uncertainty.analytic_bottlenecks()
                    if r.total_width > 0.01][:4]
     if analytiques:
         an = ReportSection(
-            title="Grandeurs sensibles a la qualite du bulletin",
-            intro=("Ces largeurs se reduiraient avec une analyse de meilleure "
-                   "qualite ou des replicats."),
+            cle=SECTION_SENSIBLES,
+            title=i18n.t("rapport.section.sensibles", lg),
+            intro=i18n.t("rapport.intro.sensibles", lg),
         )
         for r in analytiques:
             an.rows.append(ReportRow(
@@ -595,16 +597,12 @@ def build_report(
         gagnantes = sc.firm_rows
         inutiles = sc.useless_rows
         sec = ReportSection(
-            title=TITRE_SCENARIO,
-            intro=(
-                f"L'oxygene n'a pas ete dose. La reconstitution le contraint "
-                f"neanmoins entre {sc.value_low * 100:.2f} % et "
-                f"{sc.value_high * 100:.2f} %. Un dosage n'apporterait donc "
-                f"quelque chose que s'il etait plus precis que cette plage : "
-                f"son incertitude doit rester sous "
-                f"{sc.max_useful_uncertainty * 100:.2f} point. Au-dela, il "
-                f"confirmerait ce que le calcul donne deja."
-            ),
+            cle=SECTION_SCENARIO,
+            title=i18n.t("rapport.section.scenario", lg),
+            intro=i18n.t("rapport.intro.scenario", lg,
+                         bas=sc.value_low * 100,
+                         haut=sc.value_high * 100,
+                         umax=sc.max_useful_uncertainty * 100),
         )
         for r in sc.rows:
             sec.rows.append(ReportRow(
@@ -612,33 +610,31 @@ def build_report(
                 value=(f"{r.width_open * 100:.2f} → "
                        f"{r.width_conditional * 100:.2f} points"),
                 status="ferme" if r.becomes_firm else "ouvert",
-                note=("deviendrait ferme" if r.becomes_firm
-                      else "resterait un domaine compatible"),
+                note=i18n.t("rapport.statut.deviendrait_ferme"
+                            if r.becomes_firm
+                            else "rapport.note.resterait_domaine", lg),
                 low=0.0, high=r.width_conditional,
                 point=r.width_open,
             ))
-        sec.notes.append(MENTION_SCENARIO_BASE)
+        sec.notes.append(i18n.t("rapport.mention.scenario_base", lg))
         if gagnantes:
-            sec.notes.append(
-                f"{len(gagnantes)} grandeur(s) deviendraient fermes : "
-                + ", ".join(r.label for r in gagnantes) + "."
-            )
+            sec.notes.append(i18n.t(
+                "rapport.note.deviendraient_fermes", lg, n=len(gagnantes),
+                liste=", ".join(r.label for r in gagnantes)))
         if inutiles:
-            sec.notes.append(
-                "Le dosage n'apporterait RIEN a ces grandeurs ("
-                + ", ".join(r.label for r in inutiles)
-                + "). Leur degenerescence vit dans le sous-systeme ferme "
-                  "Li-Ni-Mn-Co-O, que l'oxygene ne contraint pas : seules une "
-                  "donnee structurale (DRX) ou une attestation de provenance "
-                  "la levent."
-            )
-        sec.notes.append(MENTION_SCENARIO)
-        sec.notes.append(MENTION_SCENARIO_PIEGE)
+            sec.notes.append(i18n.t(
+                "rapport.note.dosage_sans_effet", lg,
+                liste=", ".join(r.label for r in inutiles)))
+        sec.notes.append(i18n.t("rapport.mention.scenario", lg))
+        sec.notes.append(i18n.t("rapport.mention.scenario_piege", lg))
         rapport.sections.append(sec)
 
     # --- 5. Valorisation --------------------------------------------------
     if valuation is not None:
-        val = ReportSection(title="Valorisation", intro=MENTION_VALORISATION)
+        val = ReportSection(
+            cle=SECTION_VALORISATION,
+            title=i18n.t("rapport.section.valorisation", lg),
+            intro=i18n.t("rapport.mention.valorisation", lg))
         for c in valuation.contributions:
             val.rows.append(ReportRow(
                 label=f"{c.element} ({c.payable * 100:.2f} % payable)",
@@ -655,7 +651,7 @@ def build_report(
         ))
         if valuation.processing_cost:
             val.rows.append(ReportRow(
-                label="Cout de traitement retenu",
+                label=i18n.t("rapport.ligne.cout", lg),
                 value=f"{valuation.processing_cost:,.0f} {valuation.currency}/t",
             ))
         if valuation.margin_rate:
@@ -668,31 +664,29 @@ def build_report(
             value=valuation.format_max_price(),
             status="ferme",
         ))
-        val.notes.append(MENTION_FOURCHETTE)
+        val.notes.append(i18n.t("rapport.mention.fourchette", lg))
         teneurs = {f"el_{c.element}" for c in valuation.contributions}
         fragiles = [
             r.label for r in uncertainty.results
             if r.key in teneurs and r.identifiable and not r.well_determined
         ]
         if fragiles:
-            val.notes.append(
-                "Teneurs mal determinees entrant dans le prix : "
-                + ", ".join(fragiles)
-                + ". La fourchette de valorisation s'en trouve elargie."
-            )
+            val.notes.append(i18n.t(
+                "rapport.note.teneurs_mal_determinees", lg,
+                liste=", ".join(fragiles)))
         rapport.sections.append(val)
 
         if valuation.spec_deviations:
             conf = ReportSection(
-                title="Conformite a la specification",
-                intro="Ecarts constates par rapport a la specification retenue.",
+                cle=SECTION_SPECIFICATION,
+                title=i18n.t("rapport.section.specification", lg),
+                intro=i18n.t("rapport.intro.specification", lg),
             )
             for e in valuation.spec_deviations:
-                conf.rows.append(ReportRow(label="Ecart", value=e))
+                conf.rows.append(ReportRow(
+                    label=i18n.t("rapport.ligne.ecart", lg), value=e))
             conf.notes.append(
-                "Les decotes commerciales associees ne sont pas chiffrees "
-                "dans cette version."
-            )
+                i18n.t("rapport.note.decotes_non_chiffrees", lg))
             rapport.sections.append(conf)
 
         rapport.warnings.extend(valuation.warnings)
@@ -703,9 +697,9 @@ def build_report(
         rapport.traceability = list(provenance_journal) + rapport.traceability
 
     rapport.limitations = [
-        NOTE_CARBONE.capitalize() + ".",
-        NOTE_NON_IDENTIFIABLE.capitalize() + ".",
-        MENTION_DETECTION,
+        i18n.t("rapport.note.carbone", lg),
+        i18n.t("rapport.note.non_identifiable", lg),
+        i18n.t("rapport.mention.detection", lg),
     ]
     if demo:
         rapport.limitations.insert(
