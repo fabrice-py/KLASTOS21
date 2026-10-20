@@ -262,6 +262,41 @@ au format JSON, avec source, date et base de cotation. `value_lot()` n'a aucun
 jeu de prix par defaut : l'appelant declare sa source. Un flux de production se
 branche par `PriceProvider`.
 
+## Pink Sheet : demontrable sans abonnement
+
+Le classeur mensuel de la Banque mondiale est la **seule source de prix
+gratuite et rediffusable** du projet. Elle rend KLASTOS21 demontrable sans
+aucun abonnement d'agence.
+
+```powershell
+# telecharge le classeur, puis affiche les trois metaux
+klastos pink-sheet --rafraichir
+
+# ensuite, lecture locale seule
+klastos pink-sheet
+```
+
+**Le fournisseur lit un fichier LOCAL**, et c'est une decision : l'URL du
+classeur porte un identifiant de document qui a **deja change entre les
+editions 2025 et 2026**. Telecharger a chaque analyse ferait dependre une
+valorisation d'un lien susceptible de mourir sans preavis. L'URL est donc
+configurable (`--url`) et l'echec est **bruyant** : fichier absent, onglet
+renomme, serie renommee ou unite inattendue produisent une erreur nommee,
+jamais un zero.
+
+### Deux limites a ne jamais oublier
+
+| | |
+|---|---|
+| **Trois metaux, et trois seulement** | Aluminium, cuivre, nickel. Verifie sur l'edition d'octobre 2026. |
+| **Le cobalt et le lithium n'y sont pas** | Ni le manganese, ni le graphite. Ce sont des marches de gre a gre, sans cotation de bourse. Les demander leve `MissingPriceError` **avec l'adresse ou les trouver** — jamais un zero, qui traverserait toute la chaine sans qu'aucun controle le refuse. |
+| **Moyennes mensuelles, pas du spot** | `is_production_source = False`. Le mois retenu figure dans la reference, dans la note et dans le libelle du jeu : une moyenne d'octobre ne s'oppose pas a une cargaison du 21 octobre. |
+| **Rediffusable** | `redistribution_licensed = True`, **seul flux du projet dans ce cas**. Un abonnement d'agence couvre l'usage interne, pas l'affichage dans un document remis a un tiers ; une donnee publique, si. Contrepartie : l'attribution « Banque mondiale, Commodity Price Data (Pink Sheet) » est portee dans la provenance et dans le rapport. |
+
+C'est cette derniere ligne qui fait la difference pratique : la ou un prix
+d'agence fait **refuser** un rapport destine a un tiers, le Pink Sheet le
+laisse passer.
+
 ## Conversion de devises
 
 `PriceSet.check_currency()` **refuse** un jeu multi-devises, et continue de le

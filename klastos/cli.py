@@ -538,6 +538,66 @@ def cmd_prix(args) -> int:
 # Commande : ui
 # ==========================================================================
 
+def cmd_pink_sheet(args) -> int:
+    """
+    Affiche - ou rafraichit - les moyennes mensuelles de la Banque mondiale.
+
+    Seule source de prix gratuite et REDIFFUSABLE du projet : elle rend
+    KLASTOS21 demontrable sans aucun abonnement d'agence. Elle ne couvre que
+    l'aluminium, le cuivre et le nickel, et ce sont des MOYENNES MENSUELLES.
+    """
+    from .providers import (PINK_SHEET_ATTRIBUTION, PINK_SHEET_FICHIER,
+                            PINK_SHEET_METAUX, PINK_SHEET_URL,
+                            PinkSheetProvider, ProviderError)
+
+    chemin = pathlib.Path(args.fichier or PINK_SHEET_FICHIER)
+    url = args.url or PINK_SHEET_URL
+
+    if args.rafraichir:
+        # Le telechargement est une action EXPLICITE et separee de l'analyse.
+        # L'URL porte un identifiant de document qui a deja change entre les
+        # editions 2025 et 2026 : un lien mort ne doit jamais pouvoir casser
+        # une valorisation en cours.
+        import urllib.error
+        import urllib.request
+
+        print(f"Telechargement : {url}")
+        chemin.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with urllib.request.urlopen(url, timeout=60) as reponse:
+                octets = reponse.read()
+        except (urllib.error.URLError, OSError) as e:
+            return _erreur(
+                f"telechargement impossible : {e}\n"
+                f"       L'URL du Pink Sheet porte un identifiant de document "
+                f"qui change a chaque edition.\n"
+                f"       Verifiez l'adresse courante sur worldbank.org, puis "
+                f"relancez avec --url."
+            )
+        if not octets[:2] == b"PK":
+            return _erreur(
+                "le fichier telecharge n'est pas un classeur XLSX. "
+                "L'URL a probablement change d'edition."
+            )
+        chemin.write_bytes(octets)
+        print(f"Ecrit : {chemin}  ({len(octets):,} octets)")
+
+    try:
+        cotations = PinkSheetProvider(chemin, url=url).quotes()
+    except ProviderError as e:
+        return _erreur(str(e))
+
+    print(f"\n{PINK_SHEET_ATTRIBUTION}")
+    print(f"Fichier : {chemin}\n")
+    for q in cotations:
+        print(f"  {q.metal:3} {q.value:>12,.2f} USD/t   {q.reference_name}")
+    print("\nMOYENNES MENSUELLES, pas des evaluations spot. Le cobalt, le "
+          "lithium, le\nmanganese et le graphite n'y figurent pas : ce sont "
+          "des marches de gre a gre.")
+    print(f"Metaux couverts : {sorted(PINK_SHEET_METAUX)}")
+    return EXIT_OK
+
+
 def cmd_ui(args) -> int:
     """
     Lance l'interface. Streamlit n'est pas une dependance du coeur : le
@@ -666,6 +726,33 @@ def build_parser() -> argparse.ArgumentParser:
                         "rediffuser ces prix a un tiers. Sans ce drapeau, "
                         "l'instantane est marque USAGE INTERNE.")
     x.set_defaults(func=cmd_prix)
+
+    ps = sous.add_parser(
+        "pink-sheet",
+        help="moyennes mensuelles de la Banque mondiale (source gratuite)",
+        description="Affiche les moyennes mensuelles du Pink Sheet de la "
+                    "Banque mondiale, seule source de prix gratuite et "
+                    "REDIFFUSABLE du projet. Elle ne couvre que l'aluminium, "
+                    "le cuivre et le nickel, et ce sont des moyennes "
+                    "mensuelles : jamais des evaluations spot.",
+    )
+    ps.add_argument(
+        "--fichier", metavar="FICHIER", default=None,
+        help="classeur local a lire (defaut : "
+             "data/CMO-Historical-Data-Monthly.xlsx)",
+    )
+    ps.add_argument(
+        "--url", metavar="URL", default=None,
+        help="adresse du classeur. CONFIGURABLE a dessein : l'identifiant de "
+             "document a deja change entre les editions 2025 et 2026.",
+    )
+    ps.add_argument(
+        "--rafraichir", action="store_true",
+        help="telecharge le classeur avant lecture. Action EXPLICITE et "
+             "separee de l'analyse : un lien mort ne doit jamais casser une "
+             "valorisation.",
+    )
+    ps.set_defaults(func=cmd_pink_sheet)
 
     u = sous.add_parser(
         "ui", help="lance l'interface graphique dans le navigateur",

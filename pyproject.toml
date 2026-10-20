@@ -7,7 +7,14 @@ name = "klastos21"
 version = "0.1.0"
 description = "Analyse predictive des matieres premieres secondaires"
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.26", "scipy>=1.11", "pandas>=2.0"]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.0",
+    # Lecture du classeur Pink Sheet de la Banque mondiale, seule
+    # source de prix gratuite et rediffusable du projet.
+    "openpyxl>=3.1",
+]
 
 [project.scripts]
 klastos = "klastos.cli:main"

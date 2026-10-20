@@ -33,7 +33,7 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, Protocol
 
-from .market import MetalPrice, PriceSet
+from .market import MetalPrice, MissingPriceError, PriceSet
 from .units import PriceUnit, check_plausible
 
 # ==========================================================================
@@ -441,3 +441,304 @@ class CachingProvider:
         self.served_from_cache = False
         self._ecrire(q)
         return q
+
+
+# ==========================================================================
+# Pink Sheet de la Banque mondiale - la seule source gratuite et rediffusable
+# ==========================================================================
+
+#: Adresse du classeur mensuel. CONFIGURABLE, et pour une raison mesuree :
+#: l'URL porte un identifiant de document qui a DEJA change entre les
+#: editions 2025 et 2026. Un lien code en dur dans le module casserait une
+#: analyse le jour ou la Banque mondiale republie.
+PINK_SHEET_URL = (
+    "https://thedocs.worldbank.org/en/doc/"
+    "18675f1d1639c7a34d463f59263ba0a2-0050012025/related/"
+    "CMO-Historical-Data-Monthly.xlsx"
+)
+
+#: Emplacement local par defaut du classeur telecharge.
+PINK_SHEET_FICHIER = pathlib.Path("data") / "CMO-Historical-Data-Monthly.xlsx"
+
+#: Attribution exigee par la licence de reutilisation. Elle part dans la
+#: provenance ET dans le rapport : c'est la contrepartie de la gratuite.
+PINK_SHEET_ATTRIBUTION = "Banque mondiale, Commodity Price Data (Pink Sheet)"
+
+#: Les TROIS metaux que le Pink Sheet cote, et eux seuls. Verifie sur
+#: l'edition d'octobre 2026. La table associe le symbole au libelle de
+#: colonne du classeur.
+PINK_SHEET_METAUX = {
+    "Al": "Aluminum",
+    "Cu": "Copper",
+    "Ni": "Nickel",
+}
+
+#: Ce que le Pink Sheet NE cote PAS, et ou le chercher. Un operateur qui
+#: demande le cobalt doit lire une adresse, pas un zero.
+PINK_SHEET_ABSENTS = {
+    "Co": "cobalt",
+    "Li": "lithium",
+    "Mn": "manganese",
+    "C": "graphite",
+}
+
+_OU_TROUVER = (
+    "Le Pink Sheet de la Banque mondiale ne cote ni le cobalt, ni le "
+    "lithium, ni le manganese, ni le graphite : ce sont des marches de gre "
+    "a gre, sans cotation de bourse. Il faut une evaluation d'agence "
+    "(Fastmarkets, Benchmark Mineral Intelligence, SMM - voir "
+    "klastos/feeds.py) ou les prix contractuels du client."
+)
+
+
+class PinkSheetProvider:
+    """
+    Moyennes mensuelles de la Banque mondiale, lues dans un fichier LOCAL.
+
+    Pourquoi un fichier local, et pas un telechargement
+    ---------------------------------------------------
+    DECISION. L'URL du classeur porte un identifiant de document qui a deja
+    change entre les editions 2025 et 2026. Telecharger a chaque analyse
+    ferait dependre une valorisation d'un lien susceptible de mourir sans
+    preavis. Le fichier est donc telecharge SEPAREMENT - `klastos pink-sheet
+    --rafraichir` - et le fournisseur lit ce qui est sur le disque.
+
+    L'echec est BRUYANT : fichier absent, feuille introuvable, metal absent
+    du classeur produisent une erreur nommee, jamais un zero ni un silence.
+
+    Ce que cette source est, et n'est pas
+    -------------------------------------
+    Ce sont des MOYENNES MENSUELLES officielles, pas des evaluations spot.
+    `is_production_source` vaut donc False : un negociant qui traite au
+    comptant ne peut pas opposer une moyenne d'octobre a une cargaison du
+    21 octobre. Le mois retenu figure dans le libelle de reference et dans
+    la note, pour qu'aucune moyenne ne passe pour une cotation du jour.
+
+    En revanche la donnee est PUBLIQUE et reutilisable avec attribution :
+    c'est le seul flux de KLASTOS21 ou `redistribution_licensed` vaut True.
+    """
+
+    name = "pink_sheet"
+
+    #: Donnee publique, reutilisable avec attribution. UNIQUE parmi les
+    #: flux : une evaluation d'agence ne peut jamais figurer dans un
+    #: document remis a un tiers sans licence ecrite.
+    redistribution_licensed = True
+
+    #: Moyennes mensuelles, donc PAS une source de cotation de production.
+    is_production_source = False
+
+    def __init__(
+        self,
+        chemin: str | pathlib.Path | None = None,
+        *,
+        feuille: str = "Monthly Prices",
+        url: str = PINK_SHEET_URL,
+        mois: str | None = None,
+    ) -> None:
+        self.chemin = pathlib.Path(chemin or PINK_SHEET_FICHIER)
+        self.feuille = feuille
+        self.url = url
+        #: Mois voulu, au format du classeur (« 2026M10 »). None prend le
+        #: dernier mois renseigne.
+        self.mois = mois
+
+    # ------------------------------------------------------------------
+    def quotes(self, metaux: Iterable[str] | None = None) -> list[RawQuote]:
+        """
+        Les cotations des metaux demandes, par defaut les trois disponibles.
+
+        Demander un metal absent du Pink Sheet leve `MissingPriceError` avec
+        l'adresse ou le trouver. Jamais un zero : une valorisation fondee
+        sur un cobalt a zero serait fausse sans qu'aucun controle la refuse.
+        """
+        voulus = list(metaux) if metaux is not None else list(PINK_SHEET_METAUX)
+
+        inconnus = [m for m in voulus if m not in PINK_SHEET_METAUX]
+        if inconnus:
+            absents = [m for m in inconnus if m in PINK_SHEET_ABSENTS]
+            if absents:
+                noms = ", ".join(PINK_SHEET_ABSENTS[m] for m in absents)
+                raise MissingPriceError(
+                    f"{noms} ({', '.join(absents)}) absent(s) du Pink "
+                    f"Sheet. {_OU_TROUVER}"
+                )
+            raise MissingPriceError(
+                f"{inconnus} hors du Pink Sheet. Metaux disponibles : "
+                f"{sorted(PINK_SHEET_METAUX)}. {_OU_TROUVER}"
+            )
+
+        table, mois = self._lire(voulus)
+        annee, _, numero = mois.partition("M")
+        try:
+            date = _dt.date(int(annee), int(numero), 1)
+        except ValueError:
+            raise ProviderError(
+                f"{self.chemin.name} : periode {mois!r} illisible. Format "
+                "attendu : « 2026M10 »."
+            ) from None
+
+        out: list[RawQuote] = []
+        for metal in voulus:
+            valeur = table[metal]
+            out.append(RawQuote(
+                metal=metal,
+                value=valeur,
+                # Le classeur cote en dollars la tonne metrique. L'unite est
+                # LUE dans le classeur par `_lire`, jamais devinee.
+                unit=PriceUnit.PER_TONNE,
+                currency="USD",
+                # Premier jour du mois : une moyenne mensuelle n'a pas de
+                # jour, et lui en inventer un la ferait passer pour un spot.
+                as_of=date,
+                source=PINK_SHEET_ATTRIBUTION,
+                reference_name=(
+                    f"{PINK_SHEET_METAUX[metal]}, moyenne mensuelle "
+                    f"{annee}-{int(numero):02d}"
+                ),
+                note=(
+                    f"MOYENNE MENSUELLE {annee}-{int(numero):02d}, pas une "
+                    f"evaluation spot. {PINK_SHEET_ATTRIBUTION}."
+                ),
+            ))
+        return out
+
+    def fetch(self) -> PriceSet:
+        """Jeu de prix complet, avec son attribution et sa licence."""
+        cotations = self.quotes()
+        mois = cotations[0].as_of
+        return build_price_set(
+            cotations,
+            label=(f"Pink Sheet {mois:%Y-%m} (moyennes mensuelles) - "
+                   f"{PINK_SHEET_ATTRIBUTION}"),
+            is_production_source=self.is_production_source,
+            origin=self.name,
+            redistribution_licensed=self.redistribution_licensed,
+        )
+
+    # ------------------------------------------------------------------
+    def _lire(self, voulus: list[str]) -> tuple[dict[str, float], str]:
+        """
+        Lit le classeur et rend {symbole: valeur} plus le mois retenu.
+
+        Toute anomalie leve : le silence serait pire qu'une erreur, puisque
+        la valeur manquante partirait en valorisation.
+        """
+        try:
+            from openpyxl import load_workbook
+        except ImportError:
+            raise ProviderError(
+                "openpyxl est requis pour lire le classeur Pink Sheet. "
+                "Installez-le : pip install openpyxl"
+            ) from None
+
+        if not self.chemin.exists():
+            raise ProviderError(
+                f"Classeur Pink Sheet absent : {self.chemin}. "
+                f"Telechargez-le avec « klastos pink-sheet --rafraichir », "
+                f"ou depuis {self.url}"
+            )
+
+        classeur = load_workbook(self.chemin, data_only=True, read_only=True)
+        try:
+            if self.feuille not in classeur.sheetnames:
+                raise ProviderError(
+                    f"{self.chemin.name} : feuille {self.feuille!r} "
+                    f"introuvable. Feuilles presentes : "
+                    f"{classeur.sheetnames}. La Banque mondiale a pu "
+                    "renommer l'onglet : passez `feuille=`."
+                )
+            lignes = [list(r) for r in classeur[self.feuille].iter_rows(
+                values_only=True)]
+        finally:
+            classeur.close()
+
+        colonnes, ligne_entete = self._colonnes(lignes, voulus)
+        unites = self._unites(lignes, ligne_entete, colonnes)
+        mois, valeurs = self._valeurs(lignes, ligne_entete, colonnes)
+
+        # L'unite est LUE, jamais devinee : c'est l'engagement de units.py.
+        for metal, libelle in unites.items():
+            if libelle and "mt" not in libelle.lower():
+                raise ProviderError(
+                    f"{self.chemin.name} : {PINK_SHEET_METAUX[metal]} cote "
+                    f"en {libelle!r}, alors que la tonne metrique est "
+                    "attendue. L'unite n'est jamais deduite : verifiez "
+                    "l'edition du classeur."
+                )
+        return valeurs, mois
+
+    def _colonnes(self, lignes: list[list], voulus: list[str]
+                  ) -> tuple[dict[str, int], int]:
+        """Repere la ligne d'en-tete et l'indice de colonne de chaque metal."""
+        attendus = {PINK_SHEET_METAUX[m].lower(): m for m in voulus}
+        for i, ligne in enumerate(lignes):
+            trouve: dict[str, int] = {}
+            for j, cel in enumerate(ligne):
+                nom = str(cel).strip().lower() if cel is not None else ""
+                if nom in attendus:
+                    trouve[attendus[nom]] = j
+            if len(trouve) == len(voulus):
+                return trouve, i
+        raise ProviderError(
+            f"{self.chemin.name} : colonnes "
+            f"{[PINK_SHEET_METAUX[m] for m in voulus]} introuvables dans la "
+            f"feuille {self.feuille!r}. La Banque mondiale a pu renommer une "
+            "serie : l'echec est volontairement bruyant plutot que silencieux."
+        )
+
+    def _unites(self, lignes: list[list], ligne_entete: int,
+                colonnes: dict[str, int]) -> dict[str, str]:
+        """L'unite declaree sous chaque en-tete, si le classeur la porte."""
+        for ligne in lignes[ligne_entete + 1:ligne_entete + 4]:
+            cellules = {m: ligne[j] if j < len(ligne) else None
+                        for m, j in colonnes.items()}
+            textes = {m: str(v).strip() for m, v in cellules.items()
+                      if isinstance(v, str) and v.strip()}
+            if len(textes) == len(colonnes):
+                return textes
+        return {}
+
+    def _valeurs(self, lignes: list[list], ligne_entete: int,
+                 colonnes: dict[str, int]) -> tuple[str, dict[str, float]]:
+        """Le mois retenu et ses valeurs. Dernier mois complet par defaut."""
+        import re
+
+        periode = re.compile(r"^\s*(\d{4})M(\d{1,2})\s*$")
+        candidats: list[tuple[str, dict[str, float]]] = []
+        for ligne in lignes[ligne_entete + 1:]:
+            if not ligne:
+                continue
+            m = periode.match(str(ligne[0] or ""))
+            if not m:
+                continue
+            mois = f"{m.group(1)}M{m.group(2)}"
+            valeurs: dict[str, float] = {}
+            for metal, j in colonnes.items():
+                brut = ligne[j] if j < len(ligne) else None
+                try:
+                    valeurs[metal] = float(str(brut).replace(",", "."))
+                except (TypeError, ValueError):
+                    valeurs = {}
+                    break
+            if valeurs:
+                candidats.append((mois, valeurs))
+
+        if not candidats:
+            raise ProviderError(
+                f"{self.chemin.name} : aucune ligne mensuelle exploitable "
+                f"pour {sorted(colonnes)}. Les periodes sont attendues au "
+                "format « 2026M10 » en premiere colonne."
+            )
+
+        if self.mois is None:
+            return candidats[-1]
+
+        voulu = self.mois.strip().upper()
+        for mois, valeurs in candidats:
+            if mois == voulu:
+                return mois, valeurs
+        raise ProviderError(
+            f"{self.chemin.name} : mois {voulu!r} absent du classeur. "
+            f"Derniere periode disponible : {candidats[-1][0]}."
+        )
