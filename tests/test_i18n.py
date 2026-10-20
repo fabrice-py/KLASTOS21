@@ -143,12 +143,24 @@ def test_les_deux_langues_disent_des_choses_differentes():
     """
     #: Mots dont la forme est la meme en francais et en anglais. Chaque
     #: entree est une decision, pas un oubli - d'ou la liste explicite.
+    #: Chaque entree est une decision, pas un oubli - d'ou la liste
+    #: explicite, et le controle inverse plus bas qui retire celles qui
+    #: n'ont plus lieu d'etre.
     IDENTIQUES_ADMIS = {
-        "rapport.doc.client",            # « Client » / "Client"
-        "ui.lot.client",                 # idem
-        "rapport.doc.unite_points",      # « points » / "points"
-        "ui.nav.libelle",                # « Navigation » / "Navigation"
-        "rapport.valeur.drx_avant_apres",  # purement numerique
+        # Mots de forme identique dans les deux langues.
+        "rapport.doc.client",
+        "ui.lot.client",
+        "ui.histo.col_client",
+        "rapport.doc.unite_points",
+        "ui.nav.libelle",
+        "ui.prix.source",
+        "ui.prix.col_source",
+        "ui.prix.col_date",
+        "ui.histo.col_lot",
+        "ui.conseil.col_phase",
+        "ui.conseil.col_verdict",
+        # Gabarit purement numerique : il n'y a rien a traduire.
+        "rapport.valeur.drx_avant_apres",
     }
     for cle, entree in i18n.CATALOGUE.items():
         if entree["fr"] == entree["en"]:

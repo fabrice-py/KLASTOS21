@@ -55,7 +55,8 @@ from klastos.ingestion import IngestionError, parse_rows
 from klastos.market import (MissingPriceError, NotAProductionSourceError,
                             REFERENCE_SPECS, StalePriceError)
 from klastos.provenance import PROVENANCE_PROFILES
-from klastos.report import DESTINATAIRE_INTERNE, DESTINATAIRE_TIERS, ReportRefused
+from klastos.report import (DESTINATAIRE_INTERNE, DESTINATAIRE_TIERS,
+                            SECTION_REDUIRE, ReportRefused)
 from klastos.service import Analyse, Demande, analyser, charger_prix, charger_termes
 from klastos.identifiability import (CONSEIL_U_DEFAUT, UnboundedCompatibleSet)
 from klastos.solver import CLOSURE_ALERT, CLOSURE_REJECT
@@ -173,18 +174,18 @@ def message_de_refus(exc: Exception) -> tuple[str, str]:
     d'appel.
     """
     if isinstance(exc, ReportRefused):
-        return ("Rapport refusé", str(exc))
+        return (T("ui.refus.rapport"), str(exc))
     if isinstance(exc, NotAProductionSourceError):
-        return ("Source de prix non destinée à la production", str(exc))
+        return (T("ui.refus.source_prix"), str(exc))
     if isinstance(exc, StalePriceError):
-        return ("Prix périmés", str(exc))
+        return (T("ui.refus.prix_perimes"), str(exc))
     if isinstance(exc, MissingPriceError):
-        return ("Prix manquant", str(exc))
+        return (T("ui.refus.prix_manquant"), str(exc))
     if isinstance(exc, ImplausiblePriceError):
-        return ("Prix invraisemblable", str(exc))
+        return (T("ui.refus.prix_invraisemblable"), str(exc))
     if isinstance(exc, IngestionError):
-        return ("Bulletin illisible", str(exc))
-    return ("Analyse impossible", str(exc))
+        return (T("ui.refus.bulletin"), str(exc))
+    return (T("ui.refus.analyse"), str(exc))
 
 
 def resume_statuts(analyse: Analyse) -> dict[str, int]:
@@ -378,12 +379,12 @@ def _page_analyse(reglages: dict) -> None:
     with droite:
         if analyse is None:
             st.markdown(
-                '<div class="carte" style="text-align:center;padding:56px 20px">'
-                '<div style="font-size:15px;font-weight:600;color:#13171E">'
-                'Aucune analyse en cours</div>'
-                '<div style="font-size:13px;color:#5A6472;margin-top:7px">'
-                'Importez un bulletin à gauche, puis lancez l\'analyse.</div>'
-                "</div>", unsafe_allow_html=True)
+                f'<div class="carte" style="text-align:center;padding:56px 20px">'
+                f'<div style="font-size:15px;font-weight:600;color:#13171E">'
+                f'{T("ui.analyse.aucune")}</div>'
+                f'<div style="font-size:13px;color:#5A6472;margin-top:7px">'
+                f'{T("ui.analyse.aucune_detail")}</div>'
+                f"</div>", unsafe_allow_html=True)
             return
         _resultats(analyse, reglages)
 
@@ -429,55 +430,55 @@ def _vue_ensemble(a: Analyse) -> None:
     compte = resume_statuts(a)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(_tuile("Bouclage massique",
+    c1.markdown(_tuile(T("ui.carte.bouclage"),
                        f"{central.explained_mass * 100:.2f} %",
-                       f"{central.unexplained_mass * 100:.2f} % non expliqués",
+                       T("ui.tuile.non_expliques",
+                         part=central.unexplained_mass * 100),
                        statut), unsafe_allow_html=True)
-    c2.markdown(_tuile("Degrés de liberté", str(a.incertitude.degeneracy),
-                       "non contraints par l'analyse élémentaire"),
+    c2.markdown(_tuile(T("ui.tuile.degres"),
+                       str(a.incertitude.degeneracy),
+                       T("ui.tuile.degres_note")),
                 unsafe_allow_html=True)
-    c3.markdown(_tuile("Grandeurs déterminées",
+    c3.markdown(_tuile(T("ui.tuile.determinees"),
                        f"{compte['ferme']} / {sum(compte.values())}",
-                       f"{compte['ouvert']} en domaine compatible"),
+                       T("ui.tuile.en_domaine", n=compte["ouvert"])),
                 unsafe_allow_html=True)
     if a.valorisation is not None:
         v = a.valorisation
         c4.markdown(_tuile(
-            "Prix maximal à payer",
+            T("ui.tuile.prix_max"),
             f"{v.max_price_low:,.0f}–{v.max_price_high:,.0f}".replace(",", " "),
-            f"{v.currency} par tonne", "prix"), unsafe_allow_html=True)
+            T("ui.tuile.par_tonne", devise=v.currency), "prix"),
+            unsafe_allow_html=True)
     else:
-        c4.markdown(_tuile("Prix maximal à payer", "—",
-                           "aucun prix fourni"), unsafe_allow_html=True)
+        c4.markdown(_tuile(T("ui.tuile.prix_max"), "—",
+                           T("ui.tuile.sans_prix")),
+                    unsafe_allow_html=True)
 
     st.write("")
     g, d = st.columns([1, 1], gap="medium")
 
     with g, st.container(border=True):
         _, mode = charts.donnees_composition(a)
-        st.markdown(_carte_titre(None, "Composition reconstituée"),
+        st.markdown(_carte_titre(None, T("ui.carte.composition")),
                     unsafe_allow_html=True)
         st.altair_chart(charts.camembert(a), use_container_width=True)
         if mode == "elements":
             st.markdown(
-                '<div class="methode">Ce camembert porte la composition '
-                '<b>élémentaire</b>, qui est déterminée, et non les phases '
-                'minérales, qui ne le sont pas. Le gris est la masse que le '
-                'modèle n\'explique pas : humidité, phase absente du modèle, '
-                'ou provenance mal déclarée. Il bascule automatiquement sur '
-                'les phases le jour où celles-ci deviennent fermes.</div>',
+                f'<div class="methode">'
+                f'{T("ui.methode.camembert_elements")}</div>',
                 unsafe_allow_html=True)
         else:
             st.markdown(
-                '<div class="methode">Toutes les phases sont déterminées sur '
-                'ce lot : le camembert porte donc directement la '
-                '<b>minéralogie</b>.</div>', unsafe_allow_html=True)
+                f'<div class="methode">'
+                f'{T("ui.methode.camembert_phases")}</div>',
+                unsafe_allow_html=True)
 
     with d, st.container(border=True):
-        st.markdown(_carte_titre(None, "Teneurs élémentaires du bulletin"),
+        st.markdown(_carte_titre(None, T("ui.carte.teneurs")),
                     unsafe_allow_html=True)
         st.altair_chart(charts.barres_elements(a), use_container_width=True)
-        st.markdown(_carte_titre(None, "Bouclage massique"),
+        st.markdown(_carte_titre(None, T("ui.carte.bouclage")),
                     unsafe_allow_html=True)
         st.altair_chart(charts.barre_bouclage(a), use_container_width=True)
         if bouclage is not None and statut != "ok":
@@ -487,19 +488,15 @@ def _vue_ensemble(a: Analyse) -> None:
 def _composition(a: Analyse) -> None:
     g, d = st.columns([3, 2], gap="medium")
     with g, st.container(border=True):
-        st.markdown(_carte_titre(None, "Domaines compatibles par phase"),
+        st.markdown(_carte_titre(None, T("ui.carte.domaines")),
                     unsafe_allow_html=True)
         st.altair_chart(charts.barres_domaines(a), use_container_width=True)
         st.markdown(
-            '<div class="methode">Un <b>trait fin</b> se lit « déterminé ». '
-            'Une <b>bande large</b> se lit « toute valeur de cette bande '
-            'explique le bulletin aussi bien qu\'une autre ». Une '
-            'quantification par diffraction (DRX) de deux phases suffirait à '
-            'ramener toutes ces bandes à des traits.</div>',
+            f'<div class="methode">{T("ui.methode.domaines")}</div>',
             unsafe_allow_html=True)
 
     with d, st.container(border=True):
-        st.markdown(_carte_titre(None, "Détail des phases"),
+        st.markdown(_carte_titre(None, T("ui.carte.detail_phases")),
                     unsafe_allow_html=True)
         st.markdown(_table_phases(a), unsafe_allow_html=True)
 
@@ -540,38 +537,31 @@ def _table_phases(a: Analyse) -> str:
 
 def _incertitude(a: Analyse) -> None:
   with st.container(border=True):
-    st.markdown(_carte_titre(None, "Ce qu'un dosage d'oxygène apporterait"),
+    st.markdown(_carte_titre(None, T("ui.carte.scenario")),
                 unsafe_allow_html=True)
     graphe = charts.barres_scenario(a)
     if graphe is None:
-        st.caption("L'oxygène est dosé dans ce bulletin : il n'y a plus rien "
-                   "à projeter.")
+        st.caption(T("ui.scenario.deja_dose"))
     else:
         st.altair_chart(graphe, use_container_width=True)
         sc = a.incertitude.meta["scenarios"][0]
         st.markdown(
-            f'<div class="methode">La reconstitution contraint déjà '
-            f'l\'oxygène entre <b>{sc.value_low * 100:.2f} %</b> et '
-            f'<b>{sc.value_high * 100:.2f} %</b>. Un dosage n\'apporte donc '
-            f'quelque chose que si son incertitude reste sous '
-            f'<b>{sc.max_useful_uncertainty * 100:.2f} point</b>. Au-delà, '
-            f'il confirme ce que le calcul donne déjà. Ces largeurs sont des '
-            f'projections : aucune n\'est opposable.</div>',
+            f'<div class="methode">'
+            f'{T("ui.methode.scenario", bas=sc.value_low * 100, haut=sc.value_high * 100, umax=sc.max_useful_uncertainty * 100)}'
+            f'</div>',
             unsafe_allow_html=True)
 
   with st.container(border=True):
-    st.markdown(_carte_titre(None, "Quantification par diffraction (DRX)"),
+    st.markdown(_carte_titre(None, T("ui.carte.drx")),
                 unsafe_allow_html=True)
 
     if a.contrainte_par_drx:
         u = a.incertitude
         taux = u.structural_conflict_rate
         st.markdown(
-            f'<div class="methode">{len(a.structurale)} phase(s) quantifiée(s), '
-            f'base <b>{a.structurale.basis}</b>. Une mesure entre en '
-            f'<b>encadrement</b> et non en égalité : elle resserre les plages, '
-            f'elle ne rend aucune grandeur ferme — une inégalité borne une '
-            f'direction nulle, elle ne la supprime pas.</div>',
+            f'<div class="methode">'
+            f'{T("ui.methode.drx_posee", n=len(a.structurale), base=a.structurale.basis)}'
+            f'</div>',
             unsafe_allow_html=True)
 
         resserres = [r for r in u.results
@@ -588,52 +578,42 @@ def _incertitude(a: Analyse) -> None:
                  for r in resserres],
                 use_container_width=True, hide_index=True)
         else:
-            st.info("Cette quantification ne resserre aucune plage de ce lot : "
-                    "les phases qu'elle désigne étaient déjà déterminées, ou "
-                    "elle ne contraint pas les directions non identifiables.")
+            st.info(T("ui.drx.sans_effet"))
 
         if taux > 0.20:
-            st.warning(
-                f"**{u.n_structural_conflicts} tirage(s) sur {u.n_draws} en "
-                f"conflit ({taux * 100:.0f} %).** Pour cette part des tirages "
-                "de bruit analytique, aucune répartition des phases ne "
-                "satisfait à la fois le bulletin et la quantification. Ces "
-                "tirages sont **conservés** avec leurs bornes non "
-                "contraintes : les écarter aurait resserré l'incertitude du "
-                "laboratoire au motif d'une mesure qui ne porte pas sur elle. "
-                "Un taux élevé signale une analyse, une quantification ou un "
-                "modèle de phases à reprendre.")
+            st.warning(T("ui.drx.conflit",
+                         n=u.n_structural_conflicts, total=u.n_draws,
+                         taux=taux * 100))
     else:
         st.markdown(
-            '<div class="methode">Aucune quantification fournie. Déposez-en '
-            'une dans la colonne de gauche. Mesuré sur un lot en provenance '
-            'VE attestée : une seule phase quantifiée à <b>±2 points</b> '
-            'retire <b>72 %</b> de la largeur cumulée. Mais toutes les phases '
-            'ne se valent pas — cochez le calcul du conseil pour savoir '
-            'laquelle commander.</div>',
+            f'<div class="methode">{T("ui.methode.drx_absente")}</div>',
             unsafe_allow_html=True)
 
   if a.conseil is not None and a.conseil.rows:
     with st.container(border=True):
-        st.markdown(_carte_titre(None, "Quelle phase faire quantifier"),
+        st.markdown(_carte_titre(None, T("ui.carte.conseil")),
                     unsafe_allow_html=True)
         c = a.conseil
         st.markdown(
-            f'<div class="methode">{c.resume()} Les gains sont des '
-            f'<b>planchers</b> : ils sont pris au pire placement de la valeur '
-            f'mesurée dans la plage compatible, puisque cette valeur est '
-            f'inconnue avant la mesure.</div>', unsafe_allow_html=True)
+            f'<div class="methode">'
+            f'{T("ui.methode.conseil", resume=c.resume())}</div>',
+            unsafe_allow_html=True)
         st.dataframe(
-            [{"Phase": r.label,
-              "Plage actuelle": f"{r.width_open * 100:.2f} pt",
-              "Gain au pire cas": f"{r.gain * 100:.0f} %",
-              "Verdict": "à commander" if r.useful else "sans effet"}
+            [{T("ui.conseil.col_phase"): r.label,
+              T("ui.conseil.col_plage"): f"{r.width_open * 100:.2f} pt",
+              T("ui.conseil.col_gain"): f"{r.gain * 100:.0f} %",
+              T("ui.conseil.col_verdict"): T("ui.conseil.a_commander")
+              if r.useful else T("ui.conseil.sans_effet")}
              for r in c.rows],
             use_container_width=True, hide_index=True)
 
   with st.container(border=True):
     for section in a.rapport.sections:
-        if section.title.startswith("Comment reduire"):
+        # Par la CLE, jamais par le titre. Ce filtre comparait
+        # « Comment reduire » sans accent : depuis que le titre du rapport
+        # porte le sien, il ne reconnaissait plus la section et l'encart
+        # disparaissait de l'ecran sans qu'aucun test ne le signale.
+        if section.cle == SECTION_REDUIRE:
             with st.expander(section.title):
                 st.caption(section.intro)
                 st.dataframe(
@@ -647,12 +627,11 @@ def _rapport(a: Analyse, reglages: dict) -> None:
 
     html = to_html(a.rapport)
     c1, c2, c3 = st.columns([1, 1, 2])
-    c1.download_button("Télécharger le rapport (HTML)", data=html,
+    c1.download_button(T("ui.rapport.telecharger"), data=html,
                        file_name=f"rapport_{a.rapport.lot_id}.html",
                        mime="text/html", use_container_width=True,
                        type="primary",
-                       help="Ouvrez-le dans un navigateur, puis Ctrl+P pour "
-                            "un PDF.")
+                       help=T("ui.rapport.telecharger_aide"))
     c2.download_button("Markdown", data=a.rapport.to_markdown(),
                        file_name=f"rapport_{a.rapport.lot_id}.md",
                        mime="text/markdown", use_container_width=True)
@@ -664,19 +643,20 @@ def _rapport(a: Analyse, reglages: dict) -> None:
         try:
             i = store.enregistrer(cx, a)
             st.session_state["enregistre"] = True
-            c3.success(f"Enregistré dans l'historique (#{i})")
+            c3.success(T("ui.rapport.enregistre", i=i))
         finally:
             cx.close()
 
-    for titre, elements in (("Avertissements", a.rapport.warnings),
-                            ("Limites déclarées", a.rapport.limitations),
-                            ("Traçabilité", a.rapport.traceability)):
+    for titre, elements in (
+            (T("rapport.section.avertissements"), a.rapport.warnings),
+            (T("ui.rapport.limites_courtes"), a.rapport.limitations),
+            (T("rapport.section.tracabilite"), a.rapport.traceability)):
         if elements:
             with st.expander(titre):
                 for x in elements:
                     st.write("- " + x)
 
-    with st.expander("Aperçu du rapport imprimable", expanded=True):
+    with st.expander(T("ui.rapport.apercu"), expanded=True):
         st.components.v1.html(html, height=720, scrolling=True)
 
 
@@ -685,23 +665,23 @@ def _rapport(a: Analyse, reglages: dict) -> None:
 # ==========================================================================
 
 def _page_prix(reglages: dict) -> None:
-    _fil("Prix")
-    _heros("Prix de référence",
-           "Sans prix, pas de valorisation : le rapport reste complet mais "
-           "ne porte aucun chiffre commercial. Il n'existe nulle part dans "
-           "KLASTOS21 de jeu de prix par défaut.",
-           "Route prioritaire",
-           "Les prix fournis par le client. Ce sont ses données : aucune "
-           "licence d'agence ne les restreint.")
+    _fil(T("ui.page.prix"))
+    _heros(T("ui.prix.titre"), T("ui.prix.chapeau"),
+           T("ui.prix.route_titre"), T("ui.prix.route"))
 
     g, d = st.columns([1, 2], gap="medium")
     with g:
         with st.container(border=True):
-            st.markdown(_carte_titre("1", "Source"), unsafe_allow_html=True)
-            mode = st.radio("Source", ["Fichier de prix", "Flux d'agence"],
+            st.markdown(_carte_titre("1", T("ui.prix.source")),
+                        unsafe_allow_html=True)
+            # Cles stables : comparer le LIBELLE affiche aurait envoye les
+            # deux modes sur le flux d'agence des que l'ecran passe en
+            # anglais. Meme faute que le routage des pages.
+            mode = st.radio(T("ui.prix.source"), ["fichier", "agence"],
+                            format_func=lambda m: T(f"ui.prix.mode_{m}"),
                             label_visibility="collapsed")
 
-        if mode == "Fichier de prix":
+        if mode == "fichier":
             _source_fichier()
         else:
             _source_agence()
@@ -710,39 +690,40 @@ def _page_prix(reglages: dict) -> None:
         prix = st.session_state.get("prix")
         if prix is None:
             st.markdown(
-                '<div class="carte" style="text-align:center;padding:48px 20px">'
-                '<div style="font-size:15px;font-weight:600">Aucun prix chargé'
-                '</div><div style="font-size:13px;color:#5A6472;margin-top:7px">'
-                'Le rapport sortira sans valorisation.</div></div>',
+                f'<div class="carte" style="text-align:center;padding:48px 20px">'
+                f'<div style="font-size:15px;font-weight:600">'
+                f'{T("ui.prix.aucun_titre")}</div>'
+                f'<div style="font-size:13px;color:#5A6472;margin-top:7px">'
+                f'{T("ui.prix.aucun_detail")}</div></div>',
                 unsafe_allow_html=True)
             return
 
         with st.container(border=True):
          st.markdown(_carte_titre(None, prix.label), unsafe_allow_html=True)
         st.dataframe(
-            [{"Métal": m,
-              f"Prix ({prix.currency}/t)": f"{p.value_per_tonne:,.2f}",
-              "Date": p.as_of.isoformat(), "Référence": p.reference_name,
-              "Source": p.source}
+            [{T("ui.prix.col_metal"): m,
+              T("ui.prix.col_prix", devise=prix.currency):
+                  f"{p.value_per_tonne:,.2f}",
+              T("ui.prix.col_date"): p.as_of.isoformat(),
+              T("ui.prix.col_reference"): p.reference_name,
+              T("ui.prix.col_source"): p.source}
               for m, p in sorted(prix.prices.items())],
              use_container_width=True, hide_index=True)
 
         if not prix.redistribution_licensed:
-            st.warning(
-                "**USAGE INTERNE.** Ces prix ne peuvent pas figurer dans un "
-                "document remis à un tiers. Un rapport avec destinataire "
-                "« tiers » sera refusé — et c'est voulu.")
+            st.warning(T("ui.prix.usage_interne"))
 
 
 def _source_fichier() -> None:
   with st.container(border=True):
-    st.markdown(_carte_titre("2", "Fichier"), unsafe_allow_html=True)
-    f = st.file_uploader("Prix au format CSV ou JSON", type=["csv", "json"],
+    st.markdown(_carte_titre("2", T("ui.prix.carte_fichier")),
+                unsafe_allow_html=True)
+    f = st.file_uploader(T("ui.prix.fichier"), type=["csv", "json"],
                          key="fichier_prix")
-    chemin_payables = st.text_input("Conditions commerciales (JSON)",
+    chemin_payables = st.text_input(T("ui.prix.payables"),
                                     value="data/payable_terms.json")
-    marche = st.text_input("Marché", value="cif_coree_sud")
-    if f is not None and st.button("Charger ces prix", type="primary",
+    marche = st.text_input(T("ui.prix.marche"), value="cif_coree_sud")
+    if f is not None and st.button(T("ui.prix.charger"), type="primary",
                                    use_container_width=True):
         import tempfile
 
@@ -760,19 +741,16 @@ def _source_fichier() -> None:
 
 def _source_agence() -> None:
   with st.container(border=True):
-    st.markdown(_carte_titre("2", "Agence"), unsafe_allow_html=True)
-    source = st.selectbox("Agence", ["fastmarkets", "benchmark", "smm"])
-    st.caption("Les identifiants sont lus dans les variables "
-               "d'environnement, jamais saisis ici ni stockés.")
-    licence = st.checkbox(
-        "J'atteste détenir l'autorisation écrite de rediffuser ces prix à "
-        "un tiers.",
-        help="Un abonnement d'agence couvre l'usage interne, pas la "
-             "rediffusion. Sans cette autorisation, un rapport destiné à un "
-             "client sera refusé — et c'est voulu.")
-    marche = st.text_input("Marché pour les payables", value="cif_coree_sud",
-                           key="marche_agence")
-    if st.button("Récupérer les prix du jour", type="primary",
+    st.markdown(_carte_titre("2", T("ui.prix.carte_agence")),
+                unsafe_allow_html=True)
+    source = st.selectbox(T("ui.prix.agence"),
+                          ["fastmarkets", "benchmark", "smm"])
+    st.caption(T("ui.prix.identifiants"))
+    licence = st.checkbox(T("ui.prix.licence"),
+                          help=T("ui.prix.licence_aide"))
+    marche = st.text_input(T("ui.prix.marche_payables"),
+                           value="cif_coree_sud", key="marche_agence")
+    if st.button(T("ui.prix.recuperer"), type="primary",
                  use_container_width=True):
         _recuperer_prix(source, licence, marche)
 
@@ -785,7 +763,7 @@ def _recuperer_prix(source: str, licence: bool, marche: str) -> None:
     constructeurs = {"fastmarkets": FastmarketsFeed,
                      "benchmark": BenchmarkFeed, "smm": SMMFeed}
     flux = constructeurs[source](redistribution_licensed=licence)
-    etat = "rediffusion autorisée" if licence else "USAGE INTERNE uniquement"
+    etat = T("ui.prix.licence_ok") if licence else T("ui.prix.licence_non")
     try:
         cotations = flux.quotes()
         st.session_state["prix"] = build_price_set(
@@ -799,9 +777,10 @@ def _recuperer_prix(source: str, licence: bool, marche: str) -> None:
             st.session_state["termes"] = PayableTerms(
                 market=marche, payables=flux.payables(marche),
                 as_of=cotations[0].as_of,
-                source=f"{source}, relevé automatique", validated=True)
+                source=T("ui.prix.releve_auto", source=source),
+                validated=True)
     except CredentialsMissing as e:
-        st.error(f"**Identifiants absents** — {e}")
+        st.error(f"**{T("ui.prix.identifiants_absents")}** — {e}")
     except (FeedError, ProviderError, ImplausiblePriceError) as e:
         st.error(f"**{source}** — {e}")
 
@@ -813,13 +792,9 @@ def _recuperer_prix(source: str, licence: bool, marche: str) -> None:
 def _page_historique(reglages: dict) -> None:
     import klastos.store as store
 
-    _fil("Historique")
-    _heros("Lots analysés",
-           "Retrouver un lot, ressortir le rapport tel qu'il a été émis, "
-           "rejouer une reconstitution contestée.",
-           "Donnée locale",
-           "L'historique reste sur cette machine. Un carnet de lots est une "
-           "donnée commerciale.")
+    _fil(T("ui.page.historique"))
+    _heros(T("ui.histo.titre"), T("ui.histo.chapeau"),
+           T("ui.histo.locale_titre"), T("ui.histo.locale"))
 
     try:
         cx = store.ouvrir(reglages["base"])
@@ -831,38 +806,39 @@ def _page_historique(reglages: dict) -> None:
         entrees = store.lister(cx, limite=200)
         if not entrees:
             st.markdown(
-                '<div class="carte" style="text-align:center;padding:48px">'
-                '<div style="font-size:15px;font-weight:600">Aucune analyse '
-                'enregistrée</div></div>', unsafe_allow_html=True)
+                f'<div class="carte" style="text-align:center;padding:48px">'
+                f'<div style="font-size:15px;font-weight:600">'
+                f'{T("ui.histo.vide")}</div></div>', unsafe_allow_html=True)
             return
 
         with st.container(border=True):
          st.dataframe(
-            [{"#": e.id, "Lot": e.lot_id, "Client": e.client,
-              "Analysé le": e.analyse_le.strftime("%Y-%m-%d %H:%M"),
-              "Bouclage": e.bouclage_statut.upper(),
-              "Prix maximal": e.fourchette(),
-              "Destinataire": e.destinataire,
-              "Démo": "oui" if e.demo else ""} for e in entrees],
+            [{"#": e.id, T("ui.histo.col_lot"): e.lot_id,
+              T("ui.histo.col_client"): e.client,
+              T("ui.histo.col_analyse_le"):
+                  e.analyse_le.strftime("%Y-%m-%d %H:%M"),
+              T("ui.histo.col_bouclage"): e.bouclage_statut.upper(),
+              T("ui.histo.col_prix_max"): e.fourchette(),
+              T("ui.histo.col_destinataire"): e.destinataire,
+              T("ui.histo.col_demo"): T("ui.histo.oui") if e.demo else ""}
+             for e in entrees],
             use_container_width=True, hide_index=True)
 
         choix = st.selectbox(
-            "Ressortir une analyse", entrees,
+            T("ui.histo.ressortir"), entrees,
             format_func=lambda e: f"#{e.id} — {e.lot_id} — "
                                   f"{e.analyse_le:%Y-%m-%d %H:%M}")
         if choix is None:
             return
         c1, c2 = st.columns(2)
-        if c1.button("Afficher le rapport émis", use_container_width=True):
+        if c1.button(T("ui.histo.afficher"), use_container_width=True):
             st.markdown(store.rapport(cx, choix.id))
-        if c2.button("Rejouer la reconstitution", use_container_width=True,
-                     help="Mêmes teneurs, même provenance, même graine. Les "
-                          "prix ne sont pas restitués : ceux de l'époque "
-                          "seraient périmés."):
+        if c2.button(T("ui.histo.rejouer"), use_container_width=True,
+                     help=T("ui.histo.rejouer_aide")):
             try:
                 st.session_state["analyse"] = analyser(store.refaire(cx, choix.id))
                 st.session_state["enregistre"] = True
-                st.success("Reconstitution rejouée. Voir la page Analyse.")
+                st.success(T("ui.histo.rejoue"))
             except Exception as e:
                 titre, detail = message_de_refus(e)
                 st.error(f"**{titre}** — {detail}")
@@ -875,29 +851,14 @@ def _page_historique(reglages: dict) -> None:
 # ==========================================================================
 
 def _page_aide() -> None:
-    _fil("Aide")
-    _heros("Comment lire un rapport KLASTOS21",
-           "Trois notions suffisent à exploiter l'outil sans se tromper.",
-           "Engagement", "Le protocole méthodologique complet accompagne "
-           "chaque rapport.")
+    _fil(T("ui.page.aide"))
+    _heros(T("ui.aide.titre"), T("ui.aide.chapeau"),
+           T("ui.aide.engagement_titre"), T("ui.aide.engagement"))
     for titre, texte in (
-        ("Grandeur déterminée",
-         "L'analyse élémentaire la contraint à une valeur unique, quelle que "
-         "soit la ventilation retenue par le solveur. Ce sont les seules "
-         "grandeurs opposables, et les seules qui entrent dans le prix."),
-        ("Grandeur mal déterminée",
-         "Déterminée en théorie, mais le conditionnement du système rend la "
-         "fourchette trop large pour être exploitée. L'identifiabilité est "
-         "binaire, le conditionnement est continu."),
-        ("Domaine compatible",
-         "Toute valeur du domaine explique le bulletin aussi bien qu'une "
-         "autre. Ce n'est pas une imprécision de mesure : c'est une "
-         "propriété du système. Une meilleure analyse chimique ne la réduit "
-         "pas ; une donnée structurale ou une attestation de provenance, si."),
-        ("Bouclage massique",
-         "La somme des phases reconstituées. Ce qui manque pour atteindre "
-         "100 % n'est pas une erreur de calcul : c'est de l'humidité, une "
-         "phase absente du modèle, ou une provenance mal déclarée."),
+        (T("ui.aide.determinee_titre"), T("ui.aide.determinee")),
+        (T("ui.aide.mal_determinee_titre"), T("ui.aide.mal_determinee")),
+        (T("ui.aide.domaine_titre"), T("ui.aide.domaine")),
+        (T("ui.aide.bouclage_titre"), T("ui.aide.bouclage")),
     ):
         st.markdown(
             f'<div class="carte">{_carte_titre(None, titre)}'

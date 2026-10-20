@@ -685,6 +685,13 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.analyse.lancer": {
         "fr": "Lancer l'analyse", "en": "Run the analysis",
     },
+    "ui.analyse.aucune": {
+        "fr": "Aucune analyse en cours", "en": "No analysis in progress",
+    },
+    "ui.analyse.aucune_detail": {
+        "fr": "Importez un bulletin à gauche, puis lancez l'analyse.",
+        "en": "Import an assay on the left, then run the analysis.",
+    },
     "ui.analyse.en_cours": {
         "fr": "Reconstitution et propagation d'incertitude…",
         "en": "Reconstruction and uncertainty propagation…",
@@ -726,7 +733,438 @@ CATALOGUE: dict[str, dict[str, str]] = {
     },
     "ui.onglet.rapport": {"fr": "Rapport", "en": "Report"},
 
-    # ------------------------------------------------- import du bulletin
+    # --------------------------------------------- onglet « rapport »
+    "ui.rapport.telecharger": {
+        "fr": "Télécharger le rapport (HTML)",
+        "en": "Download the report (HTML)",
+    },
+    "ui.rapport.telecharger_aide": {
+        "fr": "Ouvrez-le dans un navigateur, puis Ctrl+P pour un PDF.",
+        "en": "Open it in a browser, then Ctrl+P for a PDF.",
+    },
+    "ui.rapport.enregistre": {
+        "fr": "Enregistré dans l'historique (#{i})",
+        "en": "Recorded in the history (#{i})",
+    },
+    "ui.rapport.limites_courtes": {
+        "fr": "Limites déclarées", "en": "Declared limits",
+    },
+    "ui.rapport.apercu": {
+        "fr": "Aperçu du rapport imprimable",
+        "en": "Preview of the printable report",
+    },
+
+    # ------------------------------------------------------- page « prix »
+    "ui.prix.titre": {"fr": "Prix de référence", "en": "Reference prices"},
+    "ui.prix.chapeau": {
+        "fr": "Sans prix, pas de valorisation : le rapport reste complet "
+              "mais ne porte aucun chiffre commercial. Il n'existe nulle "
+              "part dans KLASTOS21 de jeu de prix par défaut.",
+        "en": "Without prices there is no valuation: the report stays "
+              "complete but carries no commercial figure. Nowhere in "
+              "KLASTOS21 is there a default price set.",
+    },
+    "ui.prix.route_titre": {
+        "fr": "Route prioritaire", "en": "Preferred route",
+    },
+    "ui.prix.route": {
+        "fr": "Les prix fournis par le client. Ce sont ses données : aucune "
+              "licence d'agence ne les restreint.",
+        "en": "Prices supplied by the client. They are the client's own "
+              "data: no agency licence restricts them.",
+    },
+    "ui.prix.source": {"fr": "Source", "en": "Source"},
+    "ui.prix.mode_fichier": {"fr": "Fichier de prix", "en": "Price file"},
+    "ui.prix.mode_agence": {"fr": "Flux d'agence", "en": "Agency feed"},
+    "ui.prix.aucun_titre": {
+        "fr": "Aucun prix chargé", "en": "No prices loaded",
+    },
+    "ui.prix.aucun_detail": {
+        "fr": "Le rapport sortira sans valorisation.",
+        "en": "The report will come out without a valuation.",
+    },
+    "ui.prix.col_metal": {"fr": "Métal", "en": "Metal"},
+    "ui.prix.col_prix": {
+        "fr": "Prix ({devise}/t)", "en": "Price ({devise}/t)",
+    },
+    "ui.prix.col_date": {"fr": "Date", "en": "Date"},
+    "ui.prix.col_reference": {"fr": "Référence", "en": "Reference"},
+    "ui.prix.col_source": {"fr": "Source", "en": "Source"},
+    "ui.prix.usage_interne": {
+        "fr": "**USAGE INTERNE.** Ces prix ne peuvent pas figurer dans un "
+              "document remis à un tiers. Un rapport avec destinataire "
+              "« tiers » sera refusé — et c'est voulu.",
+        "en": "**INTERNAL USE.** These prices cannot appear in a document "
+              "handed to a third party. A report addressed to a third party "
+              "will be refused — and that is deliberate.",
+    },
+    "ui.prix.carte_fichier": {"fr": "Fichier", "en": "File"},
+    "ui.prix.fichier": {
+        "fr": "Prix au format CSV ou JSON", "en": "Prices as CSV or JSON",
+    },
+    "ui.prix.payables": {
+        "fr": "Conditions commerciales (JSON)",
+        "en": "Commercial terms (JSON)",
+    },
+    "ui.prix.marche": {"fr": "Marché", "en": "Market"},
+    "ui.prix.charger": {"fr": "Charger ces prix", "en": "Load these prices"},
+    "ui.prix.carte_agence": {"fr": "Agence", "en": "Agency"},
+    "ui.prix.agence": {"fr": "Agence", "en": "Agency"},
+    "ui.prix.identifiants": {
+        "fr": "Les identifiants sont lus dans les variables "
+              "d'environnement, jamais saisis ici ni stockés.",
+        "en": "Credentials are read from environment variables, never typed "
+              "here and never stored.",
+    },
+    "ui.prix.licence": {
+        "fr": "J'atteste détenir l'autorisation écrite de rediffuser ces "
+              "prix à un tiers.",
+        "en": "I certify that I hold written authorisation to redistribute "
+              "these prices to a third party.",
+    },
+    "ui.prix.licence_aide": {
+        "fr": "Un abonnement d'agence couvre l'usage interne, pas la "
+              "rediffusion. Sans cette autorisation, un rapport destiné à "
+              "un client sera refusé — et c'est voulu.",
+        "en": "An agency subscription covers internal use, not "
+              "redistribution. Without this authorisation, a report intended "
+              "for a client will be refused — and that is deliberate.",
+    },
+    "ui.prix.marche_payables": {
+        "fr": "Marché pour les payables", "en": "Market for payables",
+    },
+    "ui.prix.recuperer": {
+        "fr": "Récupérer les prix du jour", "en": "Fetch today's prices",
+    },
+    "ui.prix.licence_ok": {
+        "fr": "rediffusion autorisée", "en": "redistribution authorised",
+    },
+    "ui.prix.licence_non": {
+        "fr": "USAGE INTERNE uniquement", "en": "INTERNAL USE only",
+    },
+    "ui.prix.releve_auto": {
+        "fr": "{source}, relevé automatique",
+        "en": "{source}, automatic retrieval",
+    },
+    "ui.prix.identifiants_absents": {
+        "fr": "Identifiants absents", "en": "Credentials missing",
+    },
+
+    # ------------------------------------------------- page « historique »
+    "ui.histo.titre": {"fr": "Lots analysés", "en": "Lots analysed"},
+    "ui.histo.chapeau": {
+        "fr": "Retrouver un lot, ressortir le rapport tel qu'il a été émis, "
+              "rejouer une reconstitution contestée.",
+        "en": "Find a lot again, reissue the report exactly as it was "
+              "issued, replay a contested reconstruction.",
+    },
+    "ui.histo.locale_titre": {"fr": "Donnée locale", "en": "Local data"},
+    "ui.histo.locale": {
+        "fr": "L'historique reste sur cette machine. Un carnet de lots est "
+              "une donnée commerciale.",
+        "en": "The history stays on this machine. A book of lots is "
+              "commercial data.",
+    },
+    "ui.histo.vide": {
+        "fr": "Aucune analyse enregistrée", "en": "No analysis recorded",
+    },
+    "ui.histo.col_lot": {"fr": "Lot", "en": "Lot"},
+    "ui.histo.col_client": {"fr": "Client", "en": "Client"},
+    "ui.histo.col_analyse_le": {"fr": "Analysé le", "en": "Analysed on"},
+    "ui.histo.col_bouclage": {"fr": "Bouclage", "en": "Closure"},
+    "ui.histo.col_prix_max": {"fr": "Prix maximal", "en": "Maximum price"},
+    "ui.histo.col_destinataire": {"fr": "Destinataire", "en": "Recipient"},
+    "ui.histo.col_demo": {"fr": "Démo", "en": "Demo"},
+    "ui.histo.oui": {"fr": "oui", "en": "yes"},
+    "ui.histo.ressortir": {
+        "fr": "Ressortir une analyse", "en": "Reissue an analysis",
+    },
+    "ui.histo.afficher": {
+        "fr": "Afficher le rapport émis", "en": "Show the issued report",
+    },
+    "ui.histo.rejouer": {
+        "fr": "Rejouer la reconstitution", "en": "Replay the reconstruction",
+    },
+    "ui.histo.rejouer_aide": {
+        "fr": "Mêmes teneurs, même provenance, même graine. Les prix ne sont "
+              "pas restitués : ceux de l'époque seraient périmés.",
+        "en": "Same grades, same provenance, same seed. Prices are not "
+              "restored: those of the time would be stale.",
+    },
+    "ui.histo.rejoue": {
+        "fr": "Reconstitution rejouée. Voir la page Analyse.",
+        "en": "Reconstruction replayed. See the Analysis page.",
+    },
+
+    # ------------------------------------------------------- page « aide »
+    "ui.aide.titre": {
+        "fr": "Comment lire un rapport KLASTOS21",
+        "en": "How to read a KLASTOS21 report",
+    },
+    "ui.aide.chapeau": {
+        "fr": "Trois notions suffisent à exploiter l'outil sans se tromper.",
+        "en": "Three notions are enough to use the tool without going wrong.",
+    },
+    "ui.aide.engagement_titre": {"fr": "Engagement", "en": "Commitment"},
+    "ui.aide.engagement": {
+        "fr": "Le protocole méthodologique complet accompagne chaque "
+              "rapport.",
+        "en": "The complete methodological protocol accompanies every "
+              "report.",
+    },
+    "ui.aide.determinee_titre": {
+        "fr": "Grandeur déterminée", "en": "Determined quantity",
+    },
+    "ui.aide.determinee": {
+        "fr": "L'analyse élémentaire la contraint à une valeur unique, "
+              "quelle que soit la ventilation retenue par le solveur. Ce "
+              "sont les seules grandeurs opposables, et les seules qui "
+              "entrent dans le prix.",
+        "en": "The elemental assay pins it to a single value, whatever "
+              "breakdown the solver settles on. These are the only "
+              "quantities that can be relied upon, and the only ones that "
+              "enter the price.",
+    },
+    "ui.aide.mal_determinee_titre": {
+        "fr": "Grandeur mal déterminée",
+        "en": "Poorly constrained quantity",
+    },
+    "ui.aide.mal_determinee": {
+        "fr": "Déterminée en théorie, mais le conditionnement du système "
+              "rend la fourchette trop large pour être exploitée. "
+              "L'identifiabilité est binaire, le conditionnement est "
+              "continu.",
+        "en": "Determined in theory, but the conditioning of the system "
+              "makes the range too wide to be used. Identifiability is "
+              "binary, conditioning is continuous.",
+    },
+    "ui.aide.domaine_titre": {
+        "fr": "Domaine compatible", "en": "Compatible range",
+    },
+    "ui.aide.domaine": {
+        "fr": "Toute valeur du domaine explique le bulletin aussi bien "
+              "qu'une autre. Ce n'est pas une imprécision de mesure : c'est "
+              "une propriété du système. Une meilleure analyse chimique ne "
+              "la réduit pas ; une donnée structurale ou une attestation de "
+              "provenance, si.",
+        "en": "Any value in the range explains the assay just as well as any "
+              "other. This is not measurement imprecision: it is a property "
+              "of the system. A better chemical assay does not reduce it; "
+              "structural data or a provenance attestation does.",
+    },
+    "ui.aide.bouclage_titre": {
+        "fr": "Bouclage massique", "en": "Mass closure",
+    },
+    "ui.aide.bouclage": {
+        "fr": "La somme des phases reconstituées. Ce qui manque pour "
+              "atteindre 100 % n'est pas une erreur de calcul : c'est de "
+              "l'humidité, une phase absente du modèle, ou une provenance "
+              "mal déclarée.",
+        "en": "The sum of the reconstructed phases. What is missing to "
+              "reach 100 % is not a calculation error: it is moisture, a "
+              "phase absent from the model, or a misdeclared provenance.",
+    },
+
+    # ---------------------------------------------- titres de refus
+    "ui.refus.rapport": {"fr": "Rapport refusé", "en": "Report refused"},
+    "ui.refus.source_prix": {
+        "fr": "Source de prix non destinée à la production",
+        "en": "Price source not intended for production use",
+    },
+    "ui.refus.prix_perimes": {"fr": "Prix périmés", "en": "Stale prices"},
+    "ui.refus.prix_manquant": {
+        "fr": "Prix manquant", "en": "Missing price",
+    },
+    "ui.refus.prix_invraisemblable": {
+        "fr": "Prix invraisemblable", "en": "Implausible price",
+    },
+    "ui.refus.bulletin": {
+        "fr": "Bulletin illisible", "en": "Assay unreadable",
+    },
+    "ui.refus.analyse": {
+        "fr": "Analyse impossible", "en": "Analysis not possible",
+    },
+
+    # ------------------------------- onglet « reduire l'incertitude »
+    "ui.carte.scenario": {
+        "fr": "Ce qu'un dosage d'oxygène apporterait",
+        "en": "What an oxygen assay would bring",
+    },
+    "ui.scenario.deja_dose": {
+        "fr": "L'oxygène est dosé dans ce bulletin : il n'y a plus rien à "
+              "projeter.",
+        "en": "Oxygen is assayed in this certificate: there is nothing left "
+              "to project.",
+    },
+    "ui.methode.scenario": {
+        "fr": "La reconstitution contraint déjà l'oxygène entre "
+              "<b>{bas:.2f} %</b> et <b>{haut:.2f} %</b>. Un dosage "
+              "n'apporte donc quelque chose que si son incertitude reste "
+              "sous <b>{umax:.2f} point</b>. Au-delà, il confirme ce que le "
+              "calcul donne déjà. Ces largeurs sont des projections : aucune "
+              "n'est opposable.",
+        "en": "The reconstruction already constrains oxygen between "
+              "<b>{bas:.2f} %</b> and <b>{haut:.2f} %</b>. An assay "
+              "therefore adds something only if its uncertainty stays below "
+              "<b>{umax:.2f} point</b>. Beyond that, it confirms what the "
+              "calculation already gives. These widths are projections: none "
+              "is binding.",
+    },
+    "ui.carte.drx": {
+        "fr": "Quantification par diffraction (DRX)",
+        "en": "Diffraction quantification (XRD)",
+    },
+    "ui.methode.drx_posee": {
+        "fr": "{n} phase(s) quantifiée(s), base <b>{base}</b>. Une mesure "
+              "entre en <b>encadrement</b> et non en égalité : elle resserre "
+              "les plages, elle ne rend aucune grandeur ferme — une "
+              "inégalité borne une direction nulle, elle ne la supprime pas.",
+        "en": "{n} phase(s) quantified, {base} basis. A measurement enters "
+              "as a <b>bound</b> and not as an equality: it narrows the "
+              "ranges, it makes no quantity determined — an inequality "
+              "bounds a null direction, it does not remove it.",
+    },
+    "ui.drx.sans_effet": {
+        "fr": "Cette quantification ne resserre aucune plage de ce lot : les "
+              "phases qu'elle désigne étaient déjà déterminées, ou elle ne "
+              "contraint pas les directions non identifiables.",
+        "en": "This quantification narrows no range for this lot: the phases "
+              "it names were already determined, or it does not constrain "
+              "the non-identifiable directions.",
+    },
+    "ui.drx.conflit": {
+        "fr": "**{n} tirage(s) sur {total} en conflit ({taux:.0f} %).** Pour "
+              "cette part des tirages de bruit analytique, aucune "
+              "répartition des phases ne satisfait à la fois le bulletin et "
+              "la quantification. Ces tirages sont **conservés** avec leurs "
+              "bornes non contraintes : les écarter aurait resserré "
+              "l'incertitude du laboratoire au motif d'une mesure qui ne "
+              "porte pas sur elle. Un taux élevé signale une analyse, une "
+              "quantification ou un modèle de phases à reprendre.",
+        "en": "**{n} draw(s) out of {total} in conflict ({taux:.0f} %).** "
+              "For that share of the analytical-noise draws, no phase "
+              "distribution satisfies both the assay and the "
+              "quantification. Those draws are **kept** with their bounds "
+              "unconstrained: discarding them would have narrowed the "
+              "laboratory's uncertainty on the strength of a measurement "
+              "that does not bear on it. A high rate points to an assay, a "
+              "quantification or a phase model that needs revisiting.",
+    },
+    "ui.methode.drx_absente": {
+        "fr": "Aucune quantification fournie. Déposez-en une dans la colonne "
+              "de gauche. Mesuré sur un lot en provenance VE attestée : une "
+              "seule phase quantifiée à <b>±2 points</b> retire <b>72 %</b> "
+              "de la largeur cumulée. Mais toutes les phases ne se valent "
+              "pas — cochez le calcul du conseil pour savoir laquelle "
+              "commander.",
+        "en": "No quantification supplied. Drop one in the left-hand column. "
+              "Measured on a lot with attested EV provenance: a single phase "
+              "quantified to <b>±2 points</b> removes <b>72 %</b> of the "
+              "cumulative width. But not every phase is worth the same — "
+              "tick the advice calculation to find out which one to order.",
+    },
+    "ui.carte.conseil": {
+        "fr": "Quelle phase faire quantifier",
+        "en": "Which phase to have quantified",
+    },
+    "ui.methode.conseil": {
+        "fr": "{resume} Les gains sont des <b>planchers</b> : ils sont pris "
+              "au pire placement de la valeur mesurée dans la plage "
+              "compatible, puisque cette valeur est inconnue avant la "
+              "mesure.",
+        "en": "{resume} The gains are <b>floors</b>: they are taken at the "
+              "worst placement of the measured value within the compatible "
+              "range, since that value is unknown before the measurement.",
+    },
+    "ui.conseil.col_phase": {"fr": "Phase", "en": "Phase"},
+    "ui.conseil.col_plage": {
+        "fr": "Plage actuelle", "en": "Current range",
+    },
+    "ui.conseil.col_gain": {
+        "fr": "Gain au pire cas", "en": "Worst-case gain",
+    },
+    "ui.conseil.col_verdict": {"fr": "Verdict", "en": "Verdict"},
+    "ui.conseil.a_commander": {"fr": "à commander", "en": "worth ordering"},
+    "ui.conseil.sans_effet": {"fr": "sans effet", "en": "no effect"},
+
+    # ------------------------------------------- onglet « vue d'ensemble »
+    "ui.tuile.prix_max": {
+        "fr": "Prix maximal à payer", "en": "Maximum price to pay",
+    },
+    "ui.tuile.par_tonne": {
+        "fr": "{devise} par tonne", "en": "{devise} per tonne",
+    },
+    "ui.tuile.sans_prix": {
+        "fr": "aucun prix fourni", "en": "no prices supplied",
+    },
+    "ui.tuile.degres": {
+        "fr": "Degrés de liberté", "en": "Degrees of freedom",
+    },
+    "ui.tuile.degres_note": {
+        "fr": "non contraints par l'analyse élémentaire",
+        "en": "unconstrained by the elemental assay",
+    },
+    "ui.tuile.non_expliques": {
+        "fr": "{part:.2f} % non expliqués",
+        "en": "{part:.2f} % unexplained",
+    },
+    "ui.tuile.determinees": {
+        "fr": "Grandeurs déterminées", "en": "Determined quantities",
+    },
+    "ui.tuile.en_domaine": {
+        "fr": "{n} en domaine compatible",
+        "en": "{n} as a compatible range",
+    },
+    "ui.carte.composition": {
+        "fr": "Composition reconstituée", "en": "Reconstructed composition",
+    },
+    "ui.carte.teneurs": {
+        "fr": "Teneurs élémentaires du bulletin",
+        "en": "Elemental grades from the assay",
+    },
+    "ui.carte.bouclage": {"fr": "Bouclage massique", "en": "Mass closure"},
+    "ui.methode.camembert_elements": {
+        "fr": "Ce camembert porte la composition <b>élémentaire</b>, qui est "
+              "déterminée, et non les phases minérales, qui ne le sont pas. "
+              "Le gris est la masse que le modèle n'explique pas : humidité, "
+              "phase absente du modèle, ou provenance mal déclarée. Il "
+              "bascule automatiquement sur les phases le jour où celles-ci "
+              "deviennent fermes.",
+        "en": "This pie chart carries the <b>elemental</b> composition, "
+              "which is determined, and not the mineral phases, which are "
+              "not. The grey is the mass the model does not explain: "
+              "moisture, a phase absent from the model, or a misdeclared "
+              "provenance. It switches to phases automatically the day those "
+              "become determined.",
+    },
+    "ui.methode.camembert_phases": {
+        "fr": "Toutes les phases sont déterminées sur ce lot : le camembert "
+              "porte donc directement la <b>minéralogie</b>.",
+        "en": "Every phase is determined on this lot, so the pie chart "
+              "carries the <b>mineralogy</b> directly.",
+    },
+
+    # ------------------------------------------- onglet « composition »
+    "ui.carte.domaines": {
+        "fr": "Domaines compatibles par phase",
+        "en": "Compatible ranges by phase",
+    },
+    "ui.carte.detail_phases": {
+        "fr": "Détail des phases", "en": "Phase detail",
+    },
+    "ui.methode.domaines": {
+        "fr": "Un <b>trait fin</b> se lit « déterminé ». Une <b>bande "
+              "large</b> se lit « toute valeur de cette bande explique le "
+              "bulletin aussi bien qu'une autre ». Une quantification par "
+              "diffraction (DRX) de deux phases suffirait à ramener toutes "
+              "ces bandes à des traits.",
+        "en": "A <b>thin line</b> reads as \"determined\". A <b>wide band</b> "
+              "reads as \"any value in this band explains the assay just as "
+              "well as any other\". An XRD quantification of two phases "
+              "would be enough to bring every band back to a line.",
+    },
+
+    # ------------------------------------------- import du bulletin
     "ui.import.titre": {
         "fr": "Importer votre bulletin", "en": "Import your assay",
     },

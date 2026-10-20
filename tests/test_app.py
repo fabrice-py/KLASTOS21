@@ -397,10 +397,21 @@ def test_l_interface_dit_ce_qu_une_drx_fait_et_ne_fait_pas():
     grandeur ferme. Promettre des phases fermes serait recreer le piege du
     sommet a l'endroit meme que ce module protege.
     """
-    src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
-    assert "encadrement" in src
-    assert "aucune grandeur ferme" in src
-    assert "ne la supprime pas" in src
+    from klastos import i18n
+
+    # Le texte vit au catalogue depuis que l'interface est bilingue. Le
+    # verrou porte donc sur LES DEUX LANGUES : une promesse de phases
+    # fermes faite au seul lecteur anglophone recreerait le piege du
+    # sommet a l'endroit meme que ce module protege.
+    fr = i18n.t("ui.methode.drx_posee", "fr", n=1, base="absolue")
+    assert "encadrement" in fr
+    assert "aucune grandeur ferme" in fr
+    assert "ne la supprime pas" in fr
+
+    en = i18n.t("ui.methode.drx_posee", "en", n=1, base="absolute")
+    assert "bound" in en
+    assert "no quantity determined" in en
+    assert "does not remove it" in en
 
 
 def test_l_interface_expose_le_taux_de_conflit():
@@ -410,9 +421,15 @@ def test_l_interface_expose_le_taux_de_conflit():
     silencieusement resserrerait l'incertitude du laboratoire au motif d'une
     mesure qui ne porte pas sur elle.
     """
+    from klastos import i18n
+
     src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
     assert "structural_conflict_rate" in src
-    assert "conservés" in src
+    # Le mot qui compte - les tirages sont CONSERVES, pas ecartes - doit
+    # sortir dans les deux langues.
+    assert "conservés" in i18n.t("ui.drx.conflit", "fr",
+                                 n=1, total=10, taux=10)
+    assert "kept" in i18n.t("ui.drx.conflit", "en", n=1, total=10, taux=10)
 
 
 def test_l_interface_exige_l_incertitude_de_la_drx():
@@ -525,3 +542,48 @@ def test_le_separateur_est_pose_a_cote_du_televersement():
     for langue in i18n.LANGUES:
         aide = i18n.t("ui.separateur.aide", langue)
         assert ";" in aide and "Excel" in aide, langue
+
+
+def test_l_interface_ne_porte_plus_de_texte_francais_en_dur():
+    """
+    LE VERROU DE LA TRANCHE. Chaque libelle de l'interface passe par le
+    catalogue, donc par `T()`. Une chaine francaise reintroduite en clair
+    ressortirait en francais sur un ecran anglais, et rien ne le signalerait
+    : l'ecran s'affiche, simplement dans la mauvaise langue.
+
+    Ne sont pas comptees : les docstrings, qui ne sont pas affichees, et les
+    fragments de balisage HTML, qui ne portent pas de texte.
+    """
+    import re
+
+    src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
+    arbre = ast.parse(src)
+    docstrings = {
+        ast.get_docstring(n, clean=False)
+        for n in ast.walk(arbre)
+        if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef))
+    }
+    #: Trois mots de suite : de la prose, pas un identifiant ni une unite.
+    PROSE = re.compile(r"[A-Za-zÀ-ÿ]{3,}\s+[a-zà-ÿ']{2,}\s+[A-Za-zÀ-ÿ']{2,}")
+
+    fautes = []
+    for n in ast.walk(arbre):
+        texte = None
+        if isinstance(n, ast.Constant) and isinstance(n.value, str):
+            texte = n.value
+        elif isinstance(n, ast.JoinedStr):
+            texte = "".join(v.value for v in n.values
+                            if isinstance(v, ast.Constant)
+                            and isinstance(v.value, str))
+        if not texte or texte in docstrings:
+            continue
+        if texte.lstrip().startswith(("ui.", "rapport.")):
+            continue              # une cle de catalogue, pas du texte
+        sans_balises = re.sub(r"<[^>]*>", " ", texte)
+        if PROSE.search(sans_balises):
+            fautes.append((n.lineno, " ".join(sans_balises.split())[:70]))
+
+    assert not fautes, (
+        "texte en dur dans l'interface, a porter au catalogue i18n : "
+        + "; ".join(f"L{l} {s!r}" for l, s in sorted(set(fautes)))
+    )
