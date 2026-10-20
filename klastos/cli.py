@@ -31,6 +31,7 @@ import pathlib
 import sys
 
 from . import i18n
+from .fx import MAX_RATE_AGE_DAYS
 
 PROG = "klastos"
 EXIT_OK, EXIT_REFUS, EXIT_USAGE = 0, 1, 2
@@ -74,6 +75,26 @@ def _ajouter_lecture(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--separateur", default=",", metavar="CAR",
         help="separateur de colonnes du CSV (defaut : virgule)",
+    )
+    p.add_argument(
+        "--devise", metavar="ISO", default=None, dest="devise_cible",
+        help="convertit les prix vers cette devise avant valorisation, par "
+             "exemple EUR. SANS CETTE OPTION, AUCUNE CONVERSION N'A LIEU : "
+             "un jeu multi-devises reste refuse, et c'est voulu. Exige "
+             "--taux.",
+    )
+    p.add_argument(
+        "--taux", metavar="FICHIER", default=None,
+        help="fichier de taux de change, CSV ou JSON. AUCUNE SOURCE DE TAUX "
+             "N'EST INTEGREE : le taux est le votre, celui de votre banque, "
+             "parce que c'est lui qui engage votre transaction. Format "
+             "documente au README, exemple dans data/taux_exemple.json.",
+    )
+    p.add_argument(
+        "--taux-age-max", type=int, default=MAX_RATE_AGE_DAYS, metavar="N",
+        dest="taux_age_max",
+        help=f"age maximal d'un taux, en jours (defaut : "
+             f"{MAX_RATE_AGE_DAYS}, NON ARBITRE - voir klastos/fx.py)",
     )
     p.add_argument(
         "--langue", default=i18n.DEFAUT, choices=list(i18n.LANGUES),
@@ -327,6 +348,9 @@ def cmd_rapport(args) -> int:
         censure=args.censure,
         separateur=args.separateur,
         langue=getattr(args, "langue", i18n.DEFAUT),
+        devise_cible=getattr(args, "devise_cible", None),
+        taux=getattr(args, "taux", None),
+        taux_age_max=getattr(args, "taux_age_max", MAX_RATE_AGE_DAYS),
         provenance=args.provenance,
         attestee=args.atteste,
         grades_declares=tuple(args.grades) if args.grades else None,

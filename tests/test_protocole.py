@@ -692,3 +692,99 @@ def test_un_graphique_ne_montre_pas_ce_que_la_donnee_ne_porte_pas(texte):
     assert contient(texte, "Le camembert porte la composition élémentaire")
     assert contient(texte, "bascule automatiquement sur les phases")
     assert callable(donnees_composition)
+
+# ==========================================================================
+# Conversion de devises (protocole 2 bis / « Conversion de devises »)
+# ==========================================================================
+
+def test_la_decision_de_ne_pas_integrer_de_source_de_taux_est_ecrite(texte):
+    """
+    C'est une DECISION, pas un manque, et elle doit se lire dans le
+    protocole. Sans cet ecrit, un releveur la prendrait pour une lacune et
+    brancherait un flux de banque centrale - introduisant exactement le
+    chiffre que personne n'a signe.
+    """
+    assert contient(texte, "Aucune source de taux de change n'est intégrée")
+    assert contient(texte, "fourni par l'utilisateur")
+    assert contient(texte, "acte explicite")
+
+
+def test_les_six_regles_de_conversion_sont_ecrites(texte):
+    for engagement in (
+        "taux sans source déclarée est refusé",
+        "taux périmé est refusé",
+        "conserve son origine",
+        "paire croisée exige deux taux",
+        "bande de plausibilité est re-vérifiée",
+        "Le rapport porte la mention",
+    ):
+        assert contient(texte, engagement), engagement
+
+
+def test_le_seuil_de_fraicheur_des_taux_est_declare_non_arbitre(texte):
+    """
+    Comme les seuils de bouclage avant leur arbitrage : tant que personne ne
+    l'a tranche, il est expose a l'appelant et le document le dit.
+    """
+    from klastos.fx import MAX_RATE_AGE_DAYS
+
+    assert contient(texte, "non arbitré")
+    assert MAX_RATE_AGE_DAYS > 0
+    # Et il est bien exposé, pas fige dans la signature.
+    import inspect
+
+    from klastos.fx import convertir
+
+    assert "max_age" in inspect.signature(convertir).parameters
+
+
+def test_une_valorisation_convertie_porte_la_mention_du_taux_au_rapport():
+    """
+    L'ENGAGEMENT DE LA REGLE 6, verifie sur le document produit.
+
+    Ce test echoue si l'on retire la mention de `report.py` : c'est tout
+    l'objet d'un test d'engagement. Un prix converti sans son taux n'est
+    verifiable par personne - l'acheteur ne peut pas distinguer un prix bas
+    d'un taux faux, et le vendeur ne peut pas defendre son chiffre.
+    """
+    import datetime as dt
+
+    from klastos.fx import ExchangeRate, convertir
+    from klastos.market import MetalPrice, PayableTerms, PriceSet
+    from klastos.service import Demande, analyser
+
+    bulletin = RACINE / "data" / "exemples" / "bulletin_coherent.csv"
+    if not bulletin.exists():
+        pytest.skip("bulletin d'exemple absent")
+
+    le = dt.date(2026, 9, 7)
+    usd = PriceSet(
+        prices={
+            m: MetalPrice(m, v, "USD", le, "fixture", f"{m} de reference")
+            for m, v in (("Ni", 15_000.0), ("Co", 24_000.0), ("Li", 11_000.0))
+        },
+        currency="USD", label="fixture", is_production_source=True,
+        origin="fixture")
+    termes = PayableTerms(
+        market="essai", payables={"Ni": 0.7, "Co": 0.7, "Li": 0.4},
+        as_of=le, source="fixture", validated=True)
+    taux = ExchangeRate("EUR/USD", 1.0842, le, "banque du client",
+                        "spot EUR/USD fixing 16h")
+
+    analyse = analyser(Demande(
+        bulletin=bulletin, provenance="vehicule_electrique", attestee=True,
+        tirages=20, graine=0, emis_le=le, termes=termes,
+        prix=convertir(usd, "EUR", taux, aujourdhui=le)))
+
+    valorisation = analyse.rapport.section("valorisation")
+    assert valorisation is not None, "section de valorisation absente"
+    notes = " ".join(valorisation.notes)
+
+    # La devise d'origine, le taux, sa source et sa date. Les quatre.
+    assert "USD" in notes
+    assert "EUR" in notes
+    assert "1.0842" in notes or "0.922" in notes
+    assert "banque du client" in notes
+    assert le.isoformat() in notes
+    # Et la mention qui dit d'ou vient ce taux.
+    assert "FOURNI" in notes or "SUPPLIED" in notes

@@ -665,6 +665,18 @@ def build_report(
             status="ferme",
         ))
         val.notes.append(i18n.t("rapport.mention.fourchette", lg))
+
+        # MENTION DE CONVERSION. Une valorisation convertie doit dire dans
+        # quelle devise les prix ont ete fournis, quel taux a ete applique,
+        # d'ou il vient et de quand il date - tels que DECLARES par celui
+        # qui les a fournis. Un chiffre converti sans son taux ne serait
+        # verifiable par personne : l'acheteur ne saurait pas distinguer un
+        # prix bas d'un taux faux.
+        for conversion in valuation.meta.get("fx", ()):
+            val.notes.append(conversion.libelle())
+        if valuation.meta.get("fx"):
+            val.notes.append(i18n.t("rapport.mention.fx_fournie", lg))
+
         teneurs = {f"el_{c.element}" for c in valuation.contributions}
         fragiles = [
             r.label for r in uncertainty.results

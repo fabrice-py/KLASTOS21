@@ -482,6 +482,16 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "the range stays too wide to be used as it stands. "
               "Identifiability is binary, conditioning is continuous.",
     },
+    "rapport.mention.fx_fournie": {
+        "fr": "Le taux de change ci-dessus a été FOURNI avec le jeu de prix. "
+              "KLASTOS21 n'intègre aucune source de taux : la valeur, sa "
+              "source et sa date sont celles déclarées par le fournisseur, "
+              "et c'est son taux qui engage la transaction.",
+        "en": "The exchange rate above was SUPPLIED with the price set. "
+              "KLASTOS21 integrates no rate source: the value, its source "
+              "and its date are those declared by the supplier, and it is "
+              "their rate that binds the transaction.",
+    },
     "rapport.mention.fourchette": {
         "fr": "Les valeurs sont rapportées en fourchette. La largeur reflète "
               "l'incertitude analytique sur les teneurs fermes.",

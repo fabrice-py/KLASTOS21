@@ -287,6 +287,14 @@ def value_lot(
             "terms": terms,
             "prices_label": prices.label,
             "prices_origin": prices.origin,
+            # Conversion de devises, si le jeu de prix en porte une. On lit
+            # un attribut optionnel plutot que d'importer `fx` : `valuation`
+            # n'a aucune raison de dependre de la conversion, et un jeu non
+            # converti doit continuer de passer sans rien savoir d'elle.
+            "fx": tuple(
+                c for _, c in sorted(getattr(prices, "conversions", {}).items())
+                if c.convertie
+            ),
             # Droit d'afficher ces prix a un tiers. Transporte jusqu'au
             # rapport, qui est le seul endroit ou la question se pose.
             "redistribution_licensed": prices.redistribution_licensed,

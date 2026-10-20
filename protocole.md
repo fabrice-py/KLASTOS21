@@ -465,6 +465,49 @@ Un flux de production se branche par `PriceProvider` : toute fonction rendant un
 jeu de prix daté convient, qu'il s'agisse d'une API, d'un export quotidien ou
 d'une saisie manuelle.
 
+### Conversion de devises
+
+> **Aucune source de taux de change n'est intégrée, et c'est une décision.**
+
+Le taux est **fourni par l'utilisateur**, exactement comme ses prix : c'est le
+taux de sa banque qui vaut pour sa transaction, et le logiciel n'a pas à en
+inventer un. Le module de conversion ne contient donc ni appel réseau, ni taux
+littéral, ni valeur de repli — le même raisonnement que pour les prix,
+appliqué mot pour mot.
+
+La conversion est un **acte explicite** de l'appelant. Un jeu de prix
+multi-devises reste refusé tant que personne n'a demandé la conversion :
+convertir d'office reviendrait à choisir à la place du négociant quel taux
+engage sa transaction.
+
+Six règles en découlent, chacune verrouillée par un test :
+
+1. Un **taux sans source déclarée est refusé**, exactement comme un prix sans
+   source. Un chiffre sans origine n'est opposable à personne.
+2. Un **taux périmé est refusé**. Le seuil de fraîcheur est **non arbitré**,
+   donc exposé à l'appelant — un négociant au comptant voudra un jour, un
+   contrat mensuel s'accommode de trente.
+3. Chaque prix converti **conserve son origine** : valeur et devise d'origine,
+   taux appliqué, source du taux, date du taux.
+4. Une **paire croisée exige deux taux** déclarés, et les deux figurent dans la
+   provenance. Un taux croisé ne se déduit jamais d'un seul.
+5. La **bande de plausibilité est re-vérifiée** après conversion, sur la valeur
+   en dollars que la chaîne produit. Les bandes étant libellées en USD, c'est le
+   seul endroit où elles signifient quelque chose : appliquées telles quelles à
+   un prix converti en wons, elles rejetteraient une conversion juste d'un
+   facteur 1 350. Mesure à l'appui, un taux EUR/USD saisi 108 au lieu de 1,08
+   porte un nickel de 14 000 EUR/t à 1 512 000 USD/t au pivot, hors bande
+   [5 000 ; 100 000] : refusé.
+6. **Le rapport porte la mention.** Une valorisation convertie indique la devise
+   d'origine, le taux appliqué, sa source et sa date, telles que déclarées par
+   celui qui les a fournies. Sans cette mention, l'acheteur ne pourrait pas
+   distinguer un prix bas d'un taux faux.
+
+Quand la chaîne ne produit aucune valeur en dollars — une conversion GBP vers
+EUR par taux direct — aucune vérification de plausibilité n'est possible, et la
+provenance le **dit** plutôt que de laisser croire à un contrôle qui n'a pas eu
+lieu.
+
 ### Connexion aux agences d'évaluation
 
 KLASTOS21 se branche sur les flux réels de trois agences. Les spécifications

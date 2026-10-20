@@ -44,6 +44,7 @@ from .solver import CLOSURE_ALERT, CLOSURE_REJECT, SolverConfig
 from .structural import (BASE_ABSOLUE, BASE_CRISTALLINE, StructuralData,
                          lire_fichier as _lire_drx)
 from .uncertainty import UncertaintyConfig, UncertaintyReport, propagate
+from .fx import MAX_RATE_AGE_DAYS, RateError, charger_taux, convertir
 from .valuation import Valuation, value_lot
 
 #: Plafond de tirages de bornage. Au-dela, le cout grimpe sans que les
@@ -106,6 +107,19 @@ class Demande:
     # --- valorisation -----------------------------------------------------
     prix: PriceSet | None = None
     termes: PayableTerms | None = None
+
+    # --- conversion de devises -------------------------------------------
+    #: Devise cible. Laissee a None, AUCUNE CONVERSION N'A LIEU : un jeu
+    #: multi-devises reste refuse par `check_currency`, comme avant. La
+    #: conversion est un acte explicite, parce que le taux engage la
+    #: transaction de celui qui le fournit.
+    devise_cible: str | None = None
+    #: Fichier de taux fourni par l'utilisateur, CSV ou JSON. Aucune source
+    #: de taux n'est integree : voir klastos/fx.py.
+    taux: str | pathlib.Path | None = None
+    #: Age maximal d'un taux, en jours. EXPOSE parce qu'il n'est pas
+    #: arbitre, comme les seuils de bouclage.
+    taux_age_max: int = MAX_RATE_AGE_DAYS
     specification: Specification | None = None
     cout_traitement: float = 0.0
     marge: float = 0.0
@@ -281,11 +295,27 @@ def analyser(demande: Demande) -> Analyse:
             incertitude.meta["central"].x, A, cles,
             uncertainty=demande.incertitude_drx, extra=extra)
 
+    # Conversion de devises, si et seulement si elle est demandee. Posee
+    # ICI, juste avant la valorisation : c'est le seul endroit ou la devise
+    # compte, et le reste de la chaine n'a pas a connaitre les taux.
+    prix = demande.prix
+    if prix is not None and demande.devise_cible:
+        if demande.taux is None:
+            raise RateError(
+                "Devise cible demandee sans fichier de taux. Aucune source "
+                "de taux n'est integree a KLASTOS21 : fournissez le taux de "
+                "votre banque, celui qui engage votre transaction."
+            )
+        prix = convertir(
+            prix, demande.devise_cible, charger_taux(demande.taux),
+            aujourdhui=demande.emis_le, max_age=demande.taux_age_max,
+        )
+
     valorisation = None
-    if demande.prix is not None and demande.termes is not None:
+    if prix is not None and demande.termes is not None:
         valorisation = value_lot(
             incertitude,
-            prices=demande.prix,
+            prices=prix,
             terms=demande.termes,
             spec=demande.specification,
             processing_cost=demande.cout_traitement,

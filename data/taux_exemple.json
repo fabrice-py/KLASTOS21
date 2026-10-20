@@ -1,0 +1,21 @@
+{
+  "_lecture": "Fichier de taux de change FOURNI PAR L'UTILISATEUR. KLASTOS21 n'integre aucune source de taux : c'est le taux de votre banque qui engage votre transaction. Les champs as_of et source peuvent etre declares une fois pour tout le fichier, et surcharges taux par taux.",
+  "as_of": "2026-10-20",
+  "source": "Releve bancaire du client - A REMPLACER par votre propre source",
+  "rates": {
+    "EUR/USD": {
+      "rate": 1.0842,
+      "reference_name": "spot EUR/USD, fixing 16h00 CET"
+    },
+    "GBP/USD": {
+      "rate": 1.2715,
+      "reference_name": "spot GBP/USD, fixing 16h00 CET"
+    },
+    "USD/CNY": {
+      "rate": 7.1240,
+      "as_of": "2026-10-19",
+      "reference_name": "spot USD/CNY, cloture veille",
+      "note": "Releve la veille : le marche de Shanghai etait ferme."
+    }
+  }
+}

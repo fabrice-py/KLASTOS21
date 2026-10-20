@@ -262,6 +262,81 @@ au format JSON, avec source, date et base de cotation. `value_lot()` n'a aucun
 jeu de prix par defaut : l'appelant declare sa source. Un flux de production se
 branche par `PriceProvider`.
 
+## Conversion de devises
+
+`PriceSet.check_currency()` **refuse** un jeu multi-devises, et continue de le
+faire : convertir sans qu'on l'ait demande reviendrait a decider a la place du
+negociant quel taux engage sa transaction. La conversion est donc un **acte
+explicite** de l'appelant.
+
+**Aucune source de taux n'est integree, et c'est une decision.** Le taux est
+fourni par l'utilisateur, exactement comme ses prix : c'est le taux de sa
+banque qui vaut pour sa transaction. Il n'y a dans `klastos/fx.py` ni appel
+reseau, ni taux litteral, ni valeur de repli — pas plus que `market.py` ne
+contient de prix.
+
+```powershell
+klastos rapport bulletin.csv --provenance vehicule_electrique --atteste `
+  --prix mes_prix.csv --payables data/payable_terms.json `
+  --devise EUR --taux data/taux_exemple.json
+```
+
+### Format du fichier de taux
+
+Deux formats, reconnus a l'extension. Chaque taux porte sa valeur, sa date, sa
+source et son libelle de reference : **un champ manquant est une erreur**,
+jamais une valeur par defaut.
+
+Convention de paire : `BASE/COTATION`, et le taux donne le nombre d'unites de
+COTATION pour **une** unite de BASE. `EUR/USD` a 1,0842 signifie 1 EUR =
+1,0842 USD.
+
+**JSON** — `as_of` et `source` peuvent etre declares une fois pour le fichier,
+et surcharges taux par taux. Exemple complet : `data/taux_exemple.json`.
+
+```json
+{
+  "as_of": "2026-10-20",
+  "source": "Releve bancaire du client",
+  "rates": {
+    "EUR/USD": {"rate": 1.0842, "reference_name": "spot EUR/USD, fixing 16h00 CET"}
+  }
+}
+```
+
+**CSV** — en-tetes tolerants : `paire`/`pair`, `taux`/`rate`/`cours`,
+`date`/`as_of`, `source`/`banque`, `reference`/`libelle`. Exemple :
+`data/taux_exemple.csv`.
+
+```csv
+paire,taux,date,source,reference
+EUR/USD,1.0842,2026-10-20,Releve bancaire du client,spot EUR/USD fixing 16h00 CET
+```
+
+### Ce que la conversion garantit
+
+| Regle | Comportement |
+|---|---|
+| Taux sans source | **Refuse.** Meme exigence que pour un prix. |
+| Taux perime | **Refuse.** Seuil `--taux-age-max`, expose car **non arbitre**. |
+| Origine conservee | Valeur et devise d'origine, taux applique, sa source et sa date — portes jusqu'au rapport. |
+| Paire croisee | Exige **deux** taux declares, tous deux cites. Un taux croise ne se deduit jamais d'un seul. |
+| Bande de plausibilite | Re-verifiee **sur la valeur en USD** que la chaine produit. |
+
+Le dernier point meritait une mesure. Les bandes de `units.py` sont libellees
+en USD : les appliquer telles quelles a un prix converti en wons rejetterait
+une conversion juste d'un facteur 1 350. La conversion passe donc par un pivot,
+et la bande est verifiee sur la valeur en dollars — le seul endroit ou elle
+signifie quelque chose. Resultat mesure :
+
+- un taux EUR/USD saisi **108** au lieu de 1,08 porte un nickel de 14 000 EUR/t
+  a **1 512 000 USD/t** au pivot, hors bande [5 000 ; 100 000] : **refuse** ;
+- un `USD -> KRW` correct a 1 350 donne 20 412 000 KRW/t : **aucun faux rejet**.
+
+Quand la chaine ne produit aucune valeur en USD — un `GBP -> EUR` par taux
+direct — aucune verification n'est possible, et la provenance le **dit** plutot
+que de laisser croire a un controle qui n'a pas eu lieu.
+
 ## Statut du generateur
 
 `klastos/generator.py` est un **outil de test interne**, pas un oracle du reel.
