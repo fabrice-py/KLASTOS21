@@ -26,7 +26,8 @@ Les cles sont donc des identifiants ASCII stables, hierarchises par couche :
     rapport.intro.*       prose d'introduction de section
     rapport.statut.*      libelles de statut, par section
     ui.*                  interface Streamlit
-    journal.*             journal de lecture et avertissements
+    journal.*             journaux de lecture, de provenance et de bouclage
+    provenance.*          etiquettes de domaine : libelles des profils
     cli.*                 ligne de commande
 
 Le protocole reste en francais
@@ -690,6 +691,106 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "en": "Cathode element(s) missing from the certificate: "
               "{manquants}. The deconvolution will be that much less "
               "constrained.",
+    },
+
+    # ======================================================================
+    # Journal de provenance
+    # ======================================================================
+    # Ces lignes ouvrent la section de tracabilite du rapport : c'est ce
+    # qu'un acheteur lit en premier.
+    #
+    # LE TEXTE D'ATTESTATION N'EST PAS TRADUIT, et c'est une decision du
+    # meme ordre que celle du protocole. C'est l'enonce que le client a
+    # SIGNE : le traduire ferait dire a son engagement des mots qu'il n'a
+    # pas signes, et un acheteur ne pourrait plus rapprocher la citation du
+    # document qu'il detient. Le rapport le cite donc verbatim, en
+    # declarant qu'il est reproduit tel que signe.
+
+    "journal.provenance.declaree": {
+        "fr": "Provenance déclarée : {profil}.",
+        "en": "Declared provenance: {profil}.",
+    },
+    "journal.provenance.sans_exclusion": {
+        "fr": "Aucune exclusion de phase. Liste large conservée, "
+              "dégénérescence assumée et rapportée.",
+        "en": "No phase excluded. The broad list is kept, the degeneracy "
+              "accepted and reported.",
+    },
+    "journal.provenance.sans_attestation": {
+        "fr": "ATTESTATION NON FOURNIE : aucune phase exclue. La "
+              "ventilation par grade reste non identifiable. Exclusion "
+              "possible sur attestation : {possibles}.",
+        "en": "ATTESTATION NOT SUPPLIED: no phase excluded. The breakdown "
+              "by grade remains non-identifiable. Exclusion available on "
+              "attestation: {possibles}.",
+    },
+    "journal.provenance.attestation": {
+        "fr": "Attestation client fournie, reproduite telle que signée : "
+              "« {texte} »",
+        "en": "Client attestation supplied, reproduced as signed: "
+              "“{texte}” — quoted in the language in which it was "
+              "signed, and deliberately not translated: translating it "
+              "would make the commitment say words the client did not sign.",
+    },
+    "journal.provenance.exclues": {
+        "fr": "Phases exclues sur attestation : {phases}.",
+        "en": "Phases excluded on attestation: {phases}.",
+    },
+    "journal.provenance.aucune_concernee": {
+        "fr": "Aucune phase de la liste courante n'était concernée.",
+        "en": "No phase in the current list was affected.",
+    },
+    "journal.provenance.profil_non_valide": {
+        "fr": "AVERTISSEMENT : la liste d'exclusion de ce profil n'est pas "
+              "validée métier à ce jour (statut À VALIDER).",
+        "en": "WARNING: the exclusion list of this profile is not "
+              "business-validated to date (status: TO BE VALIDATED).",
+    },
+
+    # Libelles des profils. Ce sont des etiquettes d'affichage, donc elles
+    # se traduisent - contrairement au texte d'attestation ci-dessus.
+    "provenance.profil.non_declaree": {
+        "fr": "Provenance non déclarée", "en": "Provenance not declared",
+    },
+    "provenance.profil.vehicule_electrique": {
+        "fr": "Véhicule électrique (fin de vie)",
+        "en": "Electric vehicle (end of life)",
+    },
+    "provenance.profil.chutes_gigafactory": {
+        "fr": "Chutes de production (gigafactory)",
+        "en": "Production scrap (gigafactory)",
+    },
+    "provenance.profil.stationnaire": {
+        "fr": "Stockage stationnaire", "en": "Stationary storage",
+    },
+    "provenance.profil.deee": {
+        "fr": "Électronique grand public (DEEE)",
+        "en": "Consumer electronics (WEEE)",
+    },
+
+    # ======================================================================
+    # Diagnostic de bouclage
+    # ======================================================================
+    "journal.bouclage.ok": {
+        "fr": "Bouclage massique conforme.",
+        "en": "Mass closure within tolerance.",
+    },
+    "journal.bouclage.alerte": {
+        "fr": "Bouclage massique dégradé : une part de la masse n'est pas "
+              "expliquée par les phases du modèle. Causes possibles : "
+              "analyse incomplète, phase absente du modèle, humidité "
+              "résiduelle, déclaration de provenance inexacte.",
+        "en": "Mass closure degraded: part of the mass is not explained by "
+              "the phases of the model. Possible causes: incomplete assay, "
+              "a phase absent from the model, residual moisture, an "
+              "inaccurate provenance declaration.",
+    },
+    "journal.bouclage.rejet": {
+        "fr": "Bouclage massique hors tolérance. Le lot n'est pas "
+              "exploitable en l'état : une analyse complémentaire est "
+              "requise avant toute valorisation.",
+        "en": "Mass closure out of tolerance. The lot is not usable as it "
+              "stands: a further assay is required before any valuation.",
     },
 
     # ======================================================================

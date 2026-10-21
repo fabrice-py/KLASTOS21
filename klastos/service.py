@@ -258,7 +258,10 @@ def analyser(demande: Demande) -> Analyse:
         profile_key=demande.provenance,
         attested=demande.attestee,
         declared_grades=demande.grades_declares,
-    ).resolve()
+    ).resolve(
+        # Le journal de provenance ouvre la tracabilite du rapport :
+        # il sort dans la langue du document.
+        langue=demande.langue)
 
     config = UncertaintyConfig(
         seed=demande.graine,

@@ -482,7 +482,7 @@ def _vue_ensemble(a: Analyse) -> None:
                     unsafe_allow_html=True)
         st.altair_chart(charts.barre_bouclage(a), use_container_width=True)
         if bouclage is not None and statut != "ok":
-            st.caption(bouclage.message)
+            st.caption(T(f"journal.bouclage.{bouclage.status}"))
 
 
 def _composition(a: Analyse) -> None:

@@ -253,8 +253,15 @@ def test_un_rapport_sans_valorisation_reste_valide(contexte):
 # ==========================================================================
 
 def test_le_journal_de_provenance_est_repris(rapport):
-    assert any("Provenance declaree" in t for t in rapport.traceability)
-    assert any("Attestation client fournie" in t for t in rapport.traceability)
+    # Les deux lignes sont traduites : on compare donc la part INVARIANTE
+    # de leur gabarit, celle qui vit entre les champs de format. Un texte
+    # francais non accentue fige ici ne passerait plus.
+    for cle, champ in (("journal.provenance.declaree", "{profil}"),
+                       ("journal.provenance.attestation", "{texte}")):
+        modele = i18n.CATALOGUE[cle][rapport.langue]
+        fragment = modele.split(champ)[0].split("}")[-1].strip(" :«")
+        assert fragment, cle
+        assert any(fragment in t for t in rapport.traceability), fragment
 
 
 def test_la_provenance_des_prix_est_reprise(rapport):

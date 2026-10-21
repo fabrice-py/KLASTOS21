@@ -100,7 +100,10 @@ def test_aucune_cle_ne_repete_un_texte_du_catalogue():
 def test_les_cles_sont_hierarchisees_par_couche():
     """Chaque cle appartient a une couche connue, pour que `cles_par_prefixe`
     reste exhaustif et qu'aucune entree ne vive hors classement."""
-    couches = ("rapport.", "ui.", "journal.", "cli.")
+    # `provenance.` porte des etiquettes de DOMAINE - les libelles des
+    # profils - et non du texte de rapport ou d'interface : les deux les
+    # consomment. D'ou sa propre couche.
+    couches = ("rapport.", "ui.", "journal.", "provenance.", "cli.")
     for cle in i18n.CATALOGUE:
         assert cle.startswith(couches), cle
 
@@ -329,31 +332,63 @@ def test_le_rapport_anglais_ne_laisse_pas_fuir_le_vocabulaire_francais(rapports)
 #: langue jusqu'a la lecture du bulletin : c'est l'etape suivante du
 #: chantier, pas un oubli. Le test ci-dessous CONSTATE la dette plutot que
 #: de la laisser passer en silence.
-#: « Somme des teneurs lues » a ete SOLDEE : le journal de `ingestion.py`
-#: passe desormais par le catalogue. Ce test l'a signale de lui-meme en
-#: echouant sur une dette plus petite que declaree - c'est exactement ce
-#: pour quoi il est ecrit dans les deux sens.
+#: LA DETTE EST SOLDEE. Ces fragments fuyaient en francais dans le rapport
+#: anglais ; les trois journaux amont passent desormais par le catalogue.
 #:
-#: Restent les lignes produites par `provenance.py` et `solver.py`, que la
-#: consigne d'architecture interdit d'ouvrir en ecriture.
-DETTE_JOURNAL = ("Provenance declaree", "Bouclage massique degrade")
+#: Le test qui suit a remplace le test de dette, et il est plus fort : au
+#: lieu de constater une liste de fuites admises, il verifie qu'aucune n'est
+#: revenue. L'ancien test avait rendu son service en signalant de lui-meme,
+#: par un echec, que « Somme des teneurs lues » venait d'etre payee.
+FUITES_SOLDEES = (
+    "Provenance declaree",        # provenance.py
+    "Attestation client fournie", # provenance.py
+    "Phases exclues",             # provenance.py
+    "Somme des teneurs lues",     # ingestion.py
+    "Oxygene non dose",           # ingestion.py
+    "Bouclage massique degrade",  # solver.py, rendu depuis le statut
+)
 
 
-def test_la_dette_de_traduction_restante_est_circonscrite(rapports):
+def test_aucune_fuite_soldee_n_est_revenue(rapports):
     """
-    Les seules fuites francaises admises sont celles des journaux amont.
+    Les six fragments qui fuyaient en francais ont disparu du rapport
+    anglais, et doivent y rester.
 
-    Si ce test echoue en signalant une entree de MOINS, c'est une bonne
-    nouvelle : la dette a ete payee, et il faut retirer la ligne de
-    DETTE_JOURNAL. S'il en signale une de PLUS, une regression a introduit
-    du francais en dur dans le chemin du rapport.
+    Chacun nomme son module d'origine dans FUITES_SOLDEES : si l'un revient,
+    le message d'echec dit immediatement ou regarder.
     """
-    rapport = rapports["en"][0]
-    journaux = rapport.traceability + rapport.warnings
-    presentes = {d for d in DETTE_JOURNAL
-                 if any(d in x for x in journaux)}
-    assert presentes == set(DETTE_JOURNAL), (
-        f"dette attendue {set(DETTE_JOURNAL)}, constatee {presentes}")
+    rapport, md, html = rapports["en"]
+    journaux = " ".join(rapport.traceability + rapport.warnings
+                        + rapport.limitations)
+    for fragment in FUITES_SOLDEES:
+        assert fragment not in journaux, fragment
+        assert fragment not in md, fragment
+        assert fragment not in html, fragment
+
+
+def test_le_texte_d_attestation_n_est_PAS_traduit(rapports):
+    """
+    LA SEULE EXCEPTION, et c'est une decision.
+
+    Le texte d'attestation est l'enonce que le client a SIGNE. Le traduire
+    ferait dire a son engagement des mots qu'il n'a pas signes, et un
+    acheteur ne pourrait plus rapprocher la citation du document qu'il
+    detient. Il est donc cite verbatim, et le rapport anglais DECLARE qu'il
+    ne l'a pas traduit - sans quoi le lecteur croirait a un oubli.
+    """
+    from klastos.provenance import PROVENANCE_PROFILES
+
+    signe = PROVENANCE_PROFILES["vehicule_electrique"].attestation_text
+    rapport, md, _ = rapports["en"]
+    journaux = " ".join(rapport.traceability)
+
+    assert signe in journaux, "l'attestation signee n'est plus citee verbatim"
+    # « reproduced as signed », en entier : « as signed » seul matchait
+    # aussi dans « was signed », plus loin dans la meme phrase, et
+    # l'assertion passait alors que la mention avait disparu. Verifie par
+    # mutation.
+    assert "reproduced as signed" in journaux
+    assert "deliberately not translated" in journaux
 
 
 def test_le_rapport_anglais_renvoie_au_protocole_francais(rapports):
@@ -499,3 +534,27 @@ def test_le_journal_d_ingestion_ne_porte_plus_de_texte_francais_en_dur():
         "prose en dur dans le journal d'ingestion, a porter au catalogue : "
         + "; ".join(f"L{l} {s!r}" for l, s in sorted(set(fautes)))
     )
+
+
+def test_le_libelle_du_profil_de_provenance_est_traduit(rapports):
+    """
+    Le libelle du profil est une ETIQUETTE D'AFFICHAGE, donc il se traduit -
+    contrairement au texte d'attestation ci-dessus, qui est un engagement
+    signe.
+
+    Ce test existe parce qu'une mutation a montre qu'il manquait : revenir
+    au champ `label` du profil, francais en dur, ne faisait echouer aucun
+    test. Le cadre de la phrase etait traduit mais l'etiquette restait en
+    francais, donc le rapport anglais disait « Declared provenance :
+    Vehicule electrique (fin de vie) ».
+    """
+    from klastos.provenance import libelle_profil
+
+    fr = libelle_profil("vehicule_electrique", "fr")
+    en = libelle_profil("vehicule_electrique", "en")
+    assert fr != en
+    assert "Electric vehicle" in en
+
+    journaux = " ".join(rapports["en"][0].traceability)
+    assert en in journaux, journaux
+    assert fr not in journaux, "le libelle francais fuit dans le rapport anglais"

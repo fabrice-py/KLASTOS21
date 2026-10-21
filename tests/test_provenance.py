@@ -7,6 +7,7 @@ la decision 3. Il ne doit jamais etre assoupli.
 import pytest
 
 from klastos.phases import PHASE_KEYS
+from klastos import i18n
 from klastos.provenance import PROVENANCE_PROFILES, ProvenanceDeclaration
 
 
@@ -46,7 +47,11 @@ def test_profil_non_valide_leve_un_avertissement():
     d = ProvenanceDeclaration("deee", attested=True)
     _, excluded, journal = d.resolve()
     assert set(excluded) == {"NMC532", "NMC811"}
-    assert any("A VALIDER" in l for l in journal)
+    # Par le CATALOGUE : le journal est traduit, et « A VALIDER » y est
+    # desormais accentue - « A VALIDER » en francais, « TO BE VALIDATED »
+    # en anglais. Un texte fige ici ne tiendrait ni l'accent ni la langue.
+    attendu = i18n.t("journal.provenance.profil_non_valide", "fr")
+    assert any(attendu == l for l in journal)
     assert PROVENANCE_PROFILES["deee"].validated is False
 
 

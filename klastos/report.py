@@ -403,11 +403,16 @@ def build_report(
         diag.rows.append(ReportRow(
             label="Bouclage massique",
             value=f"{bouclage.total * 100:.2f} %",
-            note=bouclage.message,
+            # Rendu depuis le STATUT, qui est une cle stable, et non
+            # depuis `bouclage.message` que le solveur a fige en
+            # francais. Le coeur numerique n'a ainsi aucune langue a
+            # connaitre : c'est le document qui porte la sienne.
+            note=i18n.t(f"journal.bouclage.{bouclage.status}", lg),
             severity=bouclage.status,
         ))
         if bouclage.status != "ok":
-            rapport.warnings.append(bouclage.message)
+            rapport.warnings.append(
+                i18n.t(f"journal.bouclage.{bouclage.status}", lg))
     diag.rows.append(ReportRow(
         label=i18n.t("rapport.ligne.degres", lg),
         value=str(uncertainty.degeneracy),

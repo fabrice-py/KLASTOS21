@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from . import i18n
 from .phases import GROUP_NMC, PHASE_KEYS, PHASES
 
 
@@ -113,6 +114,16 @@ PROVENANCE_PROFILES: dict[str, ProvenanceProfile] = {
 }
 
 
+def libelle_profil(cle: str, langue: str = i18n.DEFAUT) -> str:
+    """
+    Le libelle affichable d'un profil, dans la langue demandee.
+
+    Le champ `label` du profil reste la VUE FRANCAISE - des appelants
+    l'utilisent directement - mais c'est le catalogue qui fait foi des que
+    le document change de langue.
+    """
+    return i18n.t(f"provenance.profil.{cle}", langue)
+
 @dataclass(frozen=True)
 class ProvenanceDeclaration:
     """
@@ -157,10 +168,21 @@ class ProvenanceDeclaration:
         return prof.excluded_phases
 
     def resolve(
-        self, phase_keys: list[str] | None = None
+        self, phase_keys: list[str] | None = None,
+        langue: str = i18n.DEFAUT,
     ) -> tuple[list[str], list[str], list[str]]:
         """
         Applique la restriction de provenance.
+
+        Parameters
+        ----------
+        langue : langue du JOURNAL. Ces lignes ouvrent la section de
+            tracabilite du rapport - c'est ce qu'un acheteur lit en premier.
+
+            LE TEXTE D'ATTESTATION, LUI, N'EST PAS TRADUIT : c'est l'enonce
+            que le client a SIGNE, et le traduire ferait dire a son
+            engagement des mots qu'il n'a pas signes. Le journal le cite
+            verbatim en declarant qu'il est reproduit tel que signe.
 
         Returns
         -------
@@ -168,25 +190,21 @@ class ProvenanceDeclaration:
         excluded : liste de phases effectivement exclues.
         journal : lignes de tracabilite a reporter dans le rapport client.
         """
+        lg = i18n.langue_valide(langue)
         phase_keys = list(PHASE_KEYS) if phase_keys is None else list(phase_keys)
         prof = self.profile
-        log: list[str] = [f"Provenance declaree : {prof.label}."]
+        log: list[str] = [i18n.t("journal.provenance.declaree", lg,
+                                 profil=libelle_profil(prof.key, lg))]
 
         proposed = self._excluded()
 
         if not proposed:
-            log.append(
-                "Aucune exclusion de phase. Liste large conservee, "
-                "degenerescence assumee et rapportee."
-            )
+            log.append(i18n.t("journal.provenance.sans_exclusion", lg))
             return phase_keys, [], log
 
         if not self.attested:
-            log.append(
-                "ATTESTATION NON FOURNIE : aucune phase exclue. La ventilation "
-                "par grade reste non identifiable. Exclusion possible sur "
-                f"attestation : {', '.join(proposed)}."
-            )
+            log.append(i18n.t("journal.provenance.sans_attestation", lg,
+                              possibles=", ".join(proposed)))
             return phase_keys, [], log
 
         excluded = [pk for pk in phase_keys if pk in proposed]
@@ -197,15 +215,15 @@ class ProvenanceDeclaration:
                 "La restriction de provenance exclurait toutes les phases."
             )
 
-        log.append(f"Attestation client fournie : \u00ab {prof.attestation_text} \u00bb")
+        # Le texte d'attestation passe TEL QUEL : voir la docstring.
+        log.append(i18n.t("journal.provenance.attestation", lg,
+                          texte=prof.attestation_text))
         log.append(
-            f"Phases exclues sur attestation : {', '.join(excluded)}."
+            i18n.t("journal.provenance.exclues", lg,
+                   phases=", ".join(excluded))
             if excluded
-            else "Aucune phase de la liste courante n'etait concernee."
+            else i18n.t("journal.provenance.aucune_concernee", lg)
         )
         if not prof.validated:
-            log.append(
-                "AVERTISSEMENT : la liste d'exclusion de ce profil n'est pas "
-                "validee metier a ce jour (statut A VALIDER)."
-            )
+            log.append(i18n.t("journal.provenance.profil_non_valide", lg))
         return retained, excluded, log
