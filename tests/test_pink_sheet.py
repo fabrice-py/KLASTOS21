@@ -117,10 +117,12 @@ def test_un_metal_absent_leve_avec_l_adresse_ou_le_trouver(xlsx, metal, nom):
     with pytest.raises(MissingPriceError) as exc:
         PinkSheetProvider(xlsx).quotes([metal])
 
-    # `MissingPriceError` derive de `KeyError`, dont le `str()` entoure le
-    # message de guillemets. Comportement de `market.py`, pas du notre : on
-    # l'absorbe ici plutot que de le contourner en comparant au hasard.
-    message = str(exc.value).strip("\"'")
+    # Le message se lit tel quel. `MissingPriceError` derive de `KeyError`,
+    # dont le `__str__` entourait le message de guillemets : la ligne de
+    # commande affichait « prix manquant : "cobalt (Co) absent..." ». La
+    # classe surcharge desormais `__str__`, et aucun contournement n'est
+    # necessaire ici.
+    message = str(exc.value)
 
     # Le metal est NOMME, et son symbole entre parentheses : c'est la
     # formulation de la branche dediee. Une premiere version de ce test se

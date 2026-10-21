@@ -363,3 +363,35 @@ def test_les_deux_rapports_portent_les_memes_chiffres(rapports):
     for langue, (rapport, _, _) in rapports.items():
         valeurs[langue] = [r.value for s in rapport.sections for r in s.rows]
     assert valeurs["fr"] == valeurs["en"]
+
+
+def test_une_cle_inconnue_s_affiche_sans_guillemets_parasites():
+    """
+    Meme correction que `market.MissingPriceError` : la base reste
+    `KeyError`, mais le message est une phrase destinee a celui qui releve
+    le code, pas une cle a mettre entre guillemets.
+    """
+    with pytest.raises(i18n.CleInconnue) as exc:
+        i18n.t("rapport.section.inexistante")
+
+    # L'assertion precise : le message affiche est EXACTEMENT celui qui a
+    # ete pose, sans enrobage. Une premiere version de ce test exigeait que
+    # le message ne commence par aucun guillemet - c'etait faux : il
+    # commence legitimement par la cle entre guillemets, puisqu'elle est
+    # posee avec `{cle!r}`, et c'est utile. Ce qu'il faut interdire, c'est
+    # que `KeyError.__str__` enrobe la PHRASE ENTIERE.
+    assert str(exc.value) == exc.value.args[0]
+    assert "n'est pas au catalogue" in str(exc.value)
+    # Et la preuve directe : sans la surcharge, on lirait ceci.
+    assert str(exc.value) != repr(exc.value.args[0])
+
+
+def test_cle_inconnue_reste_un_keyerror():
+    """`t` peut etre appelee dans un contexte qui attrape KeyError."""
+    assert issubclass(i18n.CleInconnue, KeyError)
+    try:
+        i18n.t("ui.absente.totalement")
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("CleInconnue n'est plus un KeyError")

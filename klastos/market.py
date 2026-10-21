@@ -44,7 +44,29 @@ class StalePriceError(RuntimeError):
 
 
 class MissingPriceError(KeyError):
-    """Aucun prix disponible pour un element payable."""
+    """
+    Aucun prix disponible pour un element payable.
+
+    La classe de base reste `KeyError` : du code appelant l'attrape ainsi,
+    et un prix manquant EST une cle absente. Mais `KeyError.__str__` rend
+    `repr(args[0])`, donc des guillemets autour du message.
+
+    Utile quand l'argument est une cle - `KeyError('Ni')` affiche 'Ni', et
+    les guillemets montrent qu'on parle d'une chaine. Nuisible quand
+    l'argument est une PHRASE destinee a l'utilisateur : la ligne de
+    commande affichait
+
+        prix manquant : "cobalt (Co) absent du Pink Sheet. ..."
+
+    avec des guillemets parasites autour de tout le message, et un
+    apostrophe francais dans le texte faisait basculer Python sur des
+    guillemets doubles - donc une ponctuation qui change selon le contenu.
+    """
+
+    def __str__(self) -> str:
+        if len(self.args) == 1 and isinstance(self.args[0], str):
+            return self.args[0]
+        return super().__str__()
 
 
 # ==========================================================================

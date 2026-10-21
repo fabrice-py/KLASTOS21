@@ -48,7 +48,19 @@ DEFAUT = "fr"
 
 
 class CleInconnue(KeyError):
-    """Cle absente du catalogue. C'est un bug, pas un resultat."""
+    """
+    Cle absente du catalogue. C'est un bug, pas un resultat.
+
+    Meme correction que `market.MissingPriceError`, et pour la meme raison :
+    la base reste `KeyError` - une cle absente du catalogue est bien une cle
+    absente - mais `KeyError.__str__` entourerait le message de guillemets,
+    alors que ce message est une phrase destinee a celui qui releve le code.
+    """
+
+    def __str__(self) -> str:
+        if len(self.args) == 1 and isinstance(self.args[0], str):
+            return self.args[0]
+        return super().__str__()
 
 
 # ==========================================================================

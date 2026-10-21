@@ -269,3 +269,67 @@ def test_conversion_livre_tonne():
     )
 
 
+# ==========================================================================
+# Lisibilite des messages d'erreur
+# ==========================================================================
+
+def test_un_prix_manquant_s_affiche_sans_guillemets_parasites():
+    """
+    `MissingPriceError` derive de `KeyError`, dont le `__str__` rend
+    `repr(args[0])`. Utile sur une cle - `KeyError('Ni')` affiche 'Ni' -
+    mais nuisible sur une PHRASE : la ligne de commande affichait
+
+        prix manquant : "cobalt (Co) absent du Pink Sheet. ..."
+
+    avec des guillemets parasites autour de tout le message. Pire, un
+    apostrophe francais dans le texte faisait basculer Python sur des
+    guillemets doubles : la ponctuation changeait selon le contenu.
+    """
+    message = "Aucun prix pour 'Co'. Prix disponibles : ['Ni']."
+    erreur = MissingPriceError(message)
+
+    # Le message affiche est EXACTEMENT celui qui a ete pose : c'est
+    # l'assertion qui mord, et elle vaut quel que soit le contenu. Comparer
+    # a l'absence de guillemets en tete serait fragile - un message peut
+    # legitimement commencer par une cle entre guillemets.
+    assert str(erreur) == message
+    # Et la preuve directe : sans la surcharge, on lirait ceci.
+    assert str(erreur) != repr(message)
+
+
+def test_la_classe_de_base_reste_keyerror():
+    """
+    Du code appelant l'attrape ainsi - `cli.py` a un `except KeyError` -, et
+    un prix manquant EST une cle absente. Seul l'affichage change.
+    """
+    assert issubclass(MissingPriceError, KeyError)
+    try:
+        raise MissingPriceError("essai")
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("MissingPriceError n'est plus un KeyError")
+
+
+def test_un_message_non_textuel_garde_le_comportement_de_keyerror():
+    """
+    La surcharge ne porte que sur le cas d'UN argument textuel. Un vrai
+    usage de cle - un objet, plusieurs arguments - doit continuer de
+    s'afficher comme un KeyError, sans quoi on perdrait l'information que
+    donne le `repr`.
+    """
+    assert str(MissingPriceError("Ni", "Co")) == str(KeyError("Ni", "Co"))
+    assert str(MissingPriceError(42)) == str(KeyError(42))
+
+
+def test_le_message_reel_de_get_est_lisible():
+    """Sur le chemin reel, pas seulement sur une instance fabriquee."""
+    import datetime as _dt
+
+    jeu = PriceSet(
+        prices={"Ni": MetalPrice("Ni", 15_000.0, "USD", _dt.date(2026, 10, 1),
+                                 "fixture", "Ni ref")},
+        currency="USD")
+    with pytest.raises(MissingPriceError) as exc:
+        jeu.get("Co")
+    assert str(exc.value).startswith("Aucun prix pour")
