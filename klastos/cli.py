@@ -52,6 +52,47 @@ def _utf8_stdout() -> None:
             pass
 
 
+
+def _langue_demandee(argv: list[str] | None = None) -> str:
+    """
+    La langue voulue, lue DANS argv avant toute analyse d'arguments.
+
+    Pourquoi un pre-balayage, et pas simplement `args.langue`
+    ---------------------------------------------------------
+    L'aide d'argparse est construite au moment ou l'on DECLARE les options :
+    `--help` affiche donc des textes figes avant qu'aucun argument n'ait ete
+    lu. Attendre `args.langue` rendrait `klastos rapport --help --langue en`
+    impossible a satisfaire - l'aide serait deja ecrite en francais.
+
+    On balaie donc argv a la main, ce qui reste EXPLICITE : la langue vient
+    de ce que l'utilisateur a tape, jamais d'une locale systeme devinee.
+    Deviner serait contraire au principe du projet, qui n'invente ni unite,
+    ni prix, ni taux.
+
+    Les deux formes sont acceptees : « --langue en » et « --langue=en ».
+    """
+    import sys as _sys
+
+    args = list(argv if argv is not None else _sys.argv[1:])
+    for i, a in enumerate(args):
+        if a == "--langue" and i + 1 < len(args):
+            return i18n.langue_valide(args[i + 1])
+        if a.startswith("--langue="):
+            return i18n.langue_valide(a.partition("=")[2])
+    return i18n.DEFAUT
+
+def _langue(args=None) -> str:
+    """
+    La langue des sorties console.
+
+    Lue sur `args` quand ils existent, sinon dans argv : certaines erreurs
+    surviennent avant l'analyse complete des arguments.
+    """
+    if args is not None and getattr(args, "langue", None):
+        return i18n.langue_valide(args.langue)
+    return _langue_demandee()
+
+
 def _erreur(message: str) -> int:
     print(f"\n{PROG}: {message}\n", file=sys.stderr)
     return EXIT_REFUS
@@ -61,100 +102,83 @@ def _erreur(message: str) -> int:
 # Arguments communs
 # ==========================================================================
 
-def _ajouter_lecture(p: argparse.ArgumentParser) -> None:
-    p.add_argument("bulletin", help="certificat d'analyse au format CSV")
+def _ajouter_lecture(p: argparse.ArgumentParser,
+                     lg: str = i18n.DEFAUT) -> None:
+    p.add_argument("bulletin", help=i18n.t("cli.aide.bulletin", lg))
     p.add_argument(
         "--unite", default="%", metavar="UNITE",
-        help="unite appliquee aux colonnes qui n'en declarent pas (defaut : %%)",
+        help=i18n.t("cli.aide.unite", lg),
     )
     p.add_argument(
         "--censure", default="half", choices=("zero", "half", "threshold"),
-        help="traitement des valeurs sous la limite de detection "
-             "(defaut : half, convention geochimique)",
+        help=i18n.t("cli.aide.censure", lg),
     )
     p.add_argument(
         "--separateur", default=",", metavar="CAR",
-        help="separateur de colonnes du CSV (defaut : virgule)",
+        help=i18n.t("cli.aide.separateur", lg),
     )
     p.add_argument(
         "--devise", metavar="ISO", default=None, dest="devise_cible",
-        help="convertit les prix vers cette devise avant valorisation, par "
-             "exemple EUR. SANS CETTE OPTION, AUCUNE CONVERSION N'A LIEU : "
-             "un jeu multi-devises reste refuse, et c'est voulu. Exige "
-             "--taux.",
+        help=i18n.t("cli.aide.devise", lg),
     )
     p.add_argument(
         "--taux", metavar="FICHIER", default=None,
-        help="fichier de taux de change, CSV ou JSON. AUCUNE SOURCE DE TAUX "
-             "N'EST INTEGREE : le taux est le votre, celui de votre banque, "
-             "parce que c'est lui qui engage votre transaction. Format "
-             "documente au README, exemple dans data/taux_exemple.json.",
+        help=i18n.t("cli.aide.taux", lg),
     )
     p.add_argument(
         "--taux-age-max", type=int, default=MAX_RATE_AGE_DAYS, metavar="N",
         dest="taux_age_max",
-        help=f"age maximal d'un taux, en jours (defaut : "
-             f"{MAX_RATE_AGE_DAYS}, NON ARBITRE - voir klastos/fx.py)",
+        help=i18n.t("cli.aide.taux_age_max", lg, defaut=MAX_RATE_AGE_DAYS),
     )
     p.add_argument(
         "--langue", default=i18n.DEFAUT, choices=list(i18n.LANGUES),
-        help=f"langue du rapport (defaut : {i18n.DEFAUT}). Le protocole "
-             f"methodologique reste en francais et le rapport anglais le "
-             f"cite en declarant sa langue.",
+        help=i18n.t("cli.aide.langue", lg, defaut=i18n.DEFAUT),
     )
 
 
-def _ajouter_provenance(p: argparse.ArgumentParser) -> None:
+def _ajouter_provenance(p: argparse.ArgumentParser,
+                        lg: str = i18n.DEFAUT) -> None:
     from .provenance import PROVENANCE_PROFILES
 
     p.add_argument(
         "--provenance", default="non_declaree",
         choices=sorted(PROVENANCE_PROFILES),
-        help="provenance declaree par le client (defaut : non_declaree)",
+        help=i18n.t("cli.aide.provenance", lg),
     )
     p.add_argument(
         "--atteste", action="store_true",
-        help="le client a signe l'attestation. SANS CE DRAPEAU, aucune phase "
-             "n'est exclue, quelle que soit la provenance declaree.",
+        help=i18n.t("cli.aide.atteste", lg),
     )
     p.add_argument(
         "--grades", nargs="*", metavar="GRADE", default=None,
-        help="grades de cathode produits, pour le profil chutes_gigafactory",
+        help=i18n.t("cli.aide.grades", lg),
     )
 
 
-def _ajouter_drx(p: argparse.ArgumentParser) -> None:
+def _ajouter_drx(p: argparse.ArgumentParser,
+                 lg: str = i18n.DEFAUT) -> None:
     from .structural import BASES, BASE_ABSOLUE
 
     p.add_argument(
         "--drx", metavar="FICHIER", default=None,
-        help="quantification par diffraction : CSV phase, valeur, "
-             "incertitude. LA COLONNE D'INCERTITUDE EST OBLIGATOIRE - une "
-             "mesure Rietveld est precise a 1 ou 3 points, et sans son "
-             "incertitude elle passerait pour exacte.",
+        help=i18n.t("cli.aide.drx", lg),
     )
     p.add_argument(
         "--base", default=BASE_ABSOLUE, choices=sorted(BASES),
-        help="base de normalisation de la quantification. 'absolue' : "
-             "fraction de la masse totale, exige un standard interne. "
-             "'cristalline' : fraction du seul cristallin, renormalisee - "
-             "seuls les RAPPORTS entre phases sont alors exploitables, et il "
-             "en faut une de plus. Defaut : absolue.",
+        help=i18n.t("cli.aide.base", lg),
     )
     p.add_argument(
         "--conseil-drx", action="store_true",
-        help="classe les phases par le resserrement qu'une quantification "
-             "apporterait, au pire placement de la mesure. Quelques secondes "
-             "de calcul, donc hors du chemin par defaut.",
+        help=i18n.t("cli.aide.conseil_drx", lg),
     )
     p.add_argument(
         "--incertitude-drx", type=float, default=None, metavar="POINTS",
-        help="incertitude supposee du laboratoire pour --conseil-drx, en "
-             "points de masse (defaut : 2).",
+        help=i18n.t("cli.aide.incertitude_drx", lg),
     )
 
 
-def _ajouter_seuils(p: argparse.ArgumentParser) -> None:
+def _ajouter_seuils(p: argparse.ArgumentParser,
+                    lg: str = i18n.DEFAUT) -> None:
     """
     Seuils de bouclage, exposes parce qu'un lot peut demander un reglage
     propre - et non parce qu'ils seraient en attente d'arbitrage.
@@ -174,14 +198,12 @@ def _ajouter_seuils(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--seuil-alerte", type=float, default=CLOSURE_ALERT, metavar="X",
         dest="seuil_alerte",
-        help=f"ecart de bouclage declenchant une alerte, en fraction "
-             f"(defaut : {CLOSURE_ALERT}, ARBITRE contre le plancher de bruit)",
+        help=i18n.t("cli.aide.seuil_alerte", lg, defaut=CLOSURE_ALERT),
     )
     p.add_argument(
         "--seuil-rejet", type=float, default=CLOSURE_REJECT, metavar="X",
         dest="seuil_rejet",
-        help=f"ecart de bouclage rendant le lot inexploitable "
-             f"(defaut : {CLOSURE_REJECT}, ARBITRE contre le plancher de bruit)",
+        help=i18n.t("cli.aide.seuil_rejet", lg, defaut=CLOSURE_REJECT),
     )
 
 
@@ -250,7 +272,7 @@ def cmd_diag(args) -> int:
     try:
         lu = _lire(args)
     except IngestionError as e:
-        return _erreur(f"bulletin illisible : {e}")
+        return _erreur(i18n.t("cli.erreur.bulletin", _langue(args), e=e))
 
     keys, exclues, journal = _resoudre_provenance(args)
     res = solve(lu.b, phase_keys=keys, elements=lu.measured_elements,
@@ -336,7 +358,8 @@ def cmd_rapport(args) -> int:
             termes = (charger_termes(args.payables, args.marche)
                       if args.payables else demo_payable_terms()[args.marche])
         except (ProviderError, ImplausiblePriceError) as e:
-            return _erreur(f"prix inexploitables : {e}")
+            return _erreur(
+                i18n.t("cli.erreur.prix_inexploitables", _langue(args), e=e))
         except KeyError as e:
             return _erreur(f"cle inconnue : {e}")
 
@@ -375,9 +398,9 @@ def cmd_rapport(args) -> int:
     try:
         resultat = analyser(demande)
     except IngestionError as e:
-        return _erreur(f"bulletin illisible : {e}")
+        return _erreur(i18n.t("cli.erreur.bulletin", _langue(args), e=e))
     except StructuralRefused as e:
-        return _erreur(f"quantification structurale refusee : {e}")
+        return _erreur(i18n.t("cli.erreur.drx", _langue(args), e=e))
     except UnboundedCompatibleSet as e:
         return _erreur(f"{e}")
     except NotAProductionSourceError as e:
@@ -385,15 +408,13 @@ def cmd_rapport(args) -> int:
     except StalePriceError as e:
         return _erreur(f"{e}")
     except MissingPriceError as e:
-        return _erreur(f"prix manquant : {e}")
+        return _erreur(i18n.t("cli.erreur.prix_manquant", _langue(args), e=e))
     except (ProviderError, ImplausiblePriceError) as e:
-        return _erreur(f"prix inexploitables : {e}")
+        return _erreur(
+            i18n.t("cli.erreur.prix_inexploitables", _langue(args), e=e))
     except ReportRefused as e:
         return _erreur(
-            f"rapport refuse : {e}\n"
-            "       Relancez avec --demo pour obtenir un document marque "
-            "non opposable."
-        )
+            i18n.t("cli.erreur.rapport_refuse", _langue(args), e=e))
 
     rapport = resultat.rapport
     val = resultat.valorisation
@@ -411,16 +432,15 @@ def cmd_rapport(args) -> int:
         p.write_text(texte, encoding="utf-8")
         print(f"\nRapport ecrit : {p}  (format {fmt})")
         if fmt == "html":
-            print("Ouvrez-le dans un navigateur. Pour un PDF : Ctrl+P, "
-                  "destination \"Enregistrer au format PDF\".")
+            print(i18n.t("cli.rapport.navigateur", _langue(args)))
         if val is None:
-            print("Aucune valorisation : relancez avec --prix pour l'inclure.")
+            print(i18n.t("cli.rapport.sans_valorisation", _langue(args)))
         print()
     else:
         print(texte)
         if val is None and fmt == "markdown":
-            print("\n---\nAucune valorisation dans ce rapport : "
-                  "relancez avec --prix pour l'inclure.")
+            print("\n" + i18n.t(
+                "cli.rapport.sans_valorisation_bloc", _langue(args)))
 
     return EXIT_OK
 
@@ -450,14 +470,17 @@ def cmd_prix(args) -> int:
     try:
         if args.catalogue:
             if not hasattr(flux, "entitlements"):
-                return _erreur(
-                    f"{args.source} n'expose pas de catalogue de droits."
-                )
+                return _erreur(i18n.t("cli.droits.absent", _langue(args),
+                                      agence=args.source))
             symboles = flux.entitlements()
-            print(f"\n{len(symboles)} symbole(s) autorise(s) par votre abonnement :\n")
+            print("\n" + i18n.t("cli.droits.autorises",
+                                _langue(args), n=len(symboles))
+                  + "\n")
             for s in symboles:
                 print(f"   {s}")
-            print("\nConfrontez cette liste a data/symboles_pra.json.\n")
+            print("\n"
+                  + i18n.t("cli.droits.confronter", _langue(args))
+                  + "\n")
             return EXIT_OK
 
         cotations = flux.quotes()
@@ -480,7 +503,8 @@ def cmd_prix(args) -> int:
     except (FeedError, ProviderError) as e:
         return _erreur(f"{args.source} : {e}")
     except ImplausiblePriceError as e:
-        return _erreur(f"prix invraisemblable, conversion d'unite suspecte : {e}")
+        return _erreur(i18n.t("cli.erreur.prix_invraisemblable",
+                              _langue(args), e=e))
 
     instantane = {
         "label": prix.label,
@@ -526,10 +550,8 @@ def cmd_prix(args) -> int:
             print(f"   {m:3} {v * 100:6.2f} %")
 
     if not args.licence_rediffusion:
-        print("\nATTENTION - ces prix sont marques USAGE INTERNE. Un abonnement")
-        print("d'agence n'autorise pas, par defaut, de les afficher dans un")
-        print("rapport facture a un tiers. Obtenez l'autorisation ecrite de")
-        print("l'agence, puis relancez avec --licence-rediffusion.")
+        print("\n" + i18n.t("cli.prix.usage_interne",
+                            _langue(args)))
     print()
     return EXIT_OK
 
@@ -621,8 +643,8 @@ def cmd_ui(args) -> int:
     if args.sans_navigateur:
         commande += ["--server.headless", "true"]
 
-    print(f"\nKLASTOS21 - interface sur http://localhost:{args.port}")
-    print("Ctrl+C pour arreter.\n")
+    print(i18n.t("cli.ui.lancement", _langue(args), port=args.port))
+    print(i18n.t("cli.ui.arreter", _langue(args)))
     try:
         return subprocess.call(commande)
     except KeyboardInterrupt:
@@ -633,136 +655,119 @@ def cmd_ui(args) -> int:
 # Analyseur d'arguments
 # ==========================================================================
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser(langue: str | None = None) -> argparse.ArgumentParser:
+    """
+    Construit le parseur, aide comprise, dans la langue demandee.
+
+    `langue` a None prend ce que `_langue_demandee` lit dans argv : c'est ce
+    que fait `main`. Un appelant - un test, un script - peut forcer la
+    langue sans toucher a argv.
+    """
     from .market import REFERENCE_SPECS
     from .report import DESTINATAIRE_INTERNE, DESTINATAIRE_TIERS
 
+    lg = i18n.langue_valide(langue if langue is not None
+                            else _langue_demandee())
     p = argparse.ArgumentParser(
         prog=PROG,
-        description="KLASTOS21 - analyse predictive des matieres premieres "
-                    "secondaires.",
-        epilog="Exemple : klastos rapport bulletin.csv "
-               "--provenance vehicule_electrique --atteste --demo",
+        description=i18n.t("cli.description", lg),
+        epilog=i18n.t("cli.exemple", lg),
     )
     sous = p.add_subparsers(dest="commande", metavar="COMMANDE")
+    # La langue circule dans le parseur : chaque helper d'options la lit.
+    p.set_defaults(_langue_aide=lg)
 
     d = sous.add_parser(
-        "diag", help="diagnostic rapide d'un bulletin",
-        description="Lit un bulletin, le reconstitue, et rapporte les "
-                    "diagnostics. Aucune valorisation.",
+        "diag", help=i18n.t("cli.cmd.diag", lg),
+        description=i18n.t("cli.cmd.diag_description", lg),
     )
-    _ajouter_lecture(d)
-    _ajouter_provenance(d)
-    _ajouter_seuils(d)
+    _ajouter_lecture(d, lg)
+    _ajouter_provenance(d, lg)
+    _ajouter_seuils(d, lg)
     d.set_defaults(func=cmd_diag)
 
     r = sous.add_parser(
-        "rapport", help="rapport complet, avec valorisation si des prix sont fournis",
-        description="Produit le rapport client complet.",
+        "rapport", help=i18n.t("cli.cmd.rapport", lg),
+        description=i18n.t("cli.cmd.rapport_description", lg),
     )
-    _ajouter_lecture(r)
-    _ajouter_provenance(r)
-    _ajouter_drx(r)
-    _ajouter_seuils(r)
+    _ajouter_lecture(r, lg)
+    _ajouter_provenance(r, lg)
+    _ajouter_drx(r, lg)
+    _ajouter_seuils(r, lg)
     r.add_argument("--lot", default=None, metavar="ID",
-                   help="identifiant du lot (defaut : nom du fichier)")
+                   help=i18n.t("cli.aide.lot", lg))
     r.add_argument("--client", default="Client", metavar="NOM")
     r.add_argument("--sortie", default=None, metavar="FICHIER",
-                   help="ecrire le rapport dans ce fichier plutot qu'a l'ecran")
+                   help=i18n.t("cli.aide.sortie", lg))
     r.add_argument("--format", default="auto",
                    choices=("auto", "markdown", "html"),
-                   help="rendu du rapport. html produit un document autonome, "
-                        "avec des barres d'intervalle, pret a imprimer en PDF "
-                        "depuis le navigateur. auto (defaut) : html si "
-                        "--sortie finit par .html, markdown sinon.")
+                   help=i18n.t("cli.aide.format", lg))
     r.add_argument("--prix", default=None, metavar="FICHIER",
-                   help="prix du client, en CSV (format de "
-                        "data/prix_client_exemple.csv) ou en JSON. "
-                        "SANS CETTE OPTION, AUCUNE VALORISATION.")
+                   help=i18n.t("cli.aide.prix", lg))
     r.add_argument("--payables", default=None, metavar="FICHIER",
-                   help="conditions commerciales au format JSON")
+                   help=i18n.t("cli.aide.payables", lg))
     r.add_argument("--marche", default="cif_coree_sud", metavar="CLE",
-                   help="cle du marche dans le fichier de payables")
+                   help=i18n.t("cli.aide.marche_payables", lg))
     r.add_argument("--spec", default=None, choices=sorted(REFERENCE_SPECS),
-                   help="specification commerciale a controler")
+                   help=i18n.t("cli.aide.spec", lg))
     r.add_argument("--cout", type=float, default=0.0, metavar="X",
-                   help="cout de traitement par tonne")
+                   help=i18n.t("cli.aide.cout", lg))
     r.add_argument("--marge", type=float, default=0.0, metavar="X",
-                   help="marge visee, en fraction (0.15 pour 15 %%)")
+                   help=i18n.t("cli.aide.marge", lg))
     r.add_argument("--tirages", type=int, default=200, metavar="N",
-                   help="tirages de propagation d'incertitude (defaut : 200)")
+                   help=i18n.t("cli.aide.tirages", lg))
     r.add_argument("--graine", type=int, default=0, metavar="N",
-                   help="graine aleatoire, pour un resultat reproductible")
+                   help=i18n.t("cli.aide.graine", lg))
     r.add_argument("--destinataire", default=DESTINATAIRE_TIERS,
                    choices=(DESTINATAIRE_TIERS, DESTINATAIRE_INTERNE),
-                   help="qui recoit ce document. tiers (defaut) : il sort de "
-                        "la maison, et des prix d'agence sans licence de "
-                        "rediffusion le font refuser. interne : il reste "
-                        "chez vous, le refus ne s'applique pas.")
+                   help=i18n.t("cli.aide.destinataire", lg))
     r.add_argument("--demo", action="store_true",
-                   help="utilise l'instantane de prix de demonstration et "
-                        "produit un document marque NON OPPOSABLE")
+                   help=i18n.t("cli.aide.demo", lg))
     r.set_defaults(func=cmd_rapport)
 
     x = sous.add_parser(
-        "prix", help="recupere les prix courants depuis un flux d'agence",
-        description="Interroge Fastmarkets, Benchmark ou SMM et ecrit un "
-                    "instantane de prix date, utilisable ensuite par "
-                    "`rapport --prix`. Les identifiants sont lus dans "
-                    "l'environnement, jamais en argument.",
+        "prix", help=i18n.t("cli.cmd.prix", lg),
+        description=i18n.t("cli.cmd.prix_description", lg),
     )
     x.add_argument("--source", required=True,
                    choices=("fastmarkets", "benchmark", "smm"))
     x.add_argument("--sortie", default="data/prix_du_jour.json", metavar="FICHIER")
     x.add_argument("--marche", default=None, metavar="CLE",
-                   help="releve aussi les payables de ce marche "
-                        "(exw_europe, cif_coree_sud...)")
+                   help=i18n.t("cli.aide.marche_releve", lg))
     x.add_argument("--catalogue", action="store_true",
-                   help="liste les symboles que votre abonnement autorise, "
-                        "sans rien ecrire")
+                   help=i18n.t("cli.aide.catalogue", lg))
     x.add_argument("--licence-rediffusion", action="store_true",
                    dest="licence_rediffusion",
-                   help="vous attestez detenir l'autorisation ecrite de "
-                        "rediffuser ces prix a un tiers. Sans ce drapeau, "
-                        "l'instantane est marque USAGE INTERNE.")
+                   help=i18n.t("cli.aide.licence", lg))
     x.set_defaults(func=cmd_prix)
 
     ps = sous.add_parser(
         "pink-sheet",
-        help="moyennes mensuelles de la Banque mondiale (source gratuite)",
-        description="Affiche les moyennes mensuelles du Pink Sheet de la "
-                    "Banque mondiale, seule source de prix gratuite et "
-                    "REDIFFUSABLE du projet. Elle ne couvre que l'aluminium, "
-                    "le cuivre et le nickel, et ce sont des moyennes "
-                    "mensuelles : jamais des evaluations spot.",
+        help=i18n.t("cli.cmd.pink", lg),
+        description=i18n.t("cli.cmd.pink_description", lg),
     )
     ps.add_argument(
         "--fichier", metavar="FICHIER", default=None,
-        help="classeur local a lire (defaut : "
-             "data/CMO-Historical-Data-Monthly.xlsx)",
+        help=i18n.t("cli.aide.fichier", lg),
     )
     ps.add_argument(
         "--url", metavar="URL", default=None,
-        help="adresse du classeur. CONFIGURABLE a dessein : l'identifiant de "
-             "document a deja change entre les editions 2025 et 2026.",
+        help=i18n.t("cli.aide.url", lg),
     )
     ps.add_argument(
         "--rafraichir", action="store_true",
-        help="telecharge le classeur avant lecture. Action EXPLICITE et "
-             "separee de l'analyse : un lien mort ne doit jamais casser une "
-             "valorisation.",
+        help=i18n.t("cli.aide.rafraichir", lg),
     )
     ps.set_defaults(func=cmd_pink_sheet)
 
     u = sous.add_parser(
-        "ui", help="lance l'interface graphique dans le navigateur",
-        description="Ouvre l'interface d'exploitation : depot d'un bulletin, "
-                    "prix du jour, rapport, historique des lots.",
+        "ui", help=i18n.t("cli.cmd.ui", lg),
+        description=i18n.t("cli.cmd.ui_description", lg),
     )
     u.add_argument("--port", type=int, default=8501, metavar="N")
     u.add_argument("--sans-navigateur", action="store_true",
                    dest="sans_navigateur",
-                   help="n'ouvre pas le navigateur automatiquement")
+                   help=i18n.t("cli.aide.sans_navigateur", lg))
     u.set_defaults(func=cmd_ui)
 
     return p
@@ -779,7 +784,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.marge if hasattr(args, "marge") else False:
         if not 0.0 <= args.marge < 1.0:
-            return _erreur("--marge doit etre une fraction dans [0, 1[.")
+            return _erreur(i18n.t("cli.erreur.marge", _langue(args)))
 
     try:
         return args.func(args)

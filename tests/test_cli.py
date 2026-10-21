@@ -225,7 +225,7 @@ def test_un_bouclage_hors_tolerance_refuse_le_rapport(capsys):
                  "--tirages", "30"])
     assert code == EXIT_REFUS
     err = capsys.readouterr().err
-    assert "rapport refuse" in err
+    assert "rapport refusé" in err
     assert "--demo" in err, "le message doit indiquer la sortie de secours"
 
 
@@ -260,14 +260,22 @@ def test_l_aide_dit_d_ou_viennent_les_seuils_de_bouclage(capsys):
     pendant que cette aide-ci soutenait encore le contraire a l'utilisateur.
     Deux tests du depot se contredisaient donc sur le meme sujet.
 
-    L'assertion negative est la part qui mord : sans elle, « ARBITRE » est
-    un sous-mot de « NON ARBITRE » et le texte perime repasserait.
+    L'assertion negative est la part qui mord : « ARBITRÉ » est un sous-mot
+    de « NON ARBITRÉ », donc sans elle le texte perime repasserait. Elle
+    porte sur la phrase entiere et non sur « NON ARBITRÉ » seul, parce que
+    `--taux-age-max` affiche legitimement « NON ARBITRÉ » dans la meme aide
+    pour l'age des taux de change, lui qui n'est effectivement pas arbitre.
+    Un garde nu interdirait donc une mention juste.
     """
     with pytest.raises(SystemExit):
         build_parser().parse_args(["diag", "--help"])
-    aide = capsys.readouterr().out
-    assert "ARBITRE contre le plancher de bruit" in aide
-    assert "NON ARBITRE" not in aide
+    # argparse enroule l'aide : « NON » et « ARBITRÉ » peuvent se
+    # retrouver separes par un retour a la ligne, et la coupure depend de
+    # la largeur du terminal. On compare donc sur un texte dont les blancs
+    # sont normalises, sinon l'assertion passe ici et tombe ailleurs.
+    aide = " ".join(capsys.readouterr().out.split())
+    assert "ARBITRÉ contre le plancher de bruit" in aide
+    assert "NON ARBITRÉ contre le plancher de bruit" not in aide
 
 
 def test_l_aide_signale_qu_il_n_y_a_pas_de_prix_par_defaut(capsys):

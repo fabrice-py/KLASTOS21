@@ -399,7 +399,7 @@ def test_la_cli_refuse_une_base_cristalline_a_une_phase(tmp_path, capsys):
                  "vehicule_electrique", "--atteste", "--drx", str(f),
                  "--base", "cristalline", "--tirages", "8"])
     assert code != 0
-    assert "refusee" in capsys.readouterr().err
+    assert "refusée" in capsys.readouterr().err
 
 
 def test_la_cli_porte_le_conseil(tmp_path, capsys):

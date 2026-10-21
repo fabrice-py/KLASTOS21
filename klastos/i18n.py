@@ -610,6 +610,435 @@ CATALOGUE: dict[str, dict[str, str]] = {
     },
 
     # ======================================================================
+    # Ligne de commande
+    # ======================================================================
+    # L'aide d'argparse est construite AVANT que les arguments soient lus :
+    # `_langue_demandee` balaie donc argv a la main pour que
+    # « klastos rapport --help --langue en » rende une aide anglaise.
+    "cli.erreur.bulletin": {
+        "fr": "bulletin illisible : {e}",
+        "en": "assay unreadable: {e}",
+    },
+    "cli.erreur.drx": {
+        "fr": "quantification structurale refusée : {e}",
+        "en": "structural quantification refused: {e}",
+    },
+    "cli.erreur.prix_manquant": {
+        "fr": "prix manquant : {e}",
+        "en": "missing price: {e}",
+    },
+    "cli.erreur.prix_inexploitables": {
+        "fr": "prix inexploitables : {e}",
+        "en": "prices unusable: {e}",
+    },
+    "cli.erreur.rapport_refuse": {
+        "fr": "rapport refusé : {e}\n       Relancez avec --demo pour "
+              "obtenir un document marqué non opposable.",
+        "en": "report refused: {e}\n       Re-run with --demo to obtain a "
+              "document marked as non-binding.",
+    },
+    "cli.erreur.marge": {
+        "fr": "--marge doit être une fraction dans [0, 1[.",
+        "en": "--marge must be a fraction in [0, 1[.",
+    },
+    "cli.erreur.prix_invraisemblable": {
+        "fr": "prix invraisemblable, conversion d'unité suspecte : {e}",
+        "en": "implausible price, unit conversion suspect: {e}",
+    },
+    "cli.rapport.navigateur": {
+        "fr": "Ouvrez-le dans un navigateur. Pour un PDF : Ctrl+P, "
+              "destination \u00ab Enregistrer au format PDF \u00bb.",
+        "en": "Open it in a browser. For a PDF: Ctrl+P, destination "
+              "\u201cSave as PDF\u201d.",
+    },
+    "cli.rapport.sans_valorisation": {
+        "fr": "Aucune valorisation : relancez avec --prix pour l'inclure.",
+        "en": "No valuation: re-run with --prix to include one.",
+    },
+    "cli.rapport.sans_valorisation_bloc": {
+        "fr": "--- Aucune valorisation dans ce rapport : relancez avec "
+              "--prix pour l'inclure.",
+        "en": "--- No valuation in this report: re-run with --prix to "
+              "include one.",
+    },
+    "cli.droits.absent": {
+        "fr": "{agence} n'expose pas de catalogue de droits.",
+        "en": "{agence} exposes no entitlement catalogue.",
+    },
+    "cli.droits.autorises": {
+        "fr": "{n} symbole(s) autorisé(s) par votre abonnement :",
+        "en": "{n} symbol(s) authorised by your subscription:",
+    },
+    "cli.droits.confronter": {
+        "fr": "Confrontez cette liste à data/symboles_pra.json.",
+        "en": "Compare this list against data/symboles_pra.json.",
+    },
+    "cli.prix.usage_interne": {
+        "fr": "ATTENTION - ces prix sont marqués USAGE INTERNE. Un "
+              "abonnement\n   d'agence n'autorise pas, par défaut, de les "
+              "afficher dans un\n   rapport facturé à un tiers. Obtenez "
+              "l'autorisation écrite de\n   l'agence, puis relancez avec "
+              "--licence-rediffusion.",
+        "en": "WARNING - these prices are marked INTERNAL USE. An agency\n"
+              "   subscription does not, by default, allow displaying them "
+              "in a\n   report invoiced to a third party. Obtain the "
+              "agency's written\n   authorisation, then re-run with "
+              "--licence-rediffusion.",
+    },
+    "cli.pink.telechargement": {
+        "fr": "téléchargement impossible : {e}\n       L'URL du Pink Sheet "
+              "porte un identifiant de document qui change à chaque "
+              "édition.\n       Vérifiez l'adresse courante sur "
+              "worldbank.org, puis relancez avec --url.",
+        "en": "download failed: {e}\n       The Pink Sheet URL carries a "
+              "document identifier that changes with each edition.\n"
+              "       Check the current address on worldbank.org, then "
+              "re-run with --url.",
+    },
+    "cli.pink.pas_xlsx": {
+        "fr": "le fichier téléchargé n'est pas un classeur XLSX. L'URL a "
+              "probablement changé d'édition.",
+        "en": "the downloaded file is not an XLSX workbook. The URL has "
+              "probably changed edition.",
+    },
+    "cli.pink.avertissement": {
+        "fr": "MOYENNES MENSUELLES, pas des évaluations spot. Le cobalt, le "
+              "lithium, le\nmanganèse et le graphite n'y figurent pas : ce "
+              "sont des marchés de gré à gré.",
+        "en": "MONTHLY AVERAGES, not spot assessments. Cobalt, lithium,\n"
+              "manganese and graphite are not included: those are "
+              "over-the-counter markets.",
+    },
+    "cli.ui.streamlit_absent": {
+        "fr": "l'interface demande Streamlit, qui n'est pas installé.\n"
+              "       Installez-le une fois :  pip install streamlit\n"
+              "       Le reste de KLASTOS21 fonctionne sans lui.",
+        "en": "the interface requires Streamlit, which is not installed.\n"
+              "       Install it once:  pip install streamlit\n"
+              "       The rest of KLASTOS21 works without it.",
+    },
+    "cli.ui.lancement": {
+        "fr": "\nKLASTOS21 - interface sur http://localhost:{port}",
+        "en": "\nKLASTOS21 - interface at http://localhost:{port}",
+    },
+    "cli.ui.arreter": {
+        "fr": "Ctrl+C pour arrêter.\n",
+        "en": "Ctrl+C to stop.\n",
+    },
+
+    # ---------------------------------------------------- aide des options
+    # L'aide est du TEXTE AFFICHE : le francais y porte donc ses accents.
+    # Les formulations sont celles d'origine, mot pour mot - traduire
+    # n'autorise pas a reformuler, et une aide reecrite au passage fait
+    # perdre la trace de ce qui a ete arbitre.
+    #
+    # Les « %% » sont l'echappement d'argparse pour un pourcent litteral :
+    # les retirer ferait lever argparse au moment d'afficher l'aide.
+    "cli.aide.bulletin": {
+        "fr": "certificat d'analyse au format CSV",
+        "en": "assay certificate in CSV format",
+    },
+    "cli.aide.unite": {
+        "fr": "unité appliquée aux colonnes qui n'en déclarent pas "
+              "(défaut : %%)",
+        "en": "unit applied to columns that declare none (default: %%)",
+    },
+    "cli.aide.censure": {
+        "fr": "traitement des valeurs sous la limite de détection "
+              "(défaut : half, convention géochimique)",
+        "en": "handling of values below the detection limit (default: "
+              "half, the geochemical convention)",
+    },
+    "cli.aide.separateur": {
+        "fr": "séparateur de colonnes du CSV (défaut : virgule)",
+        "en": "CSV column separator (default: comma)",
+    },
+    "cli.aide.devise": {
+        "fr": "convertit les prix vers cette devise avant valorisation, par "
+              "exemple EUR. SANS CETTE OPTION, AUCUNE CONVERSION N'A LIEU : "
+              "un jeu multi-devises reste refusé, et c'est voulu. Exige "
+              "--taux.",
+        "en": "converts prices into this currency before valuation, for "
+              "example EUR. WITHOUT THIS OPTION, NO CONVERSION TAKES "
+              "PLACE: a multi-currency set stays refused, and that is "
+              "deliberate. Requires --taux.",
+    },
+    "cli.aide.taux": {
+        "fr": "fichier de taux de change, CSV ou JSON. AUCUNE SOURCE DE "
+              "TAUX N'EST INTÉGRÉE : le taux est le vôtre, celui de votre "
+              "banque, parce que c'est lui qui engage votre transaction. "
+              "Format documenté au README, exemple dans "
+              "data/taux_exemple.json.",
+        "en": "exchange-rate file, CSV or JSON. NO RATE SOURCE IS "
+              "INTEGRATED: the rate is yours, your bank's, because it is "
+              "the one that binds your transaction. Format documented in "
+              "the README, example in data/taux_exemple.json.",
+    },
+    "cli.aide.taux_age_max": {
+        "fr": "âge maximal d'un taux, en jours (défaut : {defaut}, NON "
+              "ARBITRÉ - voir klastos/fx.py)",
+        "en": "maximum age of a rate, in days (default: {defaut}, NOT "
+              "ARBITRATED - see klastos/fx.py)",
+    },
+    "cli.aide.langue": {
+        "fr": "langue du rapport (défaut : {defaut}). Le protocole "
+              "méthodologique reste en français et le rapport anglais le "
+              "cite en déclarant sa langue.",
+        "en": "report language (default: {defaut}). The methodological "
+              "protocol remains in French, and the English report cites it "
+              "while declaring its language.",
+    },
+    "cli.aide.provenance": {
+        "fr": "provenance déclarée par le client (défaut : non_declaree)",
+        "en": "provenance declared by the client (default: non_declaree)",
+    },
+    "cli.aide.atteste": {
+        "fr": "le client a signé l'attestation. SANS CE DRAPEAU, aucune "
+              "phase n'est exclue, quelle que soit la provenance déclarée.",
+        "en": "the client has signed the attestation. WITHOUT THIS FLAG, no "
+              "phase is excluded, whatever provenance is declared.",
+    },
+    "cli.aide.grades": {
+        "fr": "grades de cathode produits, pour le profil "
+              "chutes_gigafactory",
+        "en": "cathode grades produced, for the chutes_gigafactory profile",
+    },
+    "cli.aide.drx": {
+        "fr": "quantification par diffraction : CSV phase, valeur, "
+              "incertitude. LA COLONNE D'INCERTITUDE EST OBLIGATOIRE - une "
+              "mesure Rietveld est précise à 1 ou 3 points, et sans son "
+              "incertitude elle passerait pour exacte.",
+        "en": "diffraction quantification: CSV phase, value, uncertainty. "
+              "THE UNCERTAINTY COLUMN IS MANDATORY - a Rietveld "
+              "measurement is precise to 1 or 3 points, and without its "
+              "uncertainty it would pass for exact.",
+    },
+    "cli.aide.base": {
+        "fr": "base de normalisation de la quantification. 'absolue' : "
+              "fraction de la masse totale, exige un standard interne. "
+              "'cristalline' : fraction du seul cristallin, renormalisée - "
+              "seuls les RAPPORTS entre phases sont alors exploitables, et "
+              "il en faut une de plus. Défaut : absolue.",
+        "en": "normalisation basis of the quantification. 'absolue': "
+              "fraction of the total mass, requires an internal standard. "
+              "'cristalline': fraction of the crystalline part only, "
+              "renormalised - then only the RATIOS between phases are "
+              "usable, and one more phase is needed. Default: absolue.",
+    },
+    "cli.aide.conseil_drx": {
+        "fr": "classe les phases par le resserrement qu'une quantification "
+              "apporterait, au pire placement de la mesure. Quelques "
+              "secondes de calcul, donc hors du chemin par défaut.",
+        "en": "ranks the phases by the narrowing a quantification would "
+              "bring, at the worst placement of the measurement. A few "
+              "seconds of computation, hence off the default path.",
+    },
+    "cli.aide.incertitude_drx": {
+        "fr": "incertitude supposée du laboratoire pour --conseil-drx, en "
+              "points de masse (défaut : 2).",
+        "en": "assumed laboratory uncertainty for --conseil-drx, in mass "
+              "points (default: 2).",
+    },
+    "cli.aide.seuil_alerte": {
+        "fr": "écart de bouclage déclenchant une alerte, en fraction "
+              "(défaut : {defaut}, ARBITRÉ contre le plancher de bruit)",
+        "en": "closure gap triggering an alert, as a fraction (default: "
+              "{defaut}, ARBITRATED against the noise floor)",
+    },
+    "cli.aide.seuil_rejet": {
+        "fr": "écart de bouclage rendant le lot inexploitable (défaut : "
+              "{defaut}, ARBITRÉ contre le plancher de bruit)",
+        "en": "closure gap making the lot unusable (default: {defaut}, "
+              "ARBITRATED against the noise floor)",
+    },
+    "cli.aide.lot": {
+        "fr": "identifiant du lot (défaut : nom du fichier)",
+        "en": "lot reference (default: the file name)",
+    },
+    "cli.aide.sortie": {
+        "fr": "écrire le rapport dans ce fichier plutôt qu'à l'écran",
+        "en": "write the report to this file rather than to the screen",
+    },
+    "cli.aide.format": {
+        "fr": "rendu du rapport. html produit un document autonome, avec "
+              "des barres d'intervalle, prêt à imprimer en PDF depuis le "
+              "navigateur. auto (défaut) : html si --sortie finit par "
+              ".html, markdown sinon.",
+        "en": "report rendering. html produces a self-contained document, "
+              "with interval bars, ready to print to PDF from the browser. "
+              "auto (default): html if --sortie ends in .html, markdown "
+              "otherwise.",
+    },
+    "cli.aide.prix": {
+        "fr": "prix du client, en CSV (format de "
+              "data/prix_client_exemple.csv) ou en JSON. SANS CETTE "
+              "OPTION, AUCUNE VALORISATION.",
+        "en": "the client's prices, as CSV (format of "
+              "data/prix_client_exemple.csv) or JSON. WITHOUT THIS OPTION, "
+              "NO VALUATION.",
+    },
+    "cli.aide.payables": {
+        "fr": "conditions commerciales au format JSON",
+        "en": "commercial terms in JSON format",
+    },
+    "cli.aide.marche_payables": {
+        "fr": "clé du marché dans le fichier de payables",
+        "en": "market key in the payables file",
+    },
+    "cli.aide.marche_releve": {
+        "fr": "relève aussi les payables de ce marché (exw_europe, "
+              "cif_coree_sud...)",
+        "en": "also retrieve the payables of this market (exw_europe, "
+              "cif_coree_sud...)",
+    },
+    "cli.aide.spec": {
+        "fr": "spécification commerciale à contrôler",
+        "en": "commercial specification to check against",
+    },
+    "cli.aide.cout": {
+        "fr": "coût de traitement par tonne",
+        "en": "processing cost per tonne",
+    },
+    "cli.aide.marge": {
+        "fr": "marge visée, en fraction (0.15 pour 15 %%)",
+        "en": "target margin, as a fraction (0.15 for 15 %%)",
+    },
+    "cli.aide.tirages": {
+        "fr": "tirages de propagation d'incertitude (défaut : 200)",
+        "en": "uncertainty propagation draws (default: 200)",
+    },
+    "cli.aide.graine": {
+        "fr": "graine aléatoire, pour un résultat reproductible",
+        "en": "random seed, for a reproducible result",
+    },
+    "cli.aide.destinataire": {
+        "fr": "qui reçoit ce document. tiers (défaut) : il sort de la "
+              "maison, et des prix d'agence sans licence de rediffusion le "
+              "font refuser. interne : il reste chez vous, le refus ne "
+              "s'applique pas.",
+        "en": "who receives this document. tiers (default): it leaves the "
+              "company, and agency prices without a redistribution licence "
+              "cause it to be refused. interne: it stays in house, the "
+              "refusal does not apply.",
+    },
+    "cli.aide.demo": {
+        "fr": "utilise l'instantané de prix de démonstration et produit un "
+              "document marqué NON OPPOSABLE",
+        "en": "uses the demonstration price snapshot and produces a "
+              "document marked NOT BINDING",
+    },
+    "cli.aide.catalogue": {
+        "fr": "liste les symboles que votre abonnement autorise, sans rien "
+              "écrire",
+        "en": "lists the symbols your subscription authorises, without "
+              "writing anything",
+    },
+    "cli.aide.licence": {
+        "fr": "vous attestez détenir l'autorisation écrite de rediffuser "
+              "ces prix à un tiers. Sans ce drapeau, l'instantané est "
+              "marqué USAGE INTERNE.",
+        "en": "you certify that you hold written authorisation to "
+              "redistribute these prices to a third party. Without this "
+              "flag, the snapshot is marked INTERNAL USE.",
+    },
+    "cli.aide.fichier": {
+        "fr": "classeur local à lire (défaut : "
+              "data/CMO-Historical-Data-Monthly.xlsx)",
+        "en": "local workbook to read (default: "
+              "data/CMO-Historical-Data-Monthly.xlsx)",
+    },
+    "cli.aide.url": {
+        "fr": "adresse du classeur. CONFIGURABLE à dessein : l'identifiant "
+              "de document a déjà changé entre les éditions 2025 et 2026.",
+        "en": "address of the workbook. CONFIGURABLE by design: the "
+              "document identifier has already changed between the 2025 "
+              "and 2026 editions.",
+    },
+    "cli.aide.rafraichir": {
+        "fr": "télécharge le classeur avant lecture. Action EXPLICITE et "
+              "séparée de l'analyse : un lien mort ne doit jamais casser "
+              "une valorisation.",
+        "en": "downloads the workbook before reading. An EXPLICIT action, "
+              "separate from the analysis: a dead link must never break a "
+              "valuation.",
+    },
+    "cli.aide.sans_navigateur": {
+        "fr": "n'ouvre pas le navigateur automatiquement",
+        "en": "does not open the browser automatically",
+    },
+
+    # ------------------------------------------------- sous-commandes
+    "cli.cmd.diag": {
+        "fr": "diagnostic rapide d'un bulletin",
+        "en": "quick diagnosis of an assay",
+    },
+    "cli.cmd.diag_description": {
+        "fr": "Lit un bulletin, le reconstitue, et rapporte les "
+              "diagnostics. Aucune valorisation.",
+        "en": "Reads an assay, reconstructs it, and reports the "
+              "diagnostics. No valuation.",
+    },
+    "cli.cmd.rapport": {
+        "fr": "rapport complet, avec valorisation si des prix sont fournis",
+        "en": "full report, with valuation if prices are supplied",
+    },
+    "cli.cmd.rapport_description": {
+        "fr": "Produit le rapport client complet.",
+        "en": "Produces the complete client report.",
+    },
+    "cli.cmd.prix": {
+        "fr": "récupère les prix courants depuis un flux d'agence",
+        "en": "retrieves current prices from an agency feed",
+    },
+    "cli.cmd.prix_description": {
+        "fr": "Interroge Fastmarkets, Benchmark ou SMM et écrit un "
+              "instantané de prix daté, utilisable ensuite par "
+              "`rapport --prix`. Les identifiants sont lus dans "
+              "l'environnement, jamais en argument.",
+        "en": "Queries Fastmarkets, Benchmark or SMM and writes a dated "
+              "price snapshot, usable afterwards by `rapport --prix`. "
+              "Credentials are read from the environment, never from an "
+              "argument.",
+    },
+    "cli.cmd.pink": {
+        "fr": "moyennes mensuelles de la Banque mondiale (source gratuite)",
+        "en": "World Bank monthly averages (free source)",
+    },
+    "cli.cmd.pink_description": {
+        "fr": "Affiche les moyennes mensuelles du Pink Sheet de la Banque "
+              "mondiale, seule source de prix gratuite et REDIFFUSABLE du "
+              "projet. Elle ne couvre que l'aluminium, le cuivre et le "
+              "nickel, et ce sont des moyennes mensuelles : jamais des "
+              "évaluations spot.",
+        "en": "Displays the monthly averages of the World Bank Pink Sheet, "
+              "the only free and REDISTRIBUTABLE price source in the "
+              "project. It covers only aluminium, copper and nickel, and "
+              "these are monthly averages: never spot assessments.",
+    },
+    "cli.cmd.ui": {
+        "fr": "lance l'interface graphique dans le navigateur",
+        "en": "launches the graphical interface in the browser",
+    },
+    "cli.cmd.ui_description": {
+        "fr": "Ouvre l'interface d'exploitation : dépôt d'un bulletin, "
+              "prix du jour, rapport, historique des lots.",
+        "en": "Opens the working interface: dropping an assay, today's "
+              "prices, the report, the lot history.",
+    },
+
+    "cli.description": {
+        "fr": "KLASTOS21 - analyse prédictive des matières premières "
+              "secondaires.",
+        "en": "KLASTOS21 - predictive analysis of secondary raw materials.",
+    },
+    "cli.exemple": {
+        "fr": "Exemple : klastos rapport bulletin.csv "
+              "--provenance vehicule_electrique --atteste --demo",
+        "en": "Example: klastos rapport bulletin.csv "
+              "--provenance vehicule_electrique --atteste --demo",
+    },
+
+    # ======================================================================
     # Journal de lecture du bulletin
     # ======================================================================
     # Ces lignes partent dans la TRACABILITE du rapport client. Un rapport
