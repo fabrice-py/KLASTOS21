@@ -25,20 +25,20 @@ NUIT = "#0E1526"          # barre laterale
 NUIT_CLAIRE = "#17203A"   # element actif de la barre
 BORD_NUIT = "#223052"
 
-PAPIER = "#F4F6FA"        # fond du plan de travail
+PAPIER = "#F7F8FA"        # fond du plan de travail
 CARTE = "#FFFFFF"
 TRAIT = "#DBE1E9"
-TRAIT_FORT = "#C3CBD8"
+TRAIT_FORT = "#BFC8D4"
 
 ENCRE = "#13171E"
 ARDOISE = "#5A6472"
 
 COBALT = "#1F45C8"
-COBALT_PALE = "#EAEFFC"
+COBALT_PALE = "#E9EDFB"
 AMBRE = "#8A5410"
-AMBRE_PALE = "#FBF2E2"
+AMBRE_PALE = "#F8EFDF"
 ROUILLE = "#9D3A1C"
-ROUILLE_PALE = "#FAEAE4"
+ROUILLE_PALE = "#F9E9E2"
 VERT = "#0E7A5F"
 VERT_PALE = "#E6F4EF"
 

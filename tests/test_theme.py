@@ -298,18 +298,78 @@ def test_tout_jeton_homonyme_de_charts_porte_la_meme_couleur():
             f"{nom} : theme {valeur} contre charts {getattr(charts, nom)}")
 
 
-def test_le_trait_est_celui_du_rapport_imprime():
+#: Jeton d'ecran -> variable CSS du rapport imprime. La liste est la
+#: correspondance complete, pas un echantillon : tout jeton d'ecran qui a un
+#: homologue nomme a l'impression figure ici.
+CORRESPONDANCE_PAPIER = {
+    "CARTE": "bg",
+    "PAPIER": "paper",
+    "ENCRE": "ink",
+    "ARDOISE": "muted",
+    "TRAIT": "line",
+    "TRAIT_FORT": "line-strong",
+    "COBALT": "accent",
+    "COBALT_PALE": "accent-soft",
+    "AMBRE": "amber",
+    "AMBRE_PALE": "amber-soft",
+    "ROUILLE": "rust",
+    "ROUILLE_PALE": "rust-soft",
+}
+
+
+@pytest.mark.parametrize("jeton,variable", CORRESPONDANCE_PAPIER.items())
+def test_chaque_jeton_d_ecran_vaut_celui_du_rapport_imprime(jeton, variable):
     """
     L'ancre de l'alignement ci-dessus. En cas de divergence, c'est le
     rapport imprime qui tranche - c'est lui qui sort de l'outil et qui se
-    discute en reunion. `render_html` le nomme `--line`.
+    discute en reunion.
+
+    Ce test a longtemps ne porter que sur TRAIT. Les onze autres paires
+    etaient libres, et cinq avaient derive : PAPIER valait #F4F6FA a l'ecran
+    contre #F7F8FA au papier, et les quatre tons pales etaient chacun a un
+    pas de leur homologue. Un seul jeton garde ne garde rien - c'est la
+    table entiere qui tient la promesse du docstring du module, « un
+    negociant qui lit l'ecran puis le PDF ne doit pas avoir l'impression de
+    changer d'outil ».
     """
     from klastos import render_html
 
-    trouve = re.search(r"--line:\s*(#[0-9A-Fa-f]{6})", render_html.CSS)
-    assert trouve is not None, "--line a disparu du rapport imprime"
-    assert trouve[1].upper() == theme.TRAIT.upper(), (
-        f"theme {theme.TRAIT} contre rapport imprime {trouve[1]}")
+    trouve = re.search(rf"--{variable}:\s*(#[0-9A-Fa-f]{{6}})",
+                       render_html.CSS)
+    assert trouve is not None, f"--{variable} a disparu du rapport imprime"
+    assert trouve[1].upper() == getattr(theme, jeton).upper(), (
+        f"{jeton} : ecran {getattr(theme, jeton)} "
+        f"contre rapport imprime {trouve[1]}")
+
+
+def test_la_correspondance_papier_ne_laisse_aucun_jeton_de_cote():
+    """
+    Garde de completude. Sans lui, retirer une ligne de
+    CORRESPONDANCE_PAPIER desarmerait silencieusement sa verification : le
+    test parametre passerait avec une paire en moins. On exige donc que tout
+    jeton d'ecran dont le nom a un homologue a l'impression soit declare.
+
+    Les jetons propres a un support restent libres et sont nommes ici :
+    l'ecran a sa barre laterale sombre et son vert de bouclage, que le
+    rapport imprime ne connait pas.
+    """
+    from klastos import render_html
+
+    PROPRES_A_L_ECRAN = {"NUIT", "NUIT_CLAIRE", "BORD_NUIT", "VERT",
+                         "VERT_PALE"}
+    variables = set(re.findall(r"--([a-z-]+):\s*#[0-9A-Fa-f]{6}",
+                               render_html.CSS))
+    oublies = {
+        nom for nom in _jetons()
+        if nom not in CORRESPONDANCE_PAPIER
+        and nom not in PROPRES_A_L_ECRAN
+    }
+    assert not oublies, (
+        f"jetons d'ecran non classes : {sorted(oublies)} - les declarer "
+        f"dans CORRESPONDANCE_PAPIER ou dans PROPRES_A_L_ECRAN")
+    non_couvertes = set(CORRESPONDANCE_PAPIER.values()) - variables
+    assert not non_couvertes, (
+        f"variables absentes du rapport imprime : {sorted(non_couvertes)}")
 
 
 # ==========================================================================
