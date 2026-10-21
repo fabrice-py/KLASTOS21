@@ -609,6 +609,90 @@ CATALOGUE: dict[str, dict[str, str]] = {
     },
 
     # ======================================================================
+    # Journal de lecture du bulletin
+    # ======================================================================
+    # Ces lignes partent dans la TRACABILITE du rapport client. Un rapport
+    # anglais qui les porterait en francais serait un document a moitie
+    # traduit - et c'est la moitie qui explique les decisions de lecture.
+
+    "journal.colonne_ignoree": {
+        "fr": "Colonne ignorée : {intitule!r} ({raison}).",
+        "en": "Column ignored: {intitule!r} ({raison}).",
+    },
+    "journal.unite_non_declaree": {
+        "fr": "{intitule} : unité non déclarée, {unite} appliqué.",
+        "en": "{intitule}: unit not declared, {unite} applied.",
+    },
+    "journal.non_quantifie": {
+        "fr": "{intitule} : non quantifié, sans seuil lisible. Retenu à 0.",
+        "en": "{intitule}: not quantified, no readable threshold. Taken "
+              "as 0.",
+    },
+    "journal.sous_le_seuil": {
+        "fr": "{intitule} : sous le seuil de détection ({seuil} {unite}), "
+              "retenu à {traitement}.",
+        "en": "{intitule}: below the detection limit ({seuil} {unite}), "
+              "taken as {traitement}.",
+    },
+    "journal.censure.zero": {"fr": "0", "en": "0"},
+    "journal.censure.half": {
+        "fr": "la moitié du seuil", "en": "half the threshold",
+    },
+    "journal.censure.threshold": {
+        "fr": "le seuil entier", "en": "the full threshold",
+    },
+    "journal.oxyde_converti": {
+        "fr": "{intitule} : oxyde {oxyde} converti en {element} "
+              "(facteur {facteur:.4f}).",
+        "en": "{intitule}: oxide {oxyde} converted to {element} "
+              "(factor {facteur:.4f}).",
+    },
+    "journal.colonnes_multiples": {
+        "fr": "{element} renseigné par plusieurs colonnes (dont "
+              "{intitule!r}) : les contributions sont sommées.",
+        "en": "{element} supplied by several columns (including "
+              "{intitule!r}): the contributions are summed.",
+    },
+    "journal.somme_lue": {
+        "fr": "Somme des teneurs lues : {total:.2f} %.",
+        "en": "Sum of the grades read: {total:.2f} %.",
+    },
+    "journal.oxygene_absent": {
+        "fr": "Oxygène non dosé, ce qui est le cas de tous les bulletins de "
+              "routine. Il sera PRÉDIT à partir des phases reconstituées, et "
+              "la somme des phases mesurera la part du lot que le modèle "
+              "explique.",
+        "en": "Oxygen not assayed, which is the case for every routine "
+              "certificate. It will be PREDICTED from the reconstructed "
+              "phases, and the sum of the phases will measure the share of "
+              "the lot the model explains.",
+    },
+    "journal.oxygene_present": {
+        "fr": "Oxygène présent dans le bulletin : inhabituel pour une "
+              "analyse de routine. Vérifier qu'il s'agit d'un dosage et non "
+              "d'un calcul par différence, qui fausserait le diagnostic de "
+              "bouclage.",
+        "en": "Oxygen present in the certificate: unusual for a routine "
+              "assay. Check that it is a measurement and not a calculation "
+              "by difference, which would distort the closure diagnosis.",
+    },
+    "journal.somme_excessive": {
+        "fr": "La somme des teneurs atteint {total:.2f} %. Vérifier les "
+              "unités : un mélange élément / oxyde non déclaré produit ce "
+              "type de dépassement.",
+        "en": "The grades sum to {total:.2f} %. Check the units: an "
+              "undeclared mix of element and oxide produces this kind of "
+              "overshoot.",
+    },
+    "journal.cathode_absente": {
+        "fr": "Élément(s) de cathode absent(s) du bulletin : {manquants}. "
+              "La déconvolution en sera d'autant moins contrainte.",
+        "en": "Cathode element(s) missing from the certificate: "
+              "{manquants}. The deconvolution will be that much less "
+              "constrained.",
+    },
+
+    # ======================================================================
     # Interface
     # ======================================================================
 

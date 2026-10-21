@@ -236,6 +236,9 @@ def lire(demande: Demande) -> BulletinReading:
         default_unit=demande.unite_par_defaut,
         censored_as=demande.censure,
         delimiter=demande.separateur,
+        # Le journal de lecture part dans la tracabilite du rapport : il
+        # sort donc dans la langue du document, pas dans celle du code.
+        langue=demande.langue,
     )
 
 

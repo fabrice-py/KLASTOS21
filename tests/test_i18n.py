@@ -161,6 +161,9 @@ def test_les_deux_langues_disent_des_choses_differentes():
         "ui.conseil.col_verdict",
         # Gabarit purement numerique : il n'y a rien a traduire.
         "rapport.valeur.drx_avant_apres",
+        # Le traitement « zero » d'une valeur censuree s'ecrit « 0 » dans
+        # les deux langues : c'est un chiffre, pas un mot.
+        "journal.censure.zero",
     }
     for cle, entree in i18n.CATALOGUE.items():
         if entree["fr"] == entree["en"]:
@@ -309,9 +312,10 @@ def test_le_rapport_anglais_ne_laisse_pas_fuir_le_vocabulaire_francais(rapports)
                  "Traçabilité", "Avertissements", "largeur", "incertitude",
                  "non identifiable", "réductible", "Valorisation",
                  "calculée", "référence", "Prix maximal",
-                 "Ventilation", "élémentaire")
-    # « teneurs » n'y figure pas : il n'apparait plus que dans le journal
-    # de provenance, dont la dette est declaree et testee separement.
+                 "Ventilation", "élémentaire", "teneurs")
+    # « teneurs » y est revenu : il ne fuyait que par « Somme des teneurs
+    # lues », produite par `ingestion.py` - dette desormais soldee. La
+    # liste se resserre a mesure que les journaux passent au catalogue.
     for mot in INTERDITS:
         assert mot not in md, f"Markdown anglais : « {mot} »"
         assert mot not in html, f"HTML anglais : « {mot} »"
@@ -325,7 +329,14 @@ def test_le_rapport_anglais_ne_laisse_pas_fuir_le_vocabulaire_francais(rapports)
 #: langue jusqu'a la lecture du bulletin : c'est l'etape suivante du
 #: chantier, pas un oubli. Le test ci-dessous CONSTATE la dette plutot que
 #: de la laisser passer en silence.
-DETTE_JOURNAL = ("Provenance declaree", "Somme des teneurs lues")
+#: « Somme des teneurs lues » a ete SOLDEE : le journal de `ingestion.py`
+#: passe desormais par le catalogue. Ce test l'a signale de lui-meme en
+#: echouant sur une dette plus petite que declaree - c'est exactement ce
+#: pour quoi il est ecrit dans les deux sens.
+#:
+#: Restent les lignes produites par `provenance.py` et `solver.py`, que la
+#: consigne d'architecture interdit d'ouvrir en ecriture.
+DETTE_JOURNAL = ("Provenance declaree", "Bouclage massique degrade")
 
 
 def test_la_dette_de_traduction_restante_est_circonscrite(rapports):
@@ -395,3 +406,96 @@ def test_cle_inconnue_reste_un_keyerror():
         pass
     else:
         raise AssertionError("CleInconnue n'est plus un KeyError")
+
+
+def test_le_journal_de_lecture_sort_dans_la_langue_du_document():
+    """
+    LE VERROU DE LA TRANCHE. Le journal de `ingestion.py` part dans la
+    TRACABILITE du rapport client : c'est la section qui explique les
+    decisions de lecture - oxyde converti, valeur sous le seuil, unite
+    appliquee par defaut. Un rapport anglais qui la porterait en francais
+    serait traduit a moitie, et c'est la moitie qui justifie les chiffres.
+
+    La langue descend de `Demande.langue` jusqu'a `read_bulletin`, parce que
+    la lecture est faite une fois par analyse, pour un document donne : il
+    n'existe pas de journal partage entre deux langues.
+    """
+    from klastos.ingestion import read_bulletin
+
+    # Un bulletin qui declenche plusieurs lignes de journal a la fois :
+    # oxyde a convertir, valeur censuree, unite non declaree.
+    lignes = {"Li2O (%)": "8.44", "Ni": "18.24", "F (%)": "<0.05"}
+
+    rendus = {}
+    for langue in i18n.LANGUES:
+        lu = read_bulletin(rows=lignes, langue=langue)
+        rendus[langue] = " ".join(lu.journal + lu.warnings)
+        assert rendus[langue], langue
+
+    assert rendus["fr"] != rendus["en"], (
+        "le journal sort a l'identique dans les deux langues : la langue "
+        "n'est pas transmise jusqu'a la lecture"
+    )
+    # Chacun porte le vocabulaire de sa langue, pas celui de l'autre.
+    assert "converti en" in rendus["fr"]
+    assert "converted to" in rendus["en"]
+    assert "converti en" not in rendus["en"]
+
+
+def test_une_langue_inconnue_ne_fait_pas_echouer_la_lecture():
+    """Mieux vaut un journal dans la mauvaise langue qu'une analyse perdue."""
+    from klastos.ingestion import read_bulletin
+
+    lu = read_bulletin(rows={"Ni (%)": "18.24"}, langue="zz")
+    assert lu.values["Ni"]
+
+
+def test_le_journal_d_ingestion_ne_porte_plus_de_texte_francais_en_dur():
+    """
+    GARDE AU PRODUCTEUR, et non au document produit.
+
+    `test_le_rapport_anglais_ne_laisse_pas_fuir_le_vocabulaire_francais`
+    cherche des mots francais ACCENTUES dans le document final. Une mutation
+    l'a mis en defaut : une phrase francaise sans accent - « Oxygene non
+    dose, il sera PREDIT a partir des phases » - lui echappe entierement, et
+    le projet ecrit justement son ASCII sans accents.
+
+    Le garde fiable est donc a la source : aucune chaine de prose passee a
+    `journal.append` ou `warnings.append` dans `ingestion.py`. Toutes
+    passent par `i18n.t`, dont la cle n'est pas de la prose.
+    """
+    import ast
+    import pathlib as _p
+    import re
+
+    racine = _p.Path(__file__).resolve().parent.parent
+    arbre = ast.parse(
+        (racine / "klastos" / "ingestion.py").read_text(encoding="utf-8"))
+
+    #: Trois mots de suite : de la prose, pas un identifiant ni une unite.
+    PROSE = re.compile(r"[A-Za-zÀ-ÿ]{3,}\s+[a-zà-ÿ']{2,}\s+[A-Za-zÀ-ÿ']{2,}")
+
+    fautes = []
+    for n in ast.walk(arbre):
+        if not isinstance(n, ast.Call):
+            continue
+        if not (isinstance(n.func, ast.Attribute)
+                and n.func.attr == "append"
+                and isinstance(n.func.value, ast.Name)
+                and n.func.value.id in ("journal", "warnings")):
+            continue
+        for a in n.args:
+            texte = None
+            if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                texte = a.value
+            elif isinstance(a, ast.JoinedStr):
+                texte = "".join(v.value for v in a.values
+                                if isinstance(v, ast.Constant)
+                                and isinstance(v.value, str))
+            if texte and PROSE.search(texte):
+                fautes.append((n.lineno, " ".join(texte.split())[:60]))
+
+    assert not fautes, (
+        "prose en dur dans le journal d'ingestion, a porter au catalogue : "
+        + "; ".join(f"L{l} {s!r}" for l, s in sorted(set(fautes)))
+    )

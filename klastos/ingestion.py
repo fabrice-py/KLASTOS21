@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from . import i18n
 from .elements import ATOMIC_MASS, ELEMENTS
 
 # ==========================================================================
@@ -275,6 +276,7 @@ def read_bulletin(
     default_unit: str = "%",
     censored_as: str = DEFAULT_CENSORED_MODE,
     delimiter: str = ",",
+    langue: str = i18n.DEFAUT,
 ) -> BulletinReading:
     """
     Lit un bulletin d'analyse et rend de quoi alimenter le solveur.
@@ -291,7 +293,12 @@ def read_bulletin(
         colonne.
     censored_as : traitement des valeurs sous la limite de detection.
         "zero", "half" (convention geochimique, defaut) ou "threshold".
+    langue : langue du JOURNAL. Il part dans la tracabilite du rapport
+        client, donc il doit sortir dans la langue du document. La lecture
+        est faite une fois par analyse, pour un document donne : il n'y a
+        pas de journal partage entre deux langues.
     """
+    lg = i18n.langue_valide(langue)
     if (path is None) == (rows is None):
         raise IngestionError("Fournir soit `path`, soit `rows`, mais pas les deux.")
 
@@ -318,21 +325,20 @@ def read_bulletin(
         col = parse_column(intitule)
         colonnes.append(col)
         if not col.recognized:
-            warnings.append(f"Colonne ignoree : {intitule!r} ({col.reason}).")
+            warnings.append(i18n.t("journal.colonne_ignoree", lg,
+                                   intitule=intitule, raison=col.reason))
             continue
 
         valeur, seuil = parse_value(brut)
         unite = col.unit or default_unit
         if col.unit is None:
-            journal.append(
-                f"{intitule} : unite non declaree, {default_unit} applique."
-            )
+            journal.append(i18n.t("journal.unite_non_declaree", lg,
+                                  intitule=intitule, unite=default_unit))
         facteur_unite = CONCENTRATION_UNITS[unite]
 
         if valeur is None and seuil is None:
-            journal.append(
-                f"{intitule} : non quantifie, sans seuil lisible. Retenu a 0."
-            )
+            journal.append(i18n.t("journal.non_quantifie", lg,
+                                  intitule=intitule))
             v = 0.0
         elif valeur is None:
             seuil_massique = seuil * facteur_unite
@@ -340,13 +346,10 @@ def read_bulletin(
                  "half": 0.5 * seuil_massique,
                  "threshold": seuil_massique}[censored_as]
             censures[col.element] = seuil_massique
-            libelle = {"zero": "0",
-                       "half": "la moitie du seuil",
-                       "threshold": "le seuil entier"}[censored_as]
-            journal.append(
-                f"{intitule} : sous le seuil de detection "
-                f"({seuil} {unite}), retenu a {libelle}."
-            )
+            libelle = i18n.t(f"journal.censure.{censored_as}", lg)
+            journal.append(i18n.t("journal.sous_le_seuil", lg,
+                                  intitule=intitule, seuil=seuil,
+                                  unite=unite, traitement=libelle))
         else:
             v = valeur * facteur_unite
 
@@ -357,17 +360,14 @@ def read_bulletin(
 
         if col.oxide:
             f = OXIDES[col.oxide].factor
-            journal.append(
-                f"{intitule} : oxyde {col.oxide} converti en {col.element} "
-                f"(facteur {f:.4f})."
-            )
+            journal.append(i18n.t("journal.oxyde_converti", lg,
+                                  intitule=intitule, oxyde=col.oxide,
+                                  element=col.element, facteur=f))
             v *= f
 
         if col.element in valeurs:
-            warnings.append(
-                f"{col.element} renseigne par plusieurs colonnes "
-                f"(dont {intitule!r}) : les contributions sont sommees."
-            )
+            warnings.append(i18n.t("journal.colonnes_multiples", lg,
+                                   element=col.element, intitule=intitule))
             valeurs[col.element] += v
         else:
             valeurs[col.element] = v
@@ -383,34 +383,21 @@ def read_bulletin(
     b = np.array([valeurs[e] for e in mesures], dtype=float)
 
     total = float(b.sum())
-    journal.append(f"Somme des teneurs lues : {total * 100:.2f} %.")
+    journal.append(i18n.t("journal.somme_lue", lg, total=total * 100))
 
     if "O" not in valeurs:
-        journal.append(
-            "Oxygene non dose, ce qui est le cas de tous les bulletins de "
-            "routine. Il sera PREDIT a partir des phases reconstituees, et la "
-            "somme des phases mesurera la part du lot que le modele explique."
-        )
+        journal.append(i18n.t("journal.oxygene_absent", lg))
     else:
-        warnings.append(
-            "Oxygene present dans le bulletin : inhabituel pour une analyse "
-            "de routine. Verifier qu'il s'agit d'un dosage et non d'un calcul "
-            "par difference, qui faussererait le diagnostic de bouclage."
-        )
+        warnings.append(i18n.t("journal.oxygene_present", lg))
 
     if total > 1.02:
-        warnings.append(
-            f"La somme des teneurs atteint {total * 100:.2f} %. Verifier les "
-            "unites : un melange element / oxyde non declare produit ce type "
-            "de depassement."
-        )
+        warnings.append(i18n.t("journal.somme_excessive", lg,
+                               total=total * 100))
 
     manquants = [e for e in ("Li", "Ni", "Co", "Mn") if e not in valeurs]
     if manquants:
-        warnings.append(
-            f"Element(s) de cathode absent(s) du bulletin : {manquants}. "
-            "La deconvolution en sera d'autant moins contrainte."
-        )
+        warnings.append(i18n.t("journal.cathode_absente", lg,
+                               manquants=manquants))
 
     return BulletinReading(
         values=valeurs,

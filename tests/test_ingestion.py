@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from klastos.elements import ELEMENTS
+from klastos import i18n
 from klastos.ingestion import (CENSORED_MODES, CONCENTRATION_UNITS,
                                DEFAULT_CENSORED_MODE, OXIDES, IngestionError,
                                parse_column, parse_value, read_bulletin)
@@ -185,13 +186,18 @@ def test_l_oxygene_n_est_jamais_invente(lu):
     assert lu.oxygen_measured is False
     assert "O" not in lu.values
     assert "O" not in lu.measured_elements
-    assert any("Oxygene non dose" in j for j in lu.journal)
+    # Par le CATALOGUE, pas en dur : le journal part dans la tracabilite du
+    # rapport, donc il sort dans la langue du document. Un texte francais
+    # fige ici ferait echouer le test sur un rapport anglais.
+    attendu = i18n.t("journal.oxygene_absent", "fr")
+    assert any(attendu == j for j in lu.journal)
 
 
 def test_un_oxygene_present_est_signale_comme_suspect():
     r = read_bulletin(rows={**BULLETIN, "O (%)": "28.0"})
     assert r.oxygen_measured is True
-    assert any("par difference" in w for w in r.warnings)
+    attendu = i18n.t("journal.oxygene_present", "fr")
+    assert any(attendu == w for w in r.warnings)
 
 
 # ==========================================================================
@@ -208,7 +214,11 @@ def test_les_trois_modes_de_censure(mode, attendu):
 
 
 def test_le_mode_de_censure_est_journalise(lu):
-    assert any("seuil de detection" in j for j in lu.journal)
+    # Le fragment INVARIANT du gabarit, entre les champs de format.
+    modele = i18n.CATALOGUE["journal.sous_le_seuil"]["fr"]
+    fragment = modele.split("{seuil}")[0].split("}")[-1].strip()
+    assert fragment
+    assert any(fragment in j for j in lu.journal), fragment
     assert lu.meta["censored_as"] == DEFAULT_CENSORED_MODE
 
 
@@ -229,7 +239,10 @@ def test_mode_de_censure_inconnu_rejete():
 def test_unite_non_declaree_prend_le_defaut_et_le_journalise():
     r = read_bulletin(rows={"Ni": "18.24", "Co": "5.81"})
     assert r.values["Ni"] == pytest.approx(0.1824)
-    assert any("unite non declaree" in j for j in r.journal)
+    modele = i18n.CATALOGUE["journal.unite_non_declaree"]["fr"]
+    fragment = modele.split("{unite}")[0].split("}")[-1].strip()
+    assert fragment
+    assert any(fragment in j for j in r.journal), fragment
 
 
 def test_unite_par_defaut_modifiable():
@@ -285,7 +298,11 @@ def test_somme_aberrante_signalee():
     """Un melange element / oxyde non declare fait deborder la somme."""
     r = read_bulletin(rows={"Ni (%)": "60", "Co (%)": "30", "C total (%)": "25"})
     assert r.total > 1.02
-    assert any("Verifier les unites" in w for w in r.warnings)
+    # Le fragment invariant du gabarit, apres le champ de format.
+    modele = i18n.CATALOGUE["journal.somme_excessive"]["fr"]
+    fragment = modele.split("{total:.2f}")[-1].split("%.")[-1].strip()
+    assert fragment
+    assert any(fragment in w for w in r.warnings), fragment
 
 
 def test_cathode_absente_signalee():

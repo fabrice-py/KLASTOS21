@@ -535,7 +535,7 @@ def test_le_bulletin_avec_oxygene_est_signale(tmp_path):
     p = tmp_path / "avec_o.csv"
     p.write_text("Ni (%),Co (%),Li (%),O (%)\n16.20,4.01,3.28,16.60\n",
                  encoding="utf-8")
-    assert any("difference" in w.lower()
+    assert any("différence" in w.lower()
                for w in read_bulletin(p).warnings)
 
 
