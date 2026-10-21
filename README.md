@@ -262,6 +262,48 @@ au format JSON, avec source, date et base de cotation. `value_lot()` n'a aucun
 jeu de prix par defaut : l'appelant declare sa source. Un flux de production se
 branche par `PriceProvider`.
 
+## Historique des prix et des taux
+
+`store.py` est en **schema 2**. Aux tables `meta` et `lots` s'ajoutent
+`cotations` et `taux` : chaque ligne porte sa source, sa **date de cotation**
+et sa **date de collecte**, avec une contrainte d'unicite sur
+`(source, reference, date de cotation)`.
+
+Les deux dates ne se confondent pas : une moyenne mensuelle d'octobre relevee
+le 15 novembre est cotee au 1er octobre et collectee le 15 novembre. Les
+confondre ferait passer un releve tardif pour une donnee fraiche.
+
+```python
+from klastos import store
+
+cx = store.ouvrir("data/historique.sqlite")
+store.enregistrer_cotations(cx, jeu_de_prix, collecte_le=date.today())
+store.enregistrer_taux(cx, mes_taux)
+
+# le prix d'un metal a une date
+store.prix_a_la_date(cx, "Ni", "2026-10-15")        # -> Cotation | None
+# la serie sur une periode, bornes incluses
+store.serie_prix(cx, "Ni", "2026-08-01", "2026-10-31")
+store.serie_taux(cx, "EUR/USD", "2026-08-01", "2026-10-31")
+```
+
+`prix_a_la_date` rend la cotation la plus recente **a cette date ou avant** :
+« que valait le nickel le 15 octobre » doit avoir une reponse meme quand la
+source ne cote qu'une fois par mois.
+
+### Trois regles
+
+| Regle | Comportement |
+|---|---|
+| **Migration sans perte** | Une base v1 s'ouvre, se complete et passe en 2. Aucune ligne existante n'est touchee : un historique de lots est une donnee commerciale, sur un fichier que personne ne sauvegarde. `ouvrir` continue de **refuser** une base plus recente que le code. |
+| **`refaire` ne restitue ni prix, ni taux** | Ce n'est pas un oubli. Des prix d'il y a six mois rejoues aujourd'hui donneraient une valorisation fausse, et la parite euro-dollar a varie de 0,95 a 1,17 sur vingt-quatre mois. `devise_cible` et `taux` restent a `None` : l'appelant fournit les prix **et** les taux du jour. La reconstitution, elle, ne depend d'aucun prix. |
+| **Aucune valeur monetaire en flottant** | Les montants et les taux sont ranges en **TEXT decimal exact** et relus en `Decimal`. Un REAL SQLite est un double IEEE 754 : 15432.10 n'y est pas representable, et une relecture peut rendre 15432.099999999999 — l'ecart se voit des qu'on multiplie par une masse. |
+
+Un meme `(source, reference, date)` portant **deux metaux differents leve**, au
+lieu d'en perdre un en silence. En pratique un libelle de reference est propre
+a un metal — « LME Nickel cash » — mais rien ne l'impose a un fournisseur, et
+une cotation manquante dans une serie serait invisible.
+
 ## Pink Sheet : demontrable sans abonnement
 
 Le classeur mensuel de la Banque mondiale est la **seule source de prix
