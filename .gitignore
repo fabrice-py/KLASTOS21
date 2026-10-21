@@ -42,3 +42,8 @@ rapport_*.pdf
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Sortie generee du site vitrine. Reconstruite par site/construire.py.
+# Si le site est deploye sur GitHub Pages sans etape de build, il faudra
+# soit un workflow, soit retirer cette ligne et versionner la sortie.
+site/public/
