@@ -725,12 +725,9 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "attestation: {possibles}.",
     },
     "journal.provenance.attestation": {
-        "fr": "Attestation client fournie, reproduite telle que signée : "
-              "« {texte} »",
-        "en": "Client attestation supplied, reproduced as signed: "
-              "“{texte}” — quoted in the language in which it was "
-              "signed, and deliberately not translated: translating it "
-              "would make the commitment say words the client did not sign.",
+        # Formulation d'ORIGINE, conservee mot pour mot.
+        "fr": "Attestation client fournie : « {texte} »",
+        "en": "Client attestation supplied: “{texte}”",
     },
     "journal.provenance.exclues": {
         "fr": "Phases exclues sur attestation : {phases}.",
@@ -749,6 +746,43 @@ CATALOGUE: dict[str, dict[str, str]] = {
 
     # Libelles des profils. Ce sont des etiquettes d'affichage, donc elles
     # se traduisent - contrairement au texte d'attestation ci-dessus.
+    # Textes d'attestation. CE SONT NOS TEXTES, et ils se traduisent.
+    #
+    # Une premiere version avait decide le contraire, en les prenant pour
+    # l'enonce que le client avait signe. Verification faite, la premisse
+    # etait fausse : `attestation_text` n'apparait QU'A la ligne de journal,
+    # n'est jamais presente au client, et vit dans `provenance.py` - c'est
+    # donc une formulation que KLASTOS21 ecrit pour DECRIRE l'engagement,
+    # et non la citation d'un document signe.
+    #
+    # Un acheteur anglophone doit comprendre a quoi son fournisseur s'est
+    # engage. Le lui laisser en francais ne protegeait rien : il n'avait pas
+    # davantage le document sous les yeux.
+    "provenance.attestation.vehicule_electrique": {
+        "fr": "J'atteste que ce lot provient de batteries de véhicules "
+              "électriques et ne contient ni LCO ni LMO.",
+        "en": "I certify that this lot comes from electric-vehicle "
+              "batteries and contains neither LCO nor LMO.",
+    },
+    "provenance.attestation.stationnaire": {
+        "fr": "J'atteste que ce lot provient de stockage stationnaire et ne "
+              "contient ni LCO ni LMO.",
+        "en": "I certify that this lot comes from stationary storage and "
+              "contains neither LCO nor LMO.",
+    },
+    "provenance.attestation.deee": {
+        "fr": "J'atteste que ce lot provient d'électronique grand public et "
+              "ne contient ni NMC 532 ni NMC 811.",
+        "en": "I certify that this lot comes from consumer electronics and "
+              "contains neither NMC 532 nor NMC 811.",
+    },
+    "provenance.attestation.chutes_gigafactory": {
+        "fr": "J'atteste que ce lot provient de chutes de production et ne "
+              "contient que les grades de cathode déclarés ci-dessus.",
+        "en": "I certify that this lot comes from production scrap and "
+              "contains only the cathode grades declared above.",
+    },
+
     "provenance.profil.non_declaree": {
         "fr": "Provenance non déclarée", "en": "Provenance not declared",
     },
@@ -771,6 +805,46 @@ CATALOGUE: dict[str, dict[str, str]] = {
     # ======================================================================
     # Diagnostic de bouclage
     # ======================================================================
+    # Source dominante de l'incertitude d'une grandeur. La CLE est produite
+    # par `uncertainty.dominant_source` - « analytique », « structurelle »,
+    # « negligeable » - et le texte en est le rendu : le module de calcul
+    # n'a donc aucune langue a connaitre.
+    # Le piege du sommet. Verrouille par un test du protocole : il interdit
+    # la seule facon simple - et fausse - de lire une solution unique.
+    "rapport.avertissement.sommet": {
+        "fr": "Le solveur aboutit à une solution apparemment unique, mais "
+              "cette unicité résulte de la contrainte de non-négativité sur "
+              "le bulletin exact. Elle ne résiste pas au bruit analytique : "
+              "seule l'enveloppe indiquée fait foi.",
+        "en": "The solver reaches an apparently unique solution, but that "
+              "uniqueness comes from the non-negativity constraint on the "
+              "exact assay. It does not survive analytical noise: only the "
+              "envelope shown is authoritative.",
+    },
+    "journal.source.analytique": {
+        "fr": "Incertitude dominée par la précision du bulletin. Réductible "
+              "par une analyse de meilleure qualité ou des réplicats.",
+        "en": "Uncertainty dominated by the precision of the assay. "
+              "Reducible by a higher-quality assay or by replicates.",
+    },
+    "journal.source.structurelle": {
+        "fr": "Incertitude dominée par la non-identifiabilité structurelle. "
+              "NON réductible par l'analyse élémentaire, quelle qu'en soit "
+              "la précision. Nécessite une donnée structurale (DRX) ou une "
+              "attestation de provenance.",
+        "en": "Uncertainty dominated by structural non-identifiability. NOT "
+              "reducible by elemental assay, however precise. Requires "
+              "structural data (XRD) or a provenance attestation.",
+    },
+    "journal.source.negligeable": {
+        "fr": "Incertitude négligeable.",
+        "en": "Negligible uncertainty.",
+    },
+
+    "journal.bouclage.somme": {
+        "fr": "Somme du bulletin : {total:.2f} % ({message})",
+        "en": "Assay total: {total:.2f} % ({message})",
+    },
     "journal.bouclage.ok": {
         "fr": "Bouclage massique conforme.",
         "en": "Mass closure within tolerance.",
@@ -786,11 +860,17 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "inaccurate provenance declaration.",
     },
     "journal.bouclage.rejet": {
-        "fr": "Bouclage massique hors tolérance. Le lot n'est pas "
-              "exploitable en l'état : une analyse complémentaire est "
-              "requise avant toute valorisation.",
-        "en": "Mass closure out of tolerance. The lot is not usable as it "
-              "stands: a further assay is required before any valuation.",
+        # Formulation d'ORIGINE, seulement accentuee. Une premiere version
+        # l'avait reecrite - « Le lot n'est pas exploitable » au lieu de
+        # « bulletin juge inexploitable » - et un test l'a attrape. Traduire
+        # n'autorise pas a reformuler : le francais existant est la
+        # reference, et le reecrire au passage fait perdre la trace de ce
+        # qui a ete arbitre.
+        "fr": "Bouclage massique hors tolérance : bulletin jugé "
+              "inexploitable en l'état. Une analyse complémentaire est "
+              "requise avant valorisation.",
+        "en": "Mass closure out of tolerance: the assay is judged unusable "
+              "as it stands. A further assay is required before valuation.",
     },
 
     # ======================================================================

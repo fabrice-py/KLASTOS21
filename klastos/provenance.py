@@ -114,6 +114,24 @@ PROVENANCE_PROFILES: dict[str, ProvenanceProfile] = {
 }
 
 
+
+def texte_attestation(cle: str, langue: str = i18n.DEFAUT) -> str:
+    """
+    Le texte d'attestation d'un profil, dans la langue demandee.
+
+    C'est NOTRE formulation : elle DECRIT l'engagement du client, elle ne
+    cite pas un document signe. Verification faite, `attestation_text`
+    n'apparait qu'a la ligne de journal et n'est jamais presente au client.
+    Elle vit donc au catalogue, comme tout texte que ce logiciel ecrit, et
+    le champ `attestation_text` du profil en reste la vue francaise.
+
+    Un profil sans attestation - « provenance non declaree » - rend la
+    chaine vide : il n'y a rien a attester.
+    """
+    if not PROVENANCE_PROFILES[cle].attestation_text:
+        return ""
+    return i18n.t(f"provenance.attestation.{cle}", langue)
+
 def libelle_profil(cle: str, langue: str = i18n.DEFAUT) -> str:
     """
     Le libelle affichable d'un profil, dans la langue demandee.
@@ -177,12 +195,8 @@ class ProvenanceDeclaration:
         Parameters
         ----------
         langue : langue du JOURNAL. Ces lignes ouvrent la section de
-            tracabilite du rapport - c'est ce qu'un acheteur lit en premier.
-
-            LE TEXTE D'ATTESTATION, LUI, N'EST PAS TRADUIT : c'est l'enonce
-            que le client a SIGNE, et le traduire ferait dire a son
-            engagement des mots qu'il n'a pas signes. Le journal le cite
-            verbatim en declarant qu'il est reproduit tel que signe.
+            tracabilite du rapport - c'est ce qu'un acheteur lit en premier,
+            et le texte d'attestation en fait partie.
 
         Returns
         -------
@@ -215,9 +229,8 @@ class ProvenanceDeclaration:
                 "La restriction de provenance exclurait toutes les phases."
             )
 
-        # Le texte d'attestation passe TEL QUEL : voir la docstring.
         log.append(i18n.t("journal.provenance.attestation", lg,
-                          texte=prof.attestation_text))
+                          texte=texte_attestation(prof.key, lg)))
         log.append(
             i18n.t("journal.provenance.exclues", lg,
                    phases=", ".join(excluded))

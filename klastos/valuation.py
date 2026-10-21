@@ -260,9 +260,12 @@ def value_lot(
     pmax_haut = brut_haut * facteur - processing_cost
 
     # --- diagnostics amont -------------------------------------------------
+    # LE MESSAGE DE BOUCLAGE N'EST PAS REPRIS ICI. `report.py` le rend deja
+    # depuis le statut, dans la langue du document : le reprendre produisait
+    # un avertissement EN DOUBLE, en francais dans un rapport anglais, et
+    # begayant - « Bouclage massique : Bouclage massique degrade : ... ».
+    # Le statut passe dans `meta`, pour qui en a besoin sans la prose.
     bouclage = getattr(uncertainty_report, "meta", {}).get("closure")
-    if bouclage is not None and bouclage.status != "ok":
-        avertissements.append(f"Bouclage massique : {bouclage.message}")
 
     if uncertainty_report.degeneracy > 0:
         avertissements.append(
@@ -287,6 +290,9 @@ def value_lot(
             "terms": terms,
             "prices_label": prices.label,
             "prices_origin": prices.origin,
+            # Statut de bouclage, sans sa prose : le rendu appartient au
+            # rapport, qui connait la langue du document.
+            "closure_status": getattr(bouclage, "status", None),
             # Conversion de devises, si le jeu de prix en porte une. On lit
             # un attribut optionnel plutot que d'importer `fx` : `valuation`
             # n'a aucune raison de dependre de la conversion, et un jeu non

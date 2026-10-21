@@ -11,6 +11,7 @@ import pytest
 from klastos.generator import NOISE_FREE, NoiseModel, make_lot
 from klastos.phases import PHASE_KEYS, stoichiometry_matrix
 from klastos.provenance import ProvenanceDeclaration
+from klastos import i18n
 from klastos.uncertainty import (APPARENT_UNIQUENESS_RATIO, SOURCE_ANALYTIQUE,
                                  SOURCE_STRUCTURELLE, WELL_DETERMINED_WIDTH,
                                  UncertaintyConfig, propagate,
@@ -182,7 +183,10 @@ def test_le_conseil_analytique_ne_parle_pas_de_drx(rapport):
     for r in rep.results:
         if r.identifiable and r.total_width > 1e-6:
             assert "DRX" not in r.advice()
-            assert "analyse de meilleure qualite" in r.advice()
+            # Le conseil vient du catalogue, selon la source dominante.
+            assert r.advice() == i18n.t("journal.source.analytique", "fr")
+            assert "DRX" not in r.advice("en")
+            assert "XRD" not in r.advice("en")
 
 
 # ==========================================================================
@@ -202,7 +206,7 @@ def test_le_piege_du_sommet_est_signale(rapport):
         assert not r.identifiable
         assert r.total_width > WELL_DETERMINED_WIDTH
         assert r.warning
-        assert "ne resiste pas au bruit" in r.warning
+        assert i18n.t("rapport.avertissement.sommet", "fr") in r.warning
         assert r.warning in r.advice()
 
 

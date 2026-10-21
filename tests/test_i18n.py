@@ -366,29 +366,40 @@ def test_aucune_fuite_soldee_n_est_revenue(rapports):
         assert fragment not in html, fragment
 
 
-def test_le_texte_d_attestation_n_est_PAS_traduit(rapports):
+def test_le_texte_d_attestation_EST_traduit(rapports):
     """
-    LA SEULE EXCEPTION, et c'est une decision.
+    CE TEST A ETE INVERSE, et c'est le point interessant.
 
-    Le texte d'attestation est l'enonce que le client a SIGNE. Le traduire
-    ferait dire a son engagement des mots qu'il n'a pas signes, et un
-    acheteur ne pourrait plus rapprocher la citation du document qu'il
-    detient. Il est donc cite verbatim, et le rapport anglais DECLARE qu'il
-    ne l'a pas traduit - sans quoi le lecteur croirait a un oubli.
+    Sa premiere version verrouillait le contraire : l'attestation n'etait
+    pas traduite, au motif que c'etait l'enonce que le client avait SIGNE.
+    Verification faite, la premisse etait fausse. `attestation_text`
+    n'apparait QU'A la ligne de journal, n'est jamais presente au client, et
+    vit dans `provenance.py` : c'est une formulation que KLASTOS21 ecrit
+    pour DECRIRE l'engagement, pas la citation d'un document signe.
+
+    Notre texte, donc notre traduction. Laisser un acheteur anglophone
+    devant une phrase francaise ne protegeait rien - il n'avait pas
+    davantage le document sous les yeux.
     """
-    from klastos.provenance import PROVENANCE_PROFILES
+    from klastos.provenance import texte_attestation
 
-    signe = PROVENANCE_PROFILES["vehicule_electrique"].attestation_text
-    rapport, md, _ = rapports["en"]
-    journaux = " ".join(rapport.traceability)
+    fr = texte_attestation("vehicule_electrique", "fr")
+    en = texte_attestation("vehicule_electrique", "en")
+    assert fr != en
+    assert "I certify" in en
 
-    assert signe in journaux, "l'attestation signee n'est plus citee verbatim"
-    # « reproduced as signed », en entier : « as signed » seul matchait
-    # aussi dans « was signed », plus loin dans la meme phrase, et
-    # l'assertion passait alors que la mention avait disparu. Verifie par
-    # mutation.
-    assert "reproduced as signed" in journaux
-    assert "deliberately not translated" in journaux
+    journaux = " ".join(rapports["en"][0].traceability)
+    assert en in journaux, journaux
+    assert fr not in journaux, (
+        "l'attestation francaise fuit dans le rapport anglais")
+
+
+def test_un_profil_sans_attestation_rend_une_chaine_vide():
+    """« Provenance non declaree » n'a rien a attester."""
+    from klastos.provenance import texte_attestation
+
+    for langue in i18n.LANGUES:
+        assert texte_attestation("non_declaree", langue) == ""
 
 
 def test_le_rapport_anglais_renvoie_au_protocole_francais(rapports):

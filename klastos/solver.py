@@ -46,6 +46,7 @@ from scipy.optimize import nnls
 from .elements import ELEMENTS
 from .generator import DEFAULT_NOISE, NoiseModel
 from .identifiability import null_space
+from . import i18n
 from .phases import PHASE_KEYS, stoichiometry_matrix
 
 # ==========================================================================
@@ -72,18 +73,19 @@ STATUT_OK = "ok"
 STATUT_ALERTE = "alerte"
 STATUT_REJET = "rejet"
 
+#: Message par statut, VUE FRANCAISE du catalogue.
+#:
+#: Le texte vivait ici en clair, et `ClosureCheck.message` en figeait une
+#: copie au moment du calcul. Des que le rapport s'est mis a traduire depuis
+#: le STATUT, il y a eu deux sources de verite pour la meme phrase - et la
+#: valorisation reinjectait la copie francaise dans un rapport anglais.
+#:
+#: Le statut reste la seule donnee produite par le solveur. Le texte, lui,
+#: est du rendu : il appartient au catalogue, et ce module n'en garde qu'une
+#: vue francaise pour les appelants qui lisent `message`.
 MSG_BOUCLAGE = {
-    STATUT_OK: "Bouclage massique conforme.",
-    STATUT_ALERTE: (
-        "Bouclage massique degrade : une part de la masse n'est pas expliquee "
-        "par les phases du modele. Causes possibles : analyse incomplete, "
-        "phase absente du modele, humidite residuelle, declaration de "
-        "provenance inexacte."
-    ),
-    STATUT_REJET: (
-        "Bouclage massique hors tolerance : bulletin juge inexploitable en "
-        "l'etat. Une analyse complementaire est requise avant valorisation."
-    ),
+    statut: i18n.t(f"journal.bouclage.{statut}", "fr")
+    for statut in (STATUT_OK, STATUT_ALERTE, STATUT_REJET)
 }
 
 
@@ -115,19 +117,43 @@ class SolverConfig:
 
 @dataclass
 class ClosureCheck:
-    """Diagnostic de bouclage massique du bulletin."""
+    """
+    Diagnostic de bouclage massique du bulletin.
+
+    Le STATUT est la donnee ; le message n'en est qu'un rendu.
+
+    `message` etait un champ, donc une copie francaise figee au moment du
+    calcul. Le rapport s'etant mis a rendre le texte depuis le statut, la
+    meme phrase avait deux sources - et `valuation.py` reinjectait la copie
+    francaise dans un rapport anglais, en double et begayante :
+    « Bouclage massique : Bouclage massique degrade : ... ».
+
+    C'est desormais une PROPRIETE derivee du catalogue. Il n'y a plus qu'une
+    source de verite, et un appelant qui veut une autre langue demande
+    `message_dans(langue)`.
+    """
 
     total: float
     gap: float
     status: str
-    message: str
 
     @property
     def is_exploitable(self) -> bool:
         return self.status != STATUT_REJET
 
-    def format(self) -> str:
-        return f"Somme du bulletin : {self.total * 100:.2f} % ({self.message})"
+    @property
+    def message(self) -> str:
+        """Le message en francais. Vue, pas donnee."""
+        return self.message_dans("fr")
+
+    def message_dans(self, langue: str) -> str:
+        """Le message du statut, dans la langue demandee."""
+        return i18n.t(f"journal.bouclage.{self.status}", langue)
+
+    def format(self, langue: str = "fr") -> str:
+        return i18n.t("journal.bouclage.somme", langue,
+                      total=self.total * 100,
+                      message=self.message_dans(langue))
 
 
 @dataclass
@@ -215,9 +241,8 @@ def check_closure(
         status = STATUT_ALERTE
     else:
         status = STATUT_OK
-    return ClosureCheck(
-        total=total, gap=gap, status=status, message=MSG_BOUCLAGE[status]
-    )
+    # Pas de message ici : le solveur produit un STATUT, pas de la prose.
+    return ClosureCheck(total=total, gap=gap, status=status)
 
 
 def element_weights(

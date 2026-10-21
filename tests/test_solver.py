@@ -16,6 +16,7 @@ from klastos.identifiability import (compatible_bounds, null_space,
                                      standard_functionals)
 from klastos.phases import PHASE_KEYS, stoichiometry_matrix
 from klastos.provenance import ProvenanceDeclaration
+from klastos import i18n
 from klastos.solver import (CLOSURE_ALERT, CLOSURE_REJECT,
                             CLOSURE_THRESHOLDS_VALIDATED, STATUT_ALERTE,
                             STATUT_OK, STATUT_REJET, SolverConfig,
@@ -145,7 +146,10 @@ def test_bouclage_alerte():
     c = check_closure(np.array([milieu]))
     assert c.status == STATUT_ALERTE
     assert c.is_exploitable
-    assert "n'est pas expliquee" in c.message
+    # Par le catalogue : le message est traduit, et le francais porte
+    # desormais ses accents.
+    assert i18n.t("journal.bouclage.alerte", "fr") == c.message
+    assert c.message_dans("en") != c.message
 
 
 def test_bouclage_rejet():

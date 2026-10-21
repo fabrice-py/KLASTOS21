@@ -58,10 +58,12 @@ import numpy as np
 
 from .elements import ELEMENTS
 from .generator import DEFAULT_NOISE, NoiseModel
+from . import i18n
 from .identifiability import (SCENARIO_ELEMENTS, ElementScenario, Functional,
                               UnboundedCompatibleSet, compatible_bounds,
                               element_scenario, is_identifiable, null_space,
                               projeter_dans_domaine, standard_functionals)
+from .identifiability import NOTE_NON_IDENTIFIABLE
 from .phases import stoichiometry_matrix
 from .solver import SolverConfig, solve
 
@@ -90,24 +92,21 @@ WELL_DETERMINED_ABS_FLOOR = 0.005  # ou <= 0,5 point de %, quoi qu'il arrive
 WELL_DETERMINED_WIDTH = 0.02       # seuil de declenchement du piege du sommet
 APPARENT_UNIQUENESS_RATIO = 10.0   # enveloppe / largeur locale
 
+#: Conseil par source dominante, VUE FRANCAISE du catalogue.
+#:
+#: La SOURCE est la donnee que ce module produit - `dominant_source` rend une
+#: cle stable. Le texte n'en est que le rendu, et il appartient donc au
+#: catalogue : `report.py` le demande dans la langue du document, et ce
+#: module n'a aucune langue a connaitre.
 CONSEIL = {
-    SOURCE_ANALYTIQUE: (
-        "Incertitude dominee par la precision du bulletin. Reductible par une "
-        "analyse de meilleure qualite ou des replicats."
-    ),
-    SOURCE_STRUCTURELLE: (
-        "Incertitude dominee par la non-identifiabilite structurelle. NON "
-        "reductible par l'analyse elementaire, quelle qu'en soit la precision. "
-        "Necessite une donnee structurale (DRX) ou une attestation de provenance."
-    ),
-    SOURCE_NEGLIGEABLE: "Incertitude negligeable.",
+    source: i18n.t(f"journal.source.{source}", "fr")
+    for source in (SOURCE_ANALYTIQUE, SOURCE_STRUCTURELLE,
+                   SOURCE_NEGLIGEABLE)
 }
 
-AVERTISSEMENT_SOMMET = (
-    "Le solveur aboutit a une solution apparemment unique, mais cette unicite "
-    "resulte de la contrainte de non-negativite sur le bulletin exact. Elle ne "
-    "resiste pas au bruit analytique : seule l'enveloppe indiquee fait foi."
-)
+#: Le piege du sommet, VUE FRANCAISE du catalogue. Meme raison que CONSEIL :
+#: c'est du texte, donc du rendu, donc il appartient au catalogue.
+AVERTISSEMENT_SOMMET = i18n.t("rapport.avertissement.sommet", "fr")
 
 
 @dataclass(frozen=True)
@@ -305,10 +304,16 @@ class UncertaintyResult:
             )
         return "indetermine"
 
-    def advice(self) -> str:
-        base = CONSEIL[self.dominant_source]
+    def advice(self, langue: str = "fr") -> str:
+        """
+        Le conseil associe a la source dominante, dans la langue demandee.
+
+        Le defaut reste le francais : des appelants lisent `advice()` sans
+        argument, et ce module ne porte pas de langue par lui-meme.
+        """
+        base = i18n.t(f"journal.source.{self.dominant_source}", langue)
         if self.apparent_uniqueness_risk:
-            return f"{base} {AVERTISSEMENT_SOMMET}"
+            return f"{base} {i18n.t('rapport.avertissement.sommet', langue)}"
         return base
 
 
@@ -541,7 +546,11 @@ def propagate(
 
         note = f.note
         if not ferme and not note:
-            note = "ventilation non identifiable par analyse elementaire seule"
+            # Meme phrase que `identifiability.NOTE_NON_IDENTIFIABLE`,
+            # qui en est la source. Elle vivait ici en DOUBLE, non
+            # accentuee : les deux copies ont diverge des que la
+            # premiere a ete derivee du catalogue.
+            note = NOTE_NON_IDENTIFIABLE
 
         res = UncertaintyResult(
             key=f.key,

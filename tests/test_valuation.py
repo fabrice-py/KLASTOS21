@@ -182,7 +182,20 @@ def test_le_bouclage_amont_est_remonte():
                     config=UncertaintyConfig(noise=BRUIT, seed=0, n_draws=40,
                                              n_bound_draws=10))
     v = value_lot(rep, prices=REFERENCE_PRICES, terms=_termes_frais(), today=AUJOURDHUI)
-    assert any("Bouclage" in w for w in v.warnings)
+    # LE DIAGNOSTIC REMONTE, MAIS SANS SA PROSE.
+    #
+    # `value_lot` recopiait le message francais du solveur dans ses
+    # avertissements. Depuis que le rapport rend ce message depuis le
+    # STATUT, dans la langue du document, cette copie produisait un
+    # avertissement EN DOUBLE - et en francais dans un rapport anglais,
+    # begayant : « Bouclage massique : Bouclage massique degrade : ... ».
+    #
+    # L'intention du test reste : le bouclage amont doit etre PORTE jusqu'au
+    # consommateur de la valorisation. Il l'est, par le statut, qui est la
+    # donnee - la prose appartient au rendu.
+    assert v.meta["closure_status"] in ("alerte", "rejet")
+    assert not any("Bouclage massique :" in w for w in v.warnings), (
+        "le message de bouclage est de nouveau recopie en double")
 
 
 def test_le_lithium_inclus_dans_ni_co_est_signale(rapport):

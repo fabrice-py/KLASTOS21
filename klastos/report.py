@@ -29,8 +29,8 @@ from dataclasses import dataclass, field
 
 from . import i18n
 from .identifiability import NOTE_CARBONE, NOTE_NON_IDENTIFIABLE
-from .uncertainty import (AVERTISSEMENT_SOMMET, SOURCE_STRUCTURELLE,
-                          WELL_DETERMINED_WIDTH, UncertaintyReport)
+from .uncertainty import (SOURCE_STRUCTURELLE, WELL_DETERMINED_WIDTH,
+                          UncertaintyReport)
 from .valuation import Valuation
 
 # Mentions reprises telles quelles du protocole. Vue francaise du catalogue.
@@ -299,6 +299,43 @@ class LotReport:
 # Assemblage
 # ==========================================================================
 
+
+def _remonter_les_notes(section: "ReportSection") -> None:
+    """
+    Fait remonter les notes de LIGNE en notes de SECTION, dedoublonnees.
+
+    Pourquoi cette fonction existe
+    ------------------------------
+    `ReportRow.note` n'etait rendue nulle part : ni `to_markdown`, ni
+    `to_html` ne la lisent. Mesure sur un lot reel : 26 notes de ligne
+    posees, 7 seulement atteignaient un document - et seulement parce que
+    cette fonction-ci existait en dur, pour la seule section des grandeurs
+    fermes.
+
+    Les rendre ligne par ligne aurait produit de la REPETITION plutot que de
+    l'information : neuf lignes de la ventilation portaient la meme phrase,
+    six de la section « reduire » une autre, et trois du scenario repetaient
+    simplement leur colonne de statut. C'est vraisemblablement pour cela que
+    le rendu ne les a jamais lues.
+
+    On les remonte donc une fois par section, dedoublonnees, en sautant ce
+    que la section dit deja. Une note distincte qui s'applique a une seule
+    ligne garde son etiquette ; une note partagee par plusieurs lignes
+    devient une phrase de section, sans etiquette - c'est devenu un fait sur
+    la section, pas sur une ligne.
+    """
+    par_note: dict[str, list[str]] = {}
+    for r in section.rows:
+        if r.note:
+            par_note.setdefault(r.note, []).append(r.label)
+
+    deja = " ".join(section.notes) + " " + (section.intro or "")
+    for note, labels in par_note.items():
+        if note in deja:
+            continue
+        section.notes.append(f"{labels[0]} : {note}" if len(labels) == 1
+                             else note)
+
 def build_report(
     lot_id: str,
     client: str,
@@ -403,11 +440,11 @@ def build_report(
         diag.rows.append(ReportRow(
             label="Bouclage massique",
             value=f"{bouclage.total * 100:.2f} %",
-            # Rendu depuis le STATUT, qui est une cle stable, et non
-            # depuis `bouclage.message` que le solveur a fige en
-            # francais. Le coeur numerique n'a ainsi aucune langue a
-            # connaitre : c'est le document qui porte la sienne.
-            note=i18n.t(f"journal.bouclage.{bouclage.status}", lg),
+            # PAS DE NOTE ICI : le message de bouclage est deja emis en
+            # AVERTISSEMENT juste en dessous. Le porter aussi en note
+            # produisait la meme phrase deux fois, et prefixee du libelle de
+            # la ligne elle begayait : « Bouclage massique : Bouclage
+            # massique degrade : ... ».
             severity=bouclage.status,
         ))
         if bouclage.status != "ok":
@@ -451,8 +488,6 @@ def build_report(
             note=r.note, low=r.total_lower, high=r.total_upper,
             point=r.median,
         ))
-        if r.note:
-            fermes.notes.append(f"{r.label} : {r.note}")
 
     mal_determinees = [row for row in fermes.rows if row.status == "ferme_large"]
     if mal_determinees:
@@ -474,14 +509,22 @@ def build_report(
             intro=i18n.t("rapport.intro.ventilation", lg),
         )
         for r in sorted(ouvertes, key=lambda x: x.key):
+            # La note est rendue depuis une CONDITION STRUCTURELLE, et non
+            # recopiee de `r.note` - qui porte une vue francaise figee par
+            # `identifiability.py` et fuyait donc dans un rapport anglais.
+            # Reconnaitre ces notes a leur texte aurait ete la faute meme
+            # que le catalogue existe pour empecher.
+            note = (i18n.t("rapport.note.carbone", lg)
+                    if r.key == "C_total" else "")
             vent.rows.append(ReportRow(
                 label=r.label, value=r.format_value(), status="ouvert",
-                note=r.note, low=r.total_lower, high=r.total_upper,
+                note=note, low=r.total_lower, high=r.total_upper,
             ))
         vent.notes.append(i18n.t("rapport.note.non_identifiable", lg))
         if any(r.apparent_uniqueness_risk for r in ouvertes):
-            vent.notes.append(AVERTISSEMENT_SOMMET)
-            rapport.warnings.append(AVERTISSEMENT_SOMMET)
+            sommet = i18n.t("rapport.avertissement.sommet", lg)
+            vent.notes.append(sommet)
+            rapport.warnings.append(sommet)
         rapport.sections.append(vent)
 
     # --- 3 bis. Ce que la quantification structurale a resserre -----------
@@ -539,7 +582,7 @@ def build_report(
                 label=r.label,
                 value=f"{r.total_width * 100:.2f} points",
                 status="ouvert",
-                note=r.advice(),
+                note=r.advice(lg),
                 low=0.0, high=r.total_width,
             ))
         lev.notes.append(i18n.t("rapport.note.reduire_pied", lg))
@@ -615,9 +658,11 @@ def build_report(
                 value=(f"{r.width_open * 100:.2f} → "
                        f"{r.width_conditional * 100:.2f} points"),
                 status="ferme" if r.becomes_firm else "ouvert",
-                note=i18n.t("rapport.statut.deviendrait_ferme"
-                            if r.becomes_firm
-                            else "rapport.note.resterait_domaine", lg),
+                # PAS DE NOTE ICI. Elle redisait mot pour mot la colonne de
+                # statut - « deviendrait ferme » / « resterait ouverte » -
+                # donc la remonter en note de section n'ajoutait rien et
+                # encombrait. On ne produit pas un echo pour le filtrer
+                # ensuite : on ne le produit pas.
                 low=0.0, high=r.width_conditional,
                 point=r.width_open,
             ))
@@ -722,6 +767,14 @@ def build_report(
         rapport.limitations.insert(
             0, "Document de demonstration. Aucune valeur opposable."
         )
+
+    # Les notes de LIGNE remontent en notes de SECTION, dedoublonnees. Sans
+    # ce passage, elles n'etaient rendues nulle part : voir
+    # `_remonter_les_notes`. Fait ici, une fois, plutot qu'a chaque
+    # construction de section - toutes les sections sont alors completes,
+    # intro et notes comprises, donc le saut des redites fonctionne.
+    for section in rapport.sections:
+        _remonter_les_notes(section)
 
     # deduplication en conservant l'ordre
     vus: set[str] = set()
