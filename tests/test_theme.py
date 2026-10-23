@@ -314,6 +314,13 @@ CORRESPONDANCE_PAPIER = {
     "AMBRE_PALE": "amber-soft",
     "ROUILLE": "rust",
     "ROUILLE_PALE": "rust-soft",
+    # Ajoute le 23 octobre 2026. Le vert avait ete declare « propre a
+    # l'ecran » sur une premisse fausse : le rapport imprime affichait bien
+    # l'etat « bouclage conforme », mais en var(--accent), soit en COBALT -
+    # la couleur de « grandeur determinee ». La declaration d'exception
+    # masquait donc une vraie divergence, exactement ce que ce test devait
+    # empecher.
+    "VERT": "green",
 }
 
 
@@ -342,6 +349,68 @@ def test_chaque_jeton_d_ecran_vaut_celui_du_rapport_imprime(jeton, variable):
         f"contre rapport imprime {trouve[1]}")
 
 
+#: Les trois gravites de bouclage et le jeton de couleur que chaque support
+#: doit leur donner. C'est le VOCABULAIRE DE STATUT, et il ne se discute pas
+#: par support : un negociant qui lit l'ecran puis le PDF doit voir la meme
+#: couleur pour le meme etat.
+COULEUR_PAR_GRAVITE = {
+    "ok": ("VERT", "green"),
+    "alerte": ("AMBRE", "amber"),
+    "rejet": ("ROUILLE", "rust"),
+}
+
+
+@pytest.mark.parametrize("gravite", list(COULEUR_PAR_GRAVITE))
+def test_chaque_gravite_de_bouclage_porte_la_meme_couleur_des_deux_cotes(
+        gravite):
+    """
+    Le test que l'autre ne faisait pas, et son absence a laisse passer un
+    defaut reel.
+
+    Verifier que `--green` vaut bien `theme.VERT` ne dit rien de l'usage :
+    la tuile « ok » du rapport imprime pouvait valoir `var(--accent)` - et
+    elle le valait - sans qu'aucune assertion ne bronche. Le jeton etait
+    juste, son emploi non.
+
+    On compare donc la couleur EFFECTIVEMENT appliquee a la tuile de chaque
+    gravite, de part et d'autre.
+    """
+    from klastos import render_html
+
+    jeton, variable = COULEUR_PAR_GRAVITE[gravite]
+    attendu = getattr(theme, jeton).upper()
+
+    # Ecran : la regle interpole le jeton directement. `theme.CSS` est une
+    # f-string DEJA evaluee, donc ses accolades sont simples - les doubles
+    # n'existent que dans le source du module.
+    ecran = re.search(rf"\.tuile\.{gravite} \.tuile-v \{{ color: "
+                      rf"(#[0-9A-Fa-f]{{6}});", theme.CSS)
+    assert ecran is not None, f".tuile.{gravite} a disparu de l'ecran"
+    assert ecran[1].upper() == attendu, (
+        f"ecran, gravite {gravite} : {ecran[1]} au lieu de {attendu}")
+
+    # Papier : la regle passe par une variable CSS, qu'on resout.
+    papier = re.search(rf"\.tuile\.{gravite} \.tuile-v \{{ color: "
+                       rf"var\(--([a-z-]+)\);", render_html.CSS)
+    assert papier is not None, (
+        f".tuile.{gravite} a disparu du rapport imprime")
+    assert papier[1] == variable, (
+        f"papier, gravite {gravite} : la tuile emploie --{papier[1]} au "
+        f"lieu de --{variable}")
+
+
+def test_les_trois_gravites_ont_trois_couleurs_distinctes():
+    """
+    Garde minimal. Si deux gravites partageaient une couleur, le test
+    parametre ci-dessus passerait encore pour chacune prise seule, et un
+    lot en alerte serait indiscernable d'un lot conforme.
+    """
+    couleurs = {g: getattr(theme, j).upper()
+                for g, (j, _) in COULEUR_PAR_GRAVITE.items()}
+    assert len(set(couleurs.values())) == 3, (
+        f"deux gravites partagent une couleur : {couleurs}")
+
+
 def test_la_correspondance_papier_ne_laisse_aucun_jeton_de_cote():
     """
     Garde de completude. Sans lui, retirer une ligne de
@@ -355,8 +424,10 @@ def test_la_correspondance_papier_ne_laisse_aucun_jeton_de_cote():
     """
     from klastos import render_html
 
-    PROPRES_A_L_ECRAN = {"NUIT", "NUIT_CLAIRE", "BORD_NUIT", "VERT",
-                         "VERT_PALE"}
+    # VERT_PALE reste propre a l'ecran : il ne sert qu'aux fonds de
+    # pastilles de l'interface, et le rapport imprime n'utilise ses tons
+    # pales que pour des bandeaux sans rapport avec le bouclage.
+    PROPRES_A_L_ECRAN = {"NUIT", "NUIT_CLAIRE", "BORD_NUIT", "VERT_PALE"}
     variables = set(re.findall(r"--([a-z-]+):\s*#[0-9A-Fa-f]{6}",
                                render_html.CSS))
     oublies = {

@@ -117,6 +117,12 @@ CSS = """
   --amber-soft: #F8EFDF;
   --rust: #9D3A1C;
   --rust-soft: #F9E9E2;
+  /* Vert de bouclage conforme. Il manquait, et son absence n'etait pas
+     neutre : la tuile « ok » sortait en var(--accent), soit en COBALT - la
+     couleur qui signifie « grandeur determinee » dans la charte. Elle
+     portait donc deux sens sur le meme document, alors que l'ecran
+     affichait bien du vert pour cet etat. */
+  --green: #0E7A5F;
   --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --f-body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
@@ -201,7 +207,7 @@ header { margin-bottom: 10mm; }
   font-family: var(--f-mono); font-size: 13pt; font-weight: 500;
   margin-top: 1.5mm; font-variant-numeric: tabular-nums;
 }
-.tuile.ok .tuile-v { color: var(--accent); }
+.tuile.ok .tuile-v { color: var(--green); }
 .tuile.alerte .tuile-v { color: var(--amber); }
 .tuile.rejet .tuile-v { color: var(--rust); }
 
