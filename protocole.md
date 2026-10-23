@@ -36,10 +36,161 @@ Jusque-là, tout profil non arbitré porte `validated=False` et la fonction
 
 ### 1.3 Paramètres analytiques
 
-Le modèle de bruit par défaut (`rel_sigma`, `abs_sigma`, `lod`) repose sur
-des ordres de grandeur plausibles mais non sourcés. Il porte
-`validated=False`. Il sera remplacé par les incertitudes réelles des
-bulletins dès le premier lot client.
+Le modèle de bruit par défaut porte **trois paramètres de statuts
+différents**, et cette section disait le contraire jusqu'au 22 octobre 2026 :
+elle annonçait `validated=False` pour l'ensemble, alors que le code porte
+`validated=True` depuis que l'erreur relative a été sourcée.
+
+| Paramètre | Valeur | Statut |
+|---|---|---|
+| `rel_sigma` | 6 % | **sourcé** — LNE-LiB01, certifié ISO 33405 |
+| `abs_sigma` | 0,02 % massique | à valider — dépend du laboratoire |
+| `lod` | 0,005 % massique | à valider — dépend de la méthode |
+
+Les deux derniers seront remplacés par les valeurs réelles des bulletins dès
+le premier lot client. Le premier est discuté ci-dessous : il est sourcé,
+mais sa source est contredite par une autre.
+
+### 1.3 bis. Deux certificats qui ne disent pas la même chose
+
+**La contradiction.** `rel_sigma` vaut 6 % uniformes, calibré sur le matériau
+de référence LNE-LiB01 : son certificat donne des incertitudes **élargies**
+de 10 à 15 %, soit 5 à 7,5 % d'incertitude type à k = 2, dont on retient le
+milieu. Le matériau de référence OREAS, lui, donne des écarts-types relatifs
+**par élément** :
+
+| Élément | RSD | | Élément | RSD |
+|---|---|---|---|---|
+| Ni | 0,51 % | | Al | 2,86 % |
+| Li | 0,99 % | | Fe | 3,60 % |
+| Co | 1,05 % | | Cu | 3,68 % |
+| Mn | 1,08 % | | F | 5,70 % |
+| C | 2,30 % | | P | 18,57 % |
+
+L'écart est d'un **ordre de grandeur** sur le nickel — 0,51 % contre 6 % — et
+il est **inversé** sur le phosphore — 18,57 % contre 6 %. Cela ne se tranche
+pas en choisissant un certificat.
+
+**Trois statistiques distinctes.** L'hypothèse à vérifier était que les deux
+documents ne mesurent pas la même chose. Elle tient, et il y a au moins trois
+grandeurs en jeu :
+
+1. l'**incertitude d'une valeur certifiée** — à quel point la valeur de
+   référence est connue. Elle décroît avec le nombre de laboratoires
+   participants, approximativement en 1/√n ;
+2. l'**homogénéité** du matériau — ce qu'on risque en prélevant une autre
+   prise d'essai. Indépendante du nombre de laboratoires ;
+3. la **reproductibilité interlaboratoires** — la dispersion des résultats
+   entre laboratoires sur le même matériau. Ne décroît pas avec n.
+
+Un facteur k = 2 sépare par ailleurs une incertitude élargie d'une
+incertitude type, ce qui ajoute un facteur deux à toute comparaison faite
+sans précaution.
+
+**Ce que je n'ai pas pu établir, et je le dis plutôt que de le supposer.**
+Aucun des deux certificats n'était disponible pour cette séance. Je dispose
+de la description de LNE-LiB01 déjà portée par `generator.py`, et d'un
+**extrait de données** OREAS — pas du certificat. L'extrait ne permet pas
+d'identifier ce que ses propres colonnes rapportent, et c'est mesurable : si
+`Expanded uncertainty Low/High` était une incertitude élargie à k = 2, sa
+demi-largeur vaudrait environ deux fois `1SD`, soit un rapport
+`1SD / demi-intervalle` proche de 0,5. Mesure sur les 34 éléments
+quantifiés :
+
+| Statistique du rapport | Valeur |
+|---|---|
+| médiane | 1,02 |
+| minimum | 0,28 (dysprosium) |
+| maximum | 2,34 (nickel) |
+
+La médiane proche de 1 exclut k = 2 ; la dispersion de 0,28 à 2,34 exclut
+**tout** facteur k unique entre les deux colonnes. Les deux grandeurs ne sont
+donc pas liées par un élargissement, et lire les intitulés de colonnes comme
+s'ils se suffisaient serait une erreur.
+
+**Pourquoi le modèle reste à 6 % uniformes.** Trois raisons, dans cet ordre.
+
+D'abord, la grandeur dont l'outil a besoin n'est **rapportée par aucun des
+deux certificats**. `rel_sigma` doit modéliser l'erreur d'**un** bulletin,
+produit par **un** laboratoire, sur un lot client **hétérogène** : c'est de
+la reproductibilité *plus* de l'hétérogénéité d'échantillonnage. Un
+certificat de matériau de référence décrit un matériau finement broyé et
+homogénéisé, analysé par des laboratoires compétents. C'est un **meilleur
+cas**, donc un plancher — pas une estimation.
+
+Ensuite, la conséquence d'une erreur est mesurée, et elle est grande. Sur le
+lot OREAS, avec les prix d'exemple du dépôt :
+
+| Modèle de bruit | Intervalle de prix maximal | Largeur |
+|---|---|---|
+| 6 % uniformes | 3 693 – 4 454 USD/t | 761 USD/t, soit 18,69 % |
+| RSD par élément (OREAS) | 4 026 – 4 147 USD/t | 121 USD/t, soit 2,96 % |
+
+L'intervalle se resserrerait de **84 %**. Passer de ±9 % à ±1,5 % sur un prix
+d'achat n'est pas un ajustement de détail : c'est un changement de ce que
+l'outil prétend savoir.
+
+Enfin, la direction est la dangereuse. Un bruit plus étroit resserre tous les
+intervalles, donc le prix annoncé. Une fausse précision sur un prix d'achat
+se paie comptant, et elle contredit la thèse du produit — ne jamais afficher
+ce que la donnée ne porte pas.
+
+**Ce qui a néanmoins changé.** `NoiseModel` sait désormais porter un bruit
+**par élément** (`rel_sigma_par_element`), et les trois consommateurs du
+bruit — la pondération du solveur, le rééchantillonnage d'incertitude, le
+bruitage du générateur — passent par une méthode unique, `NoiseModel.sigmas`.
+La valeur par défaut est **inchangée**, et vérifiée bit pour bit. Un modèle
+par élément est donc un **choix explicite de l'appelant**, jamais un défaut.
+
+**Et pourquoi la table OREAS ne doit pas être ce choix.** La capacité existe ;
+l'employer avec les RSD de ce certificat serait une erreur, et deux mesures
+supplémentaires le montrent.
+
+*Le modèle actuel n'est pas uniformément prudent.* Il est trop pessimiste sur
+neuf éléments et trop optimiste sur le phosphore, le seul dont le RSD dépasse
+6 %. L'effet dépend donc de la chimie du lot, et il change de signe :
+
+| Lot | Effet du passage aux RSD par élément |
+|---|---|
+| OREAS, type NMC | intervalle de prix **resserré de 84 %** |
+| lot riche en LFP, P à 8,86 % | intervalle de la phase LFP **élargi de 125 %** |
+
+*Et la table extrapole une précision de trace vers une concentration
+majeure.* Le RSD de 18,57 % sur le phosphore a été mesuré **à 0,350 %**, près
+de la limite de détection, où un tel écart est normal. L'appliquer à un lot
+LFP où le phosphore vaut 8,86 % n'a aucune justification : la précision
+relative s'améliore avec la concentration, et la corrélation le confirme —
+`log(RSD)` contre `log(concentration)` donne **r = −0,59** sur les 34 éléments
+quantifiés du certificat.
+
+Dernier indice, et il est indépendant : ajuster la forme même du modèle,
+`sigma = rel_sigma·b + abs_sigma`, aux couples (valeur, 1SD) du certificat
+donne des paramètres qui **varient de deux ordres de grandeur** selon la
+fenêtre de concentration retenue.
+
+| Fenêtre ajustée | `rel_sigma` | `abs_sigma` |
+|---|---|---|
+| tous les éléments | 1,34 % | 214 ppm |
+| traces seules, < 0,1 % | 17,54 % | 3,6 ppm |
+| majeurs seuls, ≥ 1 % | 0,98 % | 748 ppm |
+
+L'accord apparent de 214 ppm avec les 200 ppm du modèle est une
+**coïncidence** : l'estimateur direct sur les traces donne 1,9 ppm, soit cent
+fois moins. Le `1SD` du certificat n'est donc pas descriptible par la forme
+du modèle, ce qui est une raison de plus de ne pas l'y injecter — et
+`abs_sigma` reste à valider, contrairement à ce que cet ajustement aurait pu
+laisser croire.
+
+**Conclusion opérationnelle.** Garder 6 % uniformes. Ne pas adopter la table
+OREAS, même dans une variante qui n'élargirait que le phosphore. La capacité
+par élément attend une source dont la définition et le domaine de
+concentration soient connus.
+
+**Ce qu'il faudrait pour trancher.** Les deux certificats complets, afin de
+lire la définition exacte de chaque colonne ; et, idéalement, une
+comparaison interlaboratoires sur un **lot client réel** plutôt que sur un
+matériau de référence — c'est la seule mesure qui porterait sur la grandeur
+dont l'outil a besoin.
 
 ---
 
@@ -387,22 +538,136 @@ cohérent présentant la même masse non expliquée.
 
 ### 2.6 ter. Seuils de bouclage
 
-| Écart de masse non expliquée | Statut | Conséquence |
+Le bouclage a **deux directions**, et elles ne se jugent pas de la même
+façon. Le seuil de rejet est donc asymétrique.
+
+| Écart au bouclage | Statut | Conséquence |
 |---|---|---|
-| sous 6 % | conforme | aucune |
-| 6 % à 20 % | alerte | lot exploitable, cause à élucider |
-| au-delà de 20 % | rejet | analyse complémentaire requise avant valorisation |
+| sous 6 %, dans les deux sens | conforme | aucune |
+| 6 % à 20 % de masse non expliquée | alerte | lot exploitable, cause à élucider |
+| au-delà de 20 % de masse non expliquée | rejet | analyse complémentaire requise |
+| 6 % à 12 % de masse en excès | alerte | lot exploitable, cause à élucider |
+| au-delà de 12 % de masse en excès | rejet | analyse complémentaire requise |
 
-Ces valeurs sont **arbitrées**, et elles le sont contre une mesure. Sur des
-lots entièrement décrits par le modèle, le seul bruit analytique de 6 %
-produit une masse apparemment inexpliquée de 1,8 % en médiane, 5,7 % au
-95ᵉ centile et jusqu'à 10,3 % au pire. Les premiers seuils envisagés — 3 % et
-8 % — étaient donc **sous le plancher de bruit** : ils refusaient des lots
-sains.
+Ces valeurs sont **arbitrées**, et elles le sont contre une mesure.
 
-Le réglage retenu se cale sur la réalité métallurgique des black masses —
-séparateur, solvants d'électrolyte, liants aqueux, traces non dosées — plutôt
-que sur un échantillon idéalement caractérisé.
+**Sous-bouclage — 6 % et 20 %.** Sur des lots entièrement décrits par le
+modèle, le seul bruit analytique de 6 % produit une masse apparemment
+inexpliquée de 1,8 % en médiane, 5,7 % au 95ᵉ centile et jusqu'à 10,3 % au
+pire. Les premiers seuils envisagés — 3 % et 8 % — étaient donc **sous le
+plancher de bruit** : ils refusaient des lots sains. Le réglage retenu se
+cale sur la réalité métallurgique des black masses — séparateur, solvants
+d'électrolyte, liants aqueux, traces non dosées — plutôt que sur un
+échantillon idéalement caractérisé.
+
+**Sur-bouclage — 12 %.** Un lot peut légitimement porter de la masse que le
+modèle n'explique pas. L'inverse n'a aucun équivalent physique : les phases
+du modèle ne peuvent pas peser plus que le lot. Au-delà du bruit, un
+sur-bouclage est une erreur et non une lacune, et il se rejette donc plus
+tôt.
+
+Mesure, sur 2 500 lots sains — bouclage exactement 1, seul le bruit
+analytique de 6 % — répartis sur les cinq profils de composition :
+
+| Centile du sur-bouclage observé | Écart |
+|---|---|
+| 95ᵉ | +5,55 pt |
+| 99ᵉ | +7,35 pt |
+| 99,9ᵉ | +9,44 pt |
+| pire observé | +10,10 pt |
+
+Le bruit seul atteint donc **+10 points**. Un seuil en dessous refuserait des
+lots sains — exactement l'erreur écartée plus haut pour le sous-bouclage.
+12 % est le premier palier strictement au-dessus du plancher mesuré.
+
+**Conséquence assumée.** Les deux lots réels qui ont révélé le défaut restent
+en alerte : BM1 à +10,45 pt et BM2 à +7,63 pt ne sont pas séparables du bruit
+par leur bouclage. Ce qui les attrape est ailleurs — la prédiction de fluor à
+17,79 % contre 2,44 % sur matériau certifié, soit un facteur 7 — et relève
+des bandes de plausibilité de composition (§ 2.6 quinquies).
+
+Il serait tentant d'abaisser le seuil pour « attraper » ces deux lots. Ce
+serait troquer un diagnostic juste contre un diagnostic qui tombe au bon
+endroit par hasard, au prix d'environ un faux rejet sur cent lots sains.
+
+**Direction et message.** Le statut porte la sévérité, le sens porte la
+direction, et les causes annoncées diffèrent. Jusqu'au 22 octobre 2026,
+`check_closure` calculait `abs(total - 1)` et perdait le signe : un lot à
+110,45 % s'entendait dire qu'une part de sa masse était inexpliquée, et
+partait enquêter sur une humidité résiduelle qui n'existait pas.
+
+### 2.6 quinquies. Bandes de plausibilité sur les compositions prédites
+
+Le solveur attribue une teneur à des éléments que le bulletin **ne dose
+pas** : c'est son travail. Rien ne vérifiait que ces teneurs prédites
+restent dans l'ordre de grandeur d'un matériau réel.
+
+Le 22 octobre 2026, sur un lot réel où ni le phosphore ni le fluor
+n'étaient dosés, l'outil a prédit **17,79 % de fluor**, en retenant 14,3 %
+de LiPF6 et 11,8 % de PVDF. Le matériau de référence certifié OREAS donne un
+fluor à **2,44 %** : la prédiction valait sept fois la valeur d'un matériau
+réel. Aucun signal n'a été émis, `is_exploitable` valait `True`, et le lot
+serait parti en valorisation avec 110 % de masse — donc à un prix surestimé.
+
+Le générateur synthétique ne pouvait pas révéler ce trou : il produit des
+lots cohérents par construction, et `make_lot` refuse même un bouclage
+supérieur à 1.
+
+**Ce que le contrôle fait.** Pour chaque élément non dosé qui possède un
+ancrage certifié, la teneur prédite est comparée à une borne haute, et un
+dépassement nomme l'élément **et la phase porteuse responsable** — sans quoi
+l'utilisateur saurait qu'un chiffre est faux sans savoir où agir.
+
+| Élément | Ancrage certifié | Borne à facteur 3 | Statut |
+|---|---|---|---|
+| F | 2,44 % | 7,32 % | `validated=False` |
+
+**Le phosphore n'est pas ancré, bien que le certificat le donne.** Une
+première version en avait fait un ancrage à 0,350 %. Mesure du taux de faux
+positifs, sur 1 200 lots que les profils du projet déclarent plausibles,
+l'élément n'étant pas dosé :
+
+| Élément | Faux positifs | Plafond des profils | Borne à facteur 3 |
+|---|---|---|---|
+| F | **0,0 %** | 5,17 %, soit 2,1× l'ancrage | 7,32 % |
+| P | **45,8 %**, et 100 % sur les lots riches en LFP | 11,70 %, soit **33×** | 1,05 % |
+
+La cause est chimique. LFP est LiFePO₄ : le phosphore y est un élément
+**majeur**, pas une trace. Le matériau OREAS ne contient quasiment pas de
+LFP, donc son phosphore n'est pas un ancrage — c'est un cas particulier, et
+s'en servir revient à supposer qu'aucun lot ne contient de LFP.
+
+Le phosphore ressort donc en **non contrôlé**, déclaré comme tel. L'ancrer
+exigerait une teneur certifiée sur une black mass de chimie LFP.
+
+Le fluor, lui, a de la marge des deux côtés : plafond plausible à 2,1× contre
+une borne à 3×, et la prédiction fautive du lot réel à 7,3×.
+
+**Ce que le contrôle ne fait pas.** Un élément **dosé** n'est jamais
+contrôlé : sa valeur est une mesure, et la refuser reviendrait à contester
+le laboratoire. C'est pourquoi le lot OREAS lui-même ne déclenche rien — son
+fluor est dosé.
+
+Aucune borne n'est inventée pour un élément sans ancrage. L'hydrogène,
+l'oxygène et le phosphore sortent donc comme **non contrôlés**, et jamais
+comme conformes : l'absence de contrôle est déclarée, elle n'est pas un
+satisfecit.
+
+**Ce que cette borne vaut.** Un point n'est pas une bande. Le seul
+ancrage retenu vient d'un **seul certificat**, sur un **seul matériau**. Une
+valeur ne décrit pas une population : elle dit seulement qu'un matériau réel
+existe à ce niveau-là. Les bornes portent donc
+`validated=False`, et le facteur qui les écarte est **exposé en paramètre**
+(`--facteur-plausibilite` n'existe pas encore en ligne de commande ;
+`Demande.facteur_plausibilite` l'expose au code appelant), comme les seuils
+de bouclage, parce qu'un réglage non arbitré doit pouvoir se discuter.
+
+**À arbitrer.** Le facteur 3 est un filet large, dans l'esprit des bandes de
+prix de `units.py` qui sont « volontairement très larges » et ne servent
+qu'à attraper les erreurs grossières. Tout facteur inférieur à 7,3
+signalerait encore le lot réel. La question à poser à un géométallurgiste
+est : quelle teneur en fluor une black mass peut-elle atteindre quand le
+liant PVDF et le sel d'électrolyte LiPF6 sont tous deux abondants ?
 
 ### 2.7 Origine de la dégénérescence
 

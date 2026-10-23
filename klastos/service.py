@@ -38,11 +38,15 @@ from .identifiability import (CONSEIL_U_DEFAUT, ConseilQuantification,
 from .ingestion import BulletinReading, read_bulletin
 from .market import PayableTerms, PriceSet, Specification
 from .phases import stoichiometry_matrix
+from .plausibility import (FACTEUR_PLAUSIBILITE, ControlePlausibilite,
+                           verifier_predictions)
 from .provenance import ProvenanceDeclaration
 from .report import DESTINATAIRE_TIERS, LotReport, build_report
-from .solver import CLOSURE_ALERT, CLOSURE_REJECT, SolverConfig
+from .solver import (CLOSURE_ALERT, CLOSURE_REJECT, CLOSURE_REJECT_OVER,
+                     SolverConfig)
 from .structural import (BASE_ABSOLUE, BASE_CRISTALLINE, StructuralData,
                          lire_fichier as _lire_drx)
+from .generator import DEFAULT_NOISE, NoiseModel
 from .uncertainty import UncertaintyConfig, UncertaintyReport, propagate
 from .fx import MAX_RATE_AGE_DAYS, RateError, charger_taux, convertir
 from .valuation import Valuation, value_lot
@@ -103,6 +107,19 @@ class Demande:
     graine: int = 0
     seuil_alerte: float = CLOSURE_ALERT
     seuil_rejet: float = CLOSURE_REJECT
+    #: Seuil de rejet dans le sens du SUR-bouclage. Asymetrique : un lot
+    #: peut porter de la masse non expliquee, pas en porter moins que ce
+    #: que le modele lui attribue. Voir protocole 2.6 ter.
+    seuil_rejet_sur: float = CLOSURE_REJECT_OVER
+    #: Facteur des bandes de plausibilite de composition. EXPOSE parce
+    #: qu'il n'est PAS arbitre : il repose sur un unique certificat.
+    facteur_plausibilite: float = FACTEUR_PLAUSIBILITE
+    #: Modele de bruit analytique. Laisse par defaut, il vaut 6 % uniformes
+    #: (source LNE-LiB01). Un bruit PAR ELEMENT est un choix explicite de
+    #: l'appelant : voir PROTOCOLE.md § 1.3 bis, et l'avertissement de
+    #: `NoiseModel.rel_sigma_par_element` - resserrer le bruit resserre le
+    #: prix annonce, et c'est la direction dangereuse.
+    bruit: NoiseModel = DEFAULT_NOISE
 
     # --- valorisation -----------------------------------------------------
     prix: PriceSet | None = None
@@ -160,6 +177,7 @@ class Analyse:
     demande: Demande = field(repr=False, default=None)
     structurale: StructuralData | None = None
     conseil: ConseilQuantification | None = None
+    plausibilite: ControlePlausibilite | None = None
 
     @property
     def valorise(self) -> bool:
@@ -267,8 +285,12 @@ def analyser(demande: Demande) -> Analyse:
         seed=demande.graine,
         n_draws=demande.tirages,
         n_bound_draws=min(demande.tirages, MAX_BOUND_DRAWS),
-        solver=SolverConfig(closure_alert=demande.seuil_alerte,
-                            closure_reject=demande.seuil_rejet),
+        noise=demande.bruit,
+        solver=SolverConfig(
+            noise=demande.bruit,
+            closure_alert=demande.seuil_alerte,
+            closure_reject=demande.seuil_rejet,
+            closure_reject_over=demande.seuil_rejet_sur),
     )
     # Quantification structurale, si elle est fournie. Elle est lue APRES la
     # resolution des phases retenues : une phase que l'attestation de
@@ -330,6 +352,14 @@ def analyser(demande: Demande) -> Analyse:
             allow_stale=demande.autoriser_demo,
         )
 
+    # Plausibilite des elements NON DOSES. Posee apres la resolution - il
+    # faut les phases retenues - et avant le rapport, qui doit nommer
+    # l'element et sa phase porteuse.
+    plausibilite = verifier_predictions(
+        incertitude.meta["central"].x, cles, lecture.measured_elements,
+        facteur=demande.facteur_plausibilite,
+    )
+
     rapport = build_report(
         lot_id=demande.identifiant(),
         client=demande.client,
@@ -340,6 +370,7 @@ def analyser(demande: Demande) -> Analyse:
         allow_demo=demande.autoriser_demo,
         destinataire=demande.destinataire,
         conseil=conseil,
+        plausibilite=plausibilite,
         langue=demande.langue,
     )
 
@@ -355,4 +386,5 @@ def analyser(demande: Demande) -> Analyse:
         demande=demande,
         structurale=structurale,
         conseil=conseil,
+        plausibilite=plausibilite,
     )

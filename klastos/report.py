@@ -347,6 +347,7 @@ def build_report(
     allow_demo: bool = False,
     destinataire: str = DESTINATAIRE_TIERS,
     conseil=None,
+    plausibilite=None,
     langue: str = i18n.DEFAUT,
 ) -> LotReport:
     """
@@ -448,8 +449,27 @@ def build_report(
             severity=bouclage.status,
         ))
         if bouclage.status != "ok":
-            rapport.warnings.append(
-                i18n.t(f"journal.bouclage.{bouclage.status}", lg))
+            # La cle vient de l'objet, pas d'une reconstruction locale : le
+            # message depend aussi du SENS de l'ecart, et trois modules
+            # fabriquaient cette cle chacun de son cote.
+            rapport.warnings.append(i18n.t(bouclage.cle_message, lg))
+
+    # Predictions hors bande de plausibilite. Posees ici, a cote du
+    # bouclage : les deux disent la meme chose sous deux angles - le modele
+    # attribue au lot une masse qu'il n'a pas.
+    if plausibilite is not None:
+        for d in plausibilite.depassements:
+            rapport.warnings.append(i18n.t(
+                "rapport.avert.prediction_implausible", lg,
+                element=d.element,
+                valeur=d.fraction * 100.0,
+                facteur=d.facteur_observe,
+                ancrage=d.ancrage * 100.0,
+                phase=d.phase,
+                part=d.phase_fraction * 100.0,
+                borne=d.borne * 100.0,
+                ecart=plausibilite.facteur,
+            ))
     diag.rows.append(ReportRow(
         label=i18n.t("rapport.ligne.degres", lg),
         value=str(uncertainty.degeneracy),

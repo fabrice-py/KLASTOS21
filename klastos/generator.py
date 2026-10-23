@@ -100,12 +100,77 @@ class NoiseModel:
     lod: float = 5e-5            # A VALIDER : 0.005 % massique de limite de detection
     validated: bool = True       # l'erreur relative est sourcee
 
+    rel_sigma_par_element: tuple[tuple[str, float], ...] = ()
+    """
+    Incertitude relative PAR ELEMENT, en paires (symbole, sigma).
+
+    Vide par defaut, et c'est delibere : le modele reste a 6 % uniformes
+    tant que la contradiction entre les deux certificats n'est pas tranchee
+    (voir PROTOCOLE.md § 1.3 bis). Un bruit par element est donc un CHOIX
+    EXPLICITE de l'appelant, jamais une valeur par defaut.
+
+    Un tuple de paires et non un dictionnaire : la classe est `frozen`, donc
+    hashable, et un dictionnaire ne l'est pas.
+
+    ATTENTION. Un bruit plus etroit resserre tous les intervalles, donc le
+    prix annonce. C'est la direction DANGEREUSE : une fausse precision sur un
+    prix d'achat se paie comptant. Ne resserrer qu'apres arbitrage.
+
+    ET N'Y METTEZ PAS LES RSD DU CERTIFICAT OREAS. La capacite existe, cette
+    table-la n'est pas le bon contenu, pour deux raisons mesurees.
+
+    1. L'effet CHANGE DE SIGNE selon la chimie du lot. Sur un lot type NMC
+       il resserre l'intervalle de prix de 84 % ; sur un lot riche en LFP il
+       elargit l'intervalle de la phase LFP de 125 %. Ce n'est pas un
+       reglage, ce sont deux effets opposes.
+
+    2. La table EXTRAPOLE une precision de trace vers une concentration
+       majeure. Le RSD de 18,57 % sur le phosphore a ete mesure a 0,350 %,
+       pres de la limite de detection. L'appliquer a un lot LFP ou le
+       phosphore vaut 8,86 % n'a aucune justification : la precision
+       relative s'ameliore avec la concentration, et la correlation le
+       confirme - log(RSD) contre log(concentration) donne r = -0,59.
+
+    Voir PROTOCOLE.md § 1.3 bis.
+    """
+
+    def rel_sigma_pour(
+        self, elements: list[str] | None = None
+    ) -> float | np.ndarray:
+        """
+        Le sigma relatif : un scalaire, ou un vecteur si une table existe.
+
+        Rend le SCALAIRE quand aucune table n'est fournie, afin que
+        l'arithmetique aval soit rigoureusement inchangee - un vecteur
+        constant donnerait le meme resultat mathematique, mais la
+        verification « rien n'a bouge par defaut » serait moins directe.
+        """
+        if not self.rel_sigma_par_element or elements is None:
+            return self.rel_sigma
+        table = dict(self.rel_sigma_par_element)
+        return np.array([table.get(e, self.rel_sigma) for e in elements],
+                        dtype=float)
+
+    def sigmas(
+        self, b: np.ndarray, elements: list[str] | None = None
+    ) -> np.ndarray:
+        """
+        L'incertitude attendue sur chaque element du vecteur `b`.
+
+        Un seul endroit calcule cette formule. Elle vivait recopiee dans
+        `solver.element_weights` et dans `uncertainty._tirer_bulletin`, donc
+        un bruit par element n'aurait honore que celui des deux qu'on aurait
+        pense a modifier.
+        """
+        return self.rel_sigma_pour(elements) * np.abs(b) + self.abs_sigma
+
     def apply(
-        self, b_true: np.ndarray, rng: np.random.Generator
+        self, b_true: np.ndarray, rng: np.random.Generator,
+        elements: list[str] | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Retourne (bulletin bruite et censure, masque des elements sous LOD)."""
         noise = rng.normal(0.0, 1.0, size=b_true.shape)
-        b = b_true * (1.0 + self.rel_sigma * noise)
+        b = b_true * (1.0 + self.rel_sigma_pour(elements) * noise)
         b = b + rng.normal(0.0, self.abs_sigma, size=b_true.shape)
         b = np.maximum(b, 0.0)
         below = b < self.lod
@@ -388,7 +453,7 @@ def make_lot(
         raise ValueError("La somme des fractions de phases depasse 1.")
 
     b_true = A @ x_true
-    b_meas, below = noise.apply(b_true, rng)
+    b_meas, below = noise.apply(b_true, rng, elements=elements)
 
     prof_key = profile if isinstance(profile, str) else profile.key
     prof_obj = (

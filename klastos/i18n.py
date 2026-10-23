@@ -845,6 +845,14 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "en": "closure gap triggering an alert, as a fraction (default: "
               "{defaut}, ARBITRATED against the noise floor)",
     },
+    "cli.aide.seuil_rejet_sur": {
+        "fr": "Écart de bouclage rendant le lot inexploitable dans le sens "
+              "du SUR-bouclage, en fraction (défaut : {defaut}, ARBITRÉ "
+              "contre le plancher de bruit)",
+        "en": "Closure gap making the lot unusable in the OVER-closure "
+              "direction, as a fraction (default: {defaut}, ARBITRATED "
+              "against the noise floor)",
+    },
     "cli.aide.seuil_rejet": {
         "fr": "écart de bouclage rendant le lot inexploitable (défaut : "
               "{defaut}, ARBITRÉ contre le plancher de bruit)",
@@ -1270,6 +1278,25 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "en": "Negligible uncertainty.",
     },
 
+    # Prediction de composition hors bande de plausibilite. Defaut trouve
+    # le 22 octobre 2026 : sur un lot reel ou ni P ni F n'etaient doses, le
+    # solveur a predit 17,79 % de fluor contre 2,44 % sur le seul materiau
+    # certifie disponible, et rien ne l'a signale.
+    "rapport.avert.prediction_implausible": {
+        "fr": "Teneur prédite implausible : {element} à {valeur:.2f} %, soit "
+              "{facteur:.1f} fois la teneur du seul matériau certifié "
+              "disponible ({ancrage:.2f} %). La phase porteuse en cause est "
+              "{phase}, retenue à {part:.1f} % de la masse. Borne appliquée "
+              "{borne:.2f} %, facteur {ecart:.1f} NON ARBITRÉ sur un unique "
+              "certificat. Doser {element} lèverait l'ambiguïté.",
+        "en": "Implausible predicted grade: {element} at {valeur:.2f} %, "
+              "which is {facteur:.1f} times the grade of the only certified "
+              "material available ({ancrage:.2f} %). The carrier phase "
+              "responsible is {phase}, held at {part:.1f} % of the mass. "
+              "Bound applied {borne:.2f} %, factor {ecart:.1f} NOT "
+              "ARBITRATED, resting on a single certificate. Assaying "
+              "{element} would lift the ambiguity.",
+    },
     "journal.bouclage.somme": {
         "fr": "Somme du bulletin : {total:.2f} % ({message})",
         "en": "Assay total: {total:.2f} % ({message})",
@@ -1278,7 +1305,15 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "fr": "Bouclage massique conforme.",
         "en": "Mass closure within tolerance.",
     },
-    "journal.bouclage.alerte": {
+    # Un statut degrade porte DEUX messages, un par direction. Les causes
+    # d'un sur-bouclage ne sont pas celles d'un sous-bouclage, et l'outil a
+    # longtemps servi les secondes dans les deux cas : un lot a 110,45 %
+    # s'entendait dire qu'une part de sa masse etait inexpliquee, et partait
+    # enqueter sur une humidite residuelle qui n'existait pas.
+    #
+    # Les textes « _sous » sont les formulations d'ORIGINE, inchangees. Seule
+    # la cle a gagne son suffixe.
+    "journal.bouclage.alerte_sous": {
         "fr": "Bouclage massique dégradé : une part de la masse n'est pas "
               "expliquée par les phases du modèle. Causes possibles : "
               "analyse incomplète, phase absente du modèle, humidité "
@@ -1288,7 +1323,19 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "a phase absent from the model, residual moisture, an "
               "inaccurate provenance declaration.",
     },
-    "journal.bouclage.rejet": {
+    "journal.bouclage.alerte_sur": {
+        "fr": "Bouclage massique dégradé : les phases du modèle expliquent "
+              "plus de masse que le lot n'en contient. Cause possible : des "
+              "éléments non dosés laissent leurs phases porteuses sans "
+              "contrainte, et la résolution y déverse la masse manquante. "
+              "Doser ces éléments est le seul moyen de refermer l'écart.",
+        "en": "Mass closure degraded: the phases of the model explain more "
+              "mass than the lot contains. Possible cause: unassayed "
+              "elements leave the phases that carry them unconstrained, and "
+              "the solve pours the missing mass into them. Assaying those "
+              "elements is the only way to close the gap.",
+    },
+    "journal.bouclage.rejet_sous": {
         # Formulation d'ORIGINE, seulement accentuee. Une premiere version
         # l'avait reecrite - « Le lot n'est pas exploitable » au lieu de
         # « bulletin juge inexploitable » - et un test l'a attrape. Traduire
@@ -1300,6 +1347,19 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "requise avant valorisation.",
         "en": "Mass closure out of tolerance: the assay is judged unusable "
               "as it stands. A further assay is required before valuation.",
+    },
+    "journal.bouclage.rejet_sur": {
+        "fr": "Bouclage massique hors tolérance : les phases du modèle "
+              "expliquent beaucoup plus de masse que le lot n'en contient. "
+              "Un lot ne peut pas contenir plus que sa propre masse : le "
+              "bulletin est jugé inexploitable en l'état. Des éléments "
+              "porteurs ne sont pas dosés, et leur dosage est requis avant "
+              "valorisation.",
+        "en": "Mass closure out of tolerance: the phases of the model "
+              "explain far more mass than the lot contains. A lot cannot "
+              "hold more than its own mass: the assay is judged unusable as "
+              "it stands. Carrier elements are not assayed, and assaying "
+              "them is required before valuation.",
     },
 
     # ======================================================================

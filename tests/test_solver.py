@@ -18,6 +18,7 @@ from klastos.phases import PHASE_KEYS, stoichiometry_matrix
 from klastos.provenance import ProvenanceDeclaration
 from klastos import i18n
 from klastos.solver import (CLOSURE_ALERT, CLOSURE_REJECT,
+                            CLOSURE_REJECT_OVER, SENS_SOUS, SENS_SUR,
                             CLOSURE_THRESHOLDS_VALIDATED, STATUT_ALERTE,
                             STATUT_OK, STATUT_REJET, SolverConfig,
                             check_closure, element_weights, solve, solve_lot)
@@ -148,7 +149,14 @@ def test_bouclage_alerte():
     assert c.is_exploitable
     # Par le catalogue : le message est traduit, et le francais porte
     # desormais ses accents.
-    assert i18n.t("journal.bouclage.alerte", "fr") == c.message
+    #
+    # La cle a gagne un suffixe de direction. Ce test visait
+    # « journal.bouclage.alerte », cle sans direction, alors que le cas
+    # construit ici est un SOUS-bouclage (`milieu` est inferieur a 1).
+    # L'ancienne assertion etait donc exacte par accident : elle affirmait
+    # qu'un sur-bouclage et un sous-bouclage disent la meme chose, ce qui
+    # etait precisement le defaut.
+    assert i18n.t("journal.bouclage.alerte_sous", "fr") == c.message
     assert c.message_dans("en") != c.message
 
 
@@ -157,6 +165,241 @@ def test_bouclage_rejet():
     assert c.status == STATUT_REJET
     assert not c.is_exploitable
     assert "inexploitable" in c.message
+
+
+# --------------------------------------------------------------------------
+# Sur-bouclage et sous-bouclage. Defaut trouve le 22 octobre 2026 en faisant
+# tourner l'outil sur des donnees reelles pour la premiere fois.
+# --------------------------------------------------------------------------
+
+#: Totaux de bouclage MESURES sur les trois lots reels. Ils servent de cas de
+#: non-regression et ne remplacent pas les fixtures deterministes ci-dessus.
+TOTAL_BM1 = 1.1045      # MDPI, Sustainability 2023 - sur-bouclage
+TOTAL_BM2 = 1.0763      # MDPI, Sustainability 2023 - sur-bouclage
+TOTAL_OREAS = 0.9395    # materiau de reference certifie - sous-bouclage
+
+#: Les mots qui ont envoye le client enqueter a l'envers. Ils decrivent les
+#: causes d'un SOUS-bouclage, et le rapport les servait aussi aux lots qui
+#: sur-bouclaient.
+CAUSES_DU_SOUS_BOUCLAGE = {
+    "fr": ("n'est pas expliquée", "analyse incomplète",
+           "humidité résiduelle", "phase absente du modèle"),
+    "en": ("is not explained", "incomplete assay",
+           "residual moisture", "a phase absent from the model"),
+}
+
+
+def test_l_ecart_de_bouclage_garde_son_signe():
+    """
+    La cause racine. `check_closure` calculait `abs(total - 1.0)` et perdait
+    la direction : un lot a 110,45 % et un lot a 89,55 % produisaient le
+    meme diagnostic, donc le meme message et les memes causes a enqueter.
+    """
+    sous = check_closure(np.array([0.90]))
+    sur = check_closure(np.array([1.10]))
+
+    assert sous.signed_gap < 0.0, "un sous-bouclage doit etre negatif"
+    assert sur.signed_gap > 0.0, "un sur-bouclage doit etre positif"
+    assert sous.signed_gap != sur.signed_gap
+
+    # `gap` reste positif : les appelants qui le comparent aux seuils ne
+    # changent pas de comportement.
+    assert sous.gap > 0.0 and sur.gap > 0.0
+    assert sous.gap == pytest.approx(sur.gap), (
+        "a ecart egal, la valeur absolue doit coincider")
+
+
+def test_la_direction_est_lisible_dans_les_deux_sens():
+    assert check_closure(np.array([0.90])).direction == SENS_SOUS
+    assert check_closure(np.array([1.10])).direction == SENS_SUR
+
+
+def test_un_bouclage_conforme_n_annonce_aucune_direction():
+    """
+    Sous le seuil d'alerte il n'y a rien a expliquer, donc rien a orienter.
+    La cle reste celle du statut seul, et le catalogue n'a pas a porter deux
+    variantes d'un message qui dit « conforme ».
+    """
+    c = check_closure(np.array([0.5, 0.5]))
+    assert c.status == STATUT_OK
+    assert c.cle_message == "journal.bouclage.ok"
+
+
+@pytest.mark.parametrize("langue", ["fr", "en"])
+def test_le_sur_bouclage_ne_sert_pas_les_causes_du_sous_bouclage(langue):
+    """
+    Le test de non-regression demande par la seance.
+
+    Sur BM1 et BM2, le rapport annoncait « une part de la masse n'est pas
+    expliquee par les phases du modele » avec pour causes « analyse
+    incomplete, phase absente du modele, humidite residuelle ». Ces causes
+    sont celles de l'autre direction : un lot dont le modele explique PLUS
+    que la masse existante n'a pas de masse inexpliquee, il en a trop.
+    """
+    sur = check_closure(np.array([TOTAL_BM1]))
+    assert sur.direction == SENS_SUR
+
+    message = sur.message_dans(langue)
+    for cause in CAUSES_DU_SOUS_BOUCLAGE[langue]:
+        assert cause not in message, (
+            f"le message de sur-bouclage sert encore « {cause} », "
+            f"qui est une cause de sous-bouclage")
+
+
+@pytest.mark.parametrize("langue", ["fr", "en"])
+def test_le_sous_bouclage_garde_ses_causes(langue):
+    """
+    Le pendant du test ci-dessus. Sans lui, vider les deux messages de
+    toute cause les ferait passer tous les deux : rien a servir de travers
+    si plus rien n'est servi.
+    """
+    sous = check_closure(np.array([TOTAL_OREAS]))
+    assert sous.direction == SENS_SOUS
+
+    message = sous.message_dans(langue)
+    for cause in CAUSES_DU_SOUS_BOUCLAGE[langue]:
+        assert cause in message, (
+            f"le message de sous-bouclage a perdu « {cause} »")
+
+
+@pytest.mark.parametrize("total,sens", [
+    (TOTAL_BM1, SENS_SUR),
+    (TOTAL_BM2, SENS_SUR),
+    (TOTAL_OREAS, SENS_SOUS),
+])
+def test_les_trois_lots_reels_sont_orientes_correctement(total, sens):
+    """
+    Cas de non-regression sur donnees reelles. Les trois tombent en alerte
+    avec les seuils actuels - aucun n'atteint le rejet - mais ils ne
+    pointent plus dans la meme direction.
+    """
+    c = check_closure(np.array([total]))
+    assert c.direction == sens
+    assert c.status == STATUT_ALERTE
+    assert c.cle_message == f"journal.bouclage.alerte_{sens}"
+
+
+def test_le_rejet_du_sur_bouclage_est_plus_severe():
+    """
+    Le seuil est ASYMETRIQUE, et c'est un arbitrage.
+
+    Un lot peut legitimement porter de la masse que le modele n'explique
+    pas - separateur, solvants, traces - d'ou 20 % de tolerance dans ce
+    sens. L'inverse n'a pas d'equivalent physique : les phases du modele ne
+    peuvent pas peser plus que le lot.
+    """
+    assert CLOSURE_REJECT_OVER < CLOSURE_REJECT, (
+        "le sur-bouclage doit se rejeter plus tot que le sous-bouclage")
+    assert CLOSURE_ALERT < CLOSURE_REJECT_OVER, (
+        "le seuil de rejet doit rester au-dessus du seuil d'alerte")
+    assert CLOSURE_REJECT_OVER == pytest.approx(0.12)
+
+    # Un meme ecart de 15 points : rejete en sur-bouclage, tolere en sous.
+    assert check_closure(np.array([1.15])).status == STATUT_REJET
+    assert check_closure(np.array([0.85])).status == STATUT_ALERTE
+
+
+def test_le_seuil_de_sur_bouclage_est_au_dessus_du_plancher_de_bruit():
+    """
+    La discipline d'arbitrage du projet : jamais un seuil sous le bruit.
+
+    Mesure sur 2 500 lots SAINS - bouclage exactement 1, seul le bruit
+    analytique de 6 % - repartis sur les cinq profils : le sur-bouclage
+    atteint +5,55 pt au 95e centile, +7,35 pt au 99e, +9,44 pt au 99,9e, et
+    +10,10 pt au pire observe.
+
+    Un seuil a 8 % aurait refuse environ un lot sain sur cent. C'est
+    exactement l'erreur que l'arbitrage du sous-bouclage avait ecartee en
+    rejetant 3 % et 8 %, et il aurait ete tentant de la refaire ici : les
+    deux lots reels qui ont revele le defaut sont a +10,45 et +7,63 pt,
+    donc un seuil bas les aurait « attrapes » - au prix de faux rejets.
+    """
+    PIRE_BRUIT_MESURE = 0.1010
+    assert CLOSURE_REJECT_OVER > PIRE_BRUIT_MESURE, (
+        f"{CLOSURE_REJECT_OVER:.3f} est sous le pire sur-bouclage de bruit "
+        f"mesure ({PIRE_BRUIT_MESURE:.4f}) : des lots sains seraient refuses")
+
+
+@pytest.mark.parametrize("total", [TOTAL_BM1, TOTAL_BM2])
+def test_les_lots_reels_sur_bouclants_restent_exploitables(total):
+    """
+    Consequence assumee de l'arbitrage, et elle merite d'etre figee.
+
+    BM1 et BM2 ne sont pas separables du bruit par leur bouclage : ils
+    restent donc en alerte. Ce qui les attrape est ailleurs - la prediction
+    de fluor a 17,79 % contre 2,44 % certifie - et c'est le role des bandes
+    de plausibilite de composition, pas du bouclage.
+    """
+    c = check_closure(np.array([total]))
+    assert c.direction == SENS_SUR
+    assert c.status == STATUT_ALERTE
+    assert c.is_exploitable
+
+
+def test_le_seuil_de_sur_bouclage_est_configurable():
+    """Comme les deux autres seuils : un arbitrage se discute, donc s'expose."""
+    cfg = SolverConfig(closure_reject_over=0.05)
+    assert check_closure(np.array([1.08]),
+                         reject_over=cfg.closure_reject_over
+                         ).status == STATUT_REJET
+    # Et le sens oppose n'est pas affecte par ce seuil.
+    assert check_closure(np.array([0.92]),
+                         reject_over=cfg.closure_reject_over
+                         ).status == STATUT_ALERTE
+
+
+def test_les_deux_directions_ont_des_messages_distincts():
+    """
+    Garde minimal : si les deux cles pointaient sur le meme texte, tous les
+    tests ci-dessus passeraient encore sauf celui des causes. Celui-ci mord
+    des que les messages redeviennent identiques, dans les deux langues.
+    """
+    sous = check_closure(np.array([0.90]))
+    sur = check_closure(np.array([1.10]))
+    for langue in ("fr", "en"):
+        assert sous.message_dans(langue) != sur.message_dans(langue), (
+            f"les deux directions disent la meme chose en {langue}")
+
+
+def test_seul_le_solveur_fabrique_une_cle_de_bouclage():
+    """
+    Garde contre la derive a trois tetes qui a produit ce defaut.
+
+    `solver.py`, `report.py` et `app.py` construisaient chacun
+    `f"journal.bouclage.{statut}"` de leur cote. Tant qu'un statut valait
+    une cle, les trois tombaient d'accord par hasard. Des que la direction
+    est entree en jeu, corriger le solveur seul aurait laisse le rapport et
+    l'interface servir le texte du sous-bouclage a un lot sur-bouclant -
+    c'est-a-dire exactement le defaut, deplace d'un module.
+
+    La cle est donc calculee par `ClosureCheck.cle_message`, et ce test
+    verifie qu'aucun autre module ne la reconstruit. Il lit la SOURCE,
+    parce qu'un appelant fautif passerait tous les tests de comportement :
+    il afficherait simplement la mauvaise phrase.
+
+    Le generateur synthetique ne pouvait pas attraper ca autrement :
+    `make_lot` refuse `closure > 1`, donc un lot sur-bouclant est
+    inexprimable en fixture, et aucun test de bout en bout n'aurait pu
+    traverser `report.py` avec un sur-bouclage.
+    """
+    import pathlib
+    import re
+
+    racine = pathlib.Path(__file__).resolve().parent.parent / "klastos"
+    motif = re.compile(r'["\']journal\.bouclage\.\{')
+
+    fautifs = []
+    for chemin in sorted(racine.glob("*.py")):
+        if chemin.name in ("solver.py", "i18n.py"):
+            continue        # le solveur la produit, le catalogue la declare
+        for n, ligne in enumerate(
+                chemin.read_text(encoding="utf-8").splitlines(), 1):
+            if motif.search(ligne):
+                fautifs.append(f"{chemin.name}:{n}")
+
+    assert not fautifs, (
+        f"ces modules reconstruisent la cle de bouclage au lieu de "
+        f"demander `closure.cle_message` : {fautifs}")
 
 
 def test_bouclage_detecte_une_masse_manquante():

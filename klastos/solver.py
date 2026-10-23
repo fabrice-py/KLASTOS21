@@ -28,8 +28,14 @@ Trois difficultes, traitees separement.
 
 3. BOUCLAGE. Chaque colonne de A somme a 1, donc somme(A @ x) = somme(x).
    La somme du bulletin donne donc directement la masse totale des phases.
-   Un bulletin qui somme a 0.93 signale 7 % de masse non expliquee :
-   analyse incomplete, phase absente du modele, ou declaration inexacte.
+
+   Le SENS de l'ecart compte autant que son ampleur, et les deux cas
+   appellent deux enquetes opposees. Une somme de 0.93 signale 7 % de masse
+   non expliquee : analyse incomplete, phase absente du modele, declaration
+   inexacte. Une somme de 1.10 signale l'inverse - le modele attribue au lot
+   plus de masse qu'il n'en a - et la cause est alors qu'un element non dose
+   laisse sa phase porteuse sans contrainte, ou la resolution deverse la
+   masse manquante. Le seuil de rejet est donc asymetrique.
 
 Resolution : moindres carres non negatifs sur le systeme augmente
     [ W A          ]       [ W b            ]
@@ -67,26 +73,79 @@ from .phases import PHASE_KEYS, stoichiometry_matrix
 # echantillon idealement caracterise.
 CLOSURE_ALERT = 0.06     # ecart au bouclage a partir duquel on alerte
 CLOSURE_REJECT = 0.20    # ecart au-dela duquel le bulletin est juge inexploitable
+
+# ARBITRE, et le seuil est ASYMETRIQUE : un sur-bouclage se rejette plus tot
+# qu'un sous-bouclage.
+#
+# Un lot peut legitimement contenir de la masse que le modele n'explique pas
+# - separateur, solvants, traces non dosees - d'ou la tolerance de 20 % dans
+# ce sens. L'inverse n'a pas d'equivalent physique : les phases du modele ne
+# peuvent pas peser plus que le lot. Au-dela du bruit, un sur-bouclage est
+# donc une erreur, pas une lacune.
+#
+# Mesure a l'appui, sur 2 500 lots SAINS - bouclage exactement 1, seul le
+# bruit analytique de 6 % - repartis sur les cinq profils :
+#
+#     centile 95   du sur-bouclage   +5,55 pt
+#     centile 99                     +7,35 pt
+#     centile 99,9                   +9,44 pt
+#     PIRE observe                  +10,10 pt
+#
+# Le bruit seul atteint donc +10 points. Un seuil en dessous refuserait des
+# lots sains, et c'est exactement l'erreur que l'arbitrage du sous-bouclage
+# avait ecartee en rejetant 3 % et 8 %. 12 % est le premier palier
+# strictement au-dessus du plancher mesure.
+#
+# Consequence assumee : les deux lots reels qui ont revele le defaut restent
+# en ALERTE, BM1 a +10,45 pt et BM2 a +7,63 pt. Ils ne sont pas separables
+# du bruit par le bouclage. Ce qui les attrape est ailleurs - la prediction
+# de fluor a 17,79 % contre 2,44 % certifie, soit un facteur 7, relevee par
+# les bandes de plausibilite de composition.
+CLOSURE_REJECT_OVER = 0.12
+
 CLOSURE_THRESHOLDS_VALIDATED = True
 
 STATUT_OK = "ok"
 STATUT_ALERTE = "alerte"
 STATUT_REJET = "rejet"
 
-#: Message par statut, VUE FRANCAISE du catalogue.
+#: Sens de l'ecart au bouclage. Le STATUT porte la severite - c'est lui qui
+#: pilote la couleur et l'exploitabilite - et le SENS porte la direction,
+#: c'est lui qui pilote la prose.
 #:
-#: Le texte vivait ici en clair, et `ClosureCheck.message` en figeait une
-#: copie au moment du calcul. Des que le rapport s'est mis a traduire depuis
-#: le STATUT, il y a eu deux sources de verite pour la meme phrase - et la
-#: valorisation reinjectait la copie francaise dans un rapport anglais.
+#: La distinction manquait, et c'est un defaut trouve en faisant tourner
+#: l'outil sur des donnees reelles pour la premiere fois. `check_closure`
+#: calculait `abs(total - 1.0)` et perdait le signe, donc un lot a 110,45 %
+#: recevait le message du SOUS-bouclage : « une part de la masse n'est pas
+#: expliquee par les phases du modele », avec pour causes « analyse
+#: incomplete, phase absente du modele, humidite residuelle ». Ce sont les
+#: causes de l'autre direction. Le client etait envoye enqueter a l'envers.
+SENS_SUR = "sur"      # total > 1 : le modele explique PLUS que la masse reelle
+SENS_SOUS = "sous"    # total < 1 : une part de la masse reste inexpliquee
+
+#: Les cles du catalogue qui portent un message de bouclage. Un statut
+#: degrade en a DEUX, une par direction : les causes d'un sur-bouclage ne
+#: sont pas celles d'un sous-bouclage.
+CLES_BOUCLAGE = (
+    f"journal.bouclage.{STATUT_OK}",
+    f"journal.bouclage.{STATUT_ALERTE}_{SENS_SOUS}",
+    f"journal.bouclage.{STATUT_ALERTE}_{SENS_SUR}",
+    f"journal.bouclage.{STATUT_REJET}_{SENS_SOUS}",
+    f"journal.bouclage.{STATUT_REJET}_{SENS_SUR}",
+)
+
+#: Message par cle, VUE FRANCAISE du catalogue.
 #:
-#: Le statut reste la seule donnee produite par le solveur. Le texte, lui,
-#: est du rendu : il appartient au catalogue, et ce module n'en garde qu'une
-#: vue francaise pour les appelants qui lisent `message`.
-MSG_BOUCLAGE = {
-    statut: i18n.t(f"journal.bouclage.{statut}", "fr")
-    for statut in (STATUT_OK, STATUT_ALERTE, STATUT_REJET)
-}
+#: Le texte vivait en clair dans ce module, et `ClosureCheck.message` en
+#: figeait une copie au moment du calcul. Des que le rapport s'est mis a
+#: traduire depuis le STATUT, il y a eu deux sources de verite pour la meme
+#: phrase - et la valorisation reinjectait la copie francaise dans un
+#: rapport anglais.
+#:
+#: Le solveur ne produit qu'un STATUT et un SENS. Le texte est du rendu : il
+#: appartient au catalogue, et ce module n'en garde qu'une vue francaise
+#: pour les appelants qui lisent `message`.
+MSG_BOUCLAGE = {cle: i18n.t(cle, "fr") for cle in CLES_BOUCLAGE}
 
 
 # ==========================================================================
@@ -113,6 +172,10 @@ class SolverConfig:
 
     closure_alert: float = CLOSURE_ALERT
     closure_reject: float = CLOSURE_REJECT
+    closure_reject_over: float = CLOSURE_REJECT_OVER
+    """Seuil de rejet dans le sens du SUR-bouclage. Distinct du precedent :
+    un lot peut contenir de la masse non expliquee, il ne peut pas en
+    contenir moins que ce que le modele lui attribue."""
 
 
 @dataclass
@@ -134,12 +197,50 @@ class ClosureCheck:
     """
 
     total: float
-    gap: float
+    signed_gap: float
+    """Ecart SIGNE au bouclage : `total - 1`. Negatif en sous-bouclage,
+    positif en sur-bouclage. C'est la donnee ; `gap` n'en est qu'une vue."""
+
     status: str
+
+    @property
+    def gap(self) -> float:
+        """
+        L'ecart en valeur absolue, pour les appelants qui comparent aux
+        seuils. Derive de `signed_gap` plutot que stocke a cote : deux
+        champs pour une meme grandeur peuvent se desynchroniser, et c'est
+        precisement la perte du signe qui a produit le defaut d'origine.
+        """
+        return abs(self.signed_gap)
+
+    @property
+    def direction(self) -> str:
+        """Le sens de l'ecart. Vaut SENS_SUR ou SENS_SOUS."""
+        return SENS_SUR if self.signed_gap > 0.0 else SENS_SOUS
 
     @property
     def is_exploitable(self) -> bool:
         return self.status != STATUT_REJET
+
+    @property
+    def cle_message(self) -> str:
+        """
+        La cle du catalogue a rendre. Elle est calculee ICI et nulle part
+        ailleurs.
+
+        Trois modules la reconstruisaient depuis le statut - ce module,
+        `report.py` et `app.py`. Tant qu'un statut valait une cle, les
+        trois tombaient d'accord par hasard ; des que la direction entre en
+        jeu, deux d'entre eux auraient continue a afficher le texte du
+        sous-bouclage. L'objet porte donc sa cle, et les appelants la
+        demandent.
+
+        Un bouclage conforme n'a pas de direction a annoncer : il n'y a
+        rien a expliquer quand l'ecart est sous le seuil d'alerte.
+        """
+        if self.status == STATUT_OK:
+            return f"journal.bouclage.{STATUT_OK}"
+        return f"journal.bouclage.{self.status}_{self.direction}"
 
     @property
     def message(self) -> str:
@@ -148,7 +249,7 @@ class ClosureCheck:
 
     def message_dans(self, langue: str) -> str:
         """Le message du statut, dans la langue demandee."""
-        return i18n.t(f"journal.bouclage.{self.status}", langue)
+        return i18n.t(self.cle_message, langue)
 
     def format(self, langue: str = "fr") -> str:
         return i18n.t("journal.bouclage.somme", langue,
@@ -219,6 +320,7 @@ def check_closure(
     values: np.ndarray,
     alert: float = CLOSURE_ALERT,
     reject: float = CLOSURE_REJECT,
+    reject_over: float = CLOSURE_REJECT_OVER,
 ) -> ClosureCheck:
     """
     Bouclage massique : la somme fournie est-elle proche de 1 ?
@@ -234,21 +336,31 @@ def check_closure(
     compris les elements non doses. C'est donc elle qui porte le diagnostic.
     """
     total = float(np.sum(values))
-    gap = abs(total - 1.0)
-    if gap >= reject:
+    # Le SIGNE est conserve. `abs` le perdait, et le diagnostic ne pouvait
+    # alors plus distinguer un lot a 93,95 % d'un lot a 110,45 %.
+    signed_gap = total - 1.0
+    gap = abs(signed_gap)
+    # Le seuil de rejet depend du SENS : un lot ne peut pas peser plus que
+    # lui-meme, donc le sur-bouclage se rejette plus tot. L'alerte, elle,
+    # reste symetrique : a 6 points d'ecart il y a quelque chose a elucider
+    # dans les deux directions.
+    seuil_rejet = reject_over if signed_gap > 0.0 else reject
+    if gap >= seuil_rejet:
         status = STATUT_REJET
     elif gap >= alert:
         status = STATUT_ALERTE
     else:
         status = STATUT_OK
-    # Pas de message ici : le solveur produit un STATUT, pas de la prose.
-    return ClosureCheck(total=total, gap=gap, status=status)
+    # Pas de message ici : le solveur produit un STATUT et un SENS, pas de
+    # la prose.
+    return ClosureCheck(total=total, signed_gap=signed_gap, status=status)
 
 
 def element_weights(
     b: np.ndarray,
     noise: NoiseModel = DEFAULT_NOISE,
     floor: float = 1e-5,
+    elements: list[str] | None = None,
 ) -> np.ndarray:
     """
     Poids 1 / sigma_e, ou sigma_e est l'incertitude attendue sur l'element.
@@ -256,9 +368,13 @@ def element_weights(
     Sans ponderation, l'oxygene (~35 % massique) ecraserait le fluor (~1 %)
     et le solveur ignorerait les phases mineures qui portent pourtant
     l'essentiel du diagnostic procede.
+
+    `elements` n'est utile que si le modele de bruit porte une table par
+    element. Le sigma est demande au modele et non recalcule ici : la
+    formule vivait recopiee a deux endroits, et un bruit par element
+    n'aurait honore que celui des deux qu'on aurait pense a modifier.
     """
-    sigma = noise.rel_sigma * np.abs(b) + noise.abs_sigma
-    sigma = np.maximum(sigma, floor)
+    sigma = np.maximum(noise.sigmas(b, elements), floor)
     return 1.0 / sigma
 
 
@@ -332,7 +448,8 @@ def solve(
 
     # --- ponderation ------------------------------------------------------
     if config.use_weights:
-        w = element_weights(b, config.noise, config.weight_floor)
+        w = element_weights(b, config.noise, config.weight_floor,
+                            elements=mesures)
     else:
         w = np.ones_like(b)
     W = np.diag(w)
@@ -369,7 +486,9 @@ def solve(
 
     # Le bouclage se mesure sur les PHASES, jamais sur le bulletin : voir
     # la note de check_closure.
-    closure = check_closure(x, config.closure_alert, config.closure_reject)
+    closure = check_closure(x, config.closure_alert,
+                            config.closure_reject,
+                            config.closure_reject_over)
 
     # Les elements non doses deviennent des grandeurs predites.
     b_pred_full = A_full @ x

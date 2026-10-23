@@ -366,6 +366,7 @@ def resample_bulletin(
     b: np.ndarray,
     rng: np.random.Generator,
     noise: NoiseModel,
+    elements: list[str] | None = None,
 ) -> np.ndarray:
     """
     Tire un bulletin compatible avec l'incertitude du laboratoire.
@@ -374,7 +375,9 @@ def resample_bulletin(
     vraies plausibles ayant pu produire la mesure observee, sous hypothese
     d'erreur symetrique.
     """
-    sigma = noise.rel_sigma * np.abs(b) + noise.abs_sigma
+    # Le sigma est demande au modele : lui seul sait s'il porte une
+    # table par element. La formule etait recopiee ici.
+    sigma = noise.sigmas(b, elements)
     draw = b + rng.normal(0.0, 1.0, size=b.shape) * sigma
     return np.maximum(draw, 0.0)
 
@@ -457,7 +460,7 @@ def propagate(
     conflits = 0
 
     for i in range(config.n_draws):
-        tirage = resample_bulletin(b_vec, rng, config.noise)
+        tirage = resample_bulletin(b_vec, rng, config.noise, elements=els)
         try:
             r = solve(tirage, phase_keys=keys, elements=els,
                       config=config.solver)

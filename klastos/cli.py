@@ -193,7 +193,8 @@ def _ajouter_seuils(p: argparse.ArgumentParser,
     6 %, rejet a 20 %. `solver.py` porte les valeurs et le drapeau
     CLOSURE_THRESHOLDS_VALIDATED ; ce module ne fait que les exposer.
     """
-    from .solver import CLOSURE_ALERT, CLOSURE_REJECT
+    from .solver import (CLOSURE_ALERT, CLOSURE_REJECT,
+                         CLOSURE_REJECT_OVER)
 
     p.add_argument(
         "--seuil-alerte", type=float, default=CLOSURE_ALERT, metavar="X",
@@ -205,6 +206,12 @@ def _ajouter_seuils(p: argparse.ArgumentParser,
         dest="seuil_rejet",
         help=i18n.t("cli.aide.seuil_rejet", lg, defaut=CLOSURE_REJECT),
     )
+    p.add_argument(
+        "--seuil-rejet-sur", type=float, default=CLOSURE_REJECT_OVER,
+        metavar="X", dest="seuil_rejet_sur",
+        help=i18n.t("cli.aide.seuil_rejet_sur", lg,
+                    defaut=CLOSURE_REJECT_OVER),
+    )
 
 
 def _config_solveur(args):
@@ -213,6 +220,7 @@ def _config_solveur(args):
     return SolverConfig(
         closure_alert=args.seuil_alerte,
         closure_reject=args.seuil_rejet,
+        closure_reject_over=args.seuil_rejet_sur,
     )
 
 
@@ -386,6 +394,7 @@ def cmd_rapport(args) -> int:
         graine=args.graine,
         seuil_alerte=args.seuil_alerte,
         seuil_rejet=args.seuil_rejet,
+        seuil_rejet_sur=args.seuil_rejet_sur,
         prix=prix,
         termes=termes,
         specification=REFERENCE_SPECS.get(args.spec) if args.spec else None,

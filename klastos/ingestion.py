@@ -6,9 +6,11 @@ y a un fosse que ce module comble.
 
 Ce qu'un bulletin reel contient, et que le solveur ne sait pas lire
 ---------------------------------------------------------------------
-- des NOMS variables : "Ni", "Nickel", "Ni (%)", "NiO" ;
+- des NOMS variables : "Ni", "Nickel", "Ni (%)", "NiO", et la forme des
+  certificats de materiaux de reference, "Ni, Nickel (wt.%)" ;
 - des UNITES melangees dans le meme tableau : pourcents pour les majeurs,
-  ppm ou mg/kg pour les traces. Facteur 10 000 entre les deux ;
+  ppm ou mg/kg pour les traces. Facteur 10 000 entre les deux. Et des
+  abreviations ponctuees, "wt.%", que les certificats emploient ;
 - des OXYDES la ou le modele attend des elements. Un laboratoire de
   geochimie rend volontiers Li2O, NiO, Al2O3, Fe2O3. Confondre Li2O et Li
   fausse la teneur d'un facteur 2,15 ;
@@ -27,6 +29,12 @@ Aucune interpretation silencieuse. Chaque decision de lecture - conversion
 d'oxyde, application d'une unite, traitement d'une censure - est JOURNALISEE
 et destinee au rapport client. Une colonne non reconnue n'est jamais
 devinee : elle est signalee et ignoree explicitement.
+
+Le corollaire vaut pour la forme « symbole, nom complet » : elle n'est
+acceptee que si les DEUX moities designent le meme element. « Ni, Cobalt »
+est refuse, bien que chaque moitie soit valide separement - retenir l'une
+des deux ferait sortir un lot dont le nickel est compte comme du cobalt,
+sans aucun signe exterieur d'erreur.
 """
 
 from __future__ import annotations
@@ -46,7 +54,12 @@ from .elements import ATOMIC_MASS, ELEMENTS
 # ==========================================================================
 # Facteur de conversion vers une FRACTION MASSIQUE (kg/kg).
 CONCENTRATION_UNITS: dict[str, float] = {
-    "%": 1e-2, "pct": 1e-2, "wt%": 1e-2, "% m/m": 1e-2, "%m/m": 1e-2,
+    # « wt.% » et « wt. % » viennent des certificats de materiaux de
+    # reference, qui ponctuent l'abreviation. Le bulletin OREAS etait refuse
+    # pour cette raison seule : l'unite n'etait pas reconnue, donc la
+    # colonne non plus.
+    "%": 1e-2, "pct": 1e-2, "wt%": 1e-2, "wt.%": 1e-2, "wt. %": 1e-2,
+    "% m/m": 1e-2, "%m/m": 1e-2,
     "g/100g": 1e-2,
     "g/kg": 1e-3,
     "ppm": 1e-6, "mg/kg": 1e-6, "g/t": 1e-6, "ug/g": 1e-6, "µg/g": 1e-6,
@@ -57,6 +70,7 @@ CONCENTRATION_UNITS: dict[str, float] = {
 # Marqueurs de valeur non quantifiee.
 CENSORED_TOKENS = {
     "nd", "n.d.", "n/d", "na", "n/a", "-", "--", "", "trace", "tr",
+    "ind",   # indetermine, notation des certificats de reference
     "inf. ld", "inf.ld", "<ld", "<lq", "bdl", "n.q.", "nq", "nm",
 }
 
@@ -122,13 +136,29 @@ ELEMENT_ALIASES: dict[str, str] = {
     "hydrogene": "H", "hydrogène": "H", "hydrogen": "H",
 }
 
+# L'alternance est ordonnee du plus long au plus court : `%` seul matcherait
+# le `%` de `wt.%` et laisserait le `wt.` dehors, ce qui ferait echouer
+# l'ancrage sur la parenthese fermante et perdre l'unite.
 _RE_UNITE_DANS_NOM = re.compile(
     r"[\(\[]\s*("
-    r"%\s*m/m|wt%|pct|%"
+    r"%\s*m/m|wt\.?\s*%|wt%|pct|%"
     r"|mg/kg|g/kg|g/t|ppm|ppb"
     r"|µg/g|ug/g|µg/kg|ug/kg"
     r")\s*[\)\]]",
     re.IGNORECASE,
+)
+
+# Forme « symbole, nom complet » des certificats de materiaux de reference :
+# « Al, Aluminium », « F, Fluorine ».
+#
+# Elle n'est acceptee que si les DEUX moities designent le meme element. Le
+# symbole seul ne suffit pas, le nom seul non plus : ils se corroborent. Un
+# intitule comme « Al, Barium » est donc REFUSE plutot qu'arbitre, et un
+# element inconnu du modele - « Ba, Barium » - l'est aussi. C'est la regle
+# absolue du module : ne jamais deviner un element.
+_RE_SYMBOLE_ET_NOM = re.compile(
+    r"^\s*([A-Za-z]{1,2})\s*,\s*([A-Za-zÀ-ſ][A-Za-zÀ-ſ "
+    r"'\-]*)\s*$"
 )
 
 # Mots de qualification a retirer avant reconnaissance.
@@ -230,6 +260,27 @@ def parse_column(name: str) -> ColumnReading:
     cle = re.sub(r"\s+", " ", noyau.lower())
     if cle in ELEMENT_ALIASES:
         return ColumnReading(name, ELEMENT_ALIASES[cle], None, unite, True)
+
+    # Forme « symbole, nom complet », et seulement si les deux moities
+    # s'accordent. Voir le commentaire de `_RE_SYMBOLE_ET_NOM` : la
+    # corroboration remplace la devinette.
+    m = _RE_SYMBOLE_ET_NOM.match(noyau)
+    if m:
+        symbole = m.group(1).strip()
+        nom = re.sub(r"\s+", " ", m.group(2).strip().lower())
+        par_symbole = next(
+            (e for e in ELEMENTS if e.lower() == symbole.lower()), None)
+        par_nom = ELEMENT_ALIASES.get(nom)
+        if par_symbole is not None and par_symbole == par_nom:
+            return ColumnReading(name, par_symbole, None, unite, True)
+        if par_symbole is not None or par_nom is not None:
+            # Une seule moitie reconnue, ou deux moities qui se contredisent.
+            # On refuse : l'intitule est ambigu, et l'interpreter de travers
+            # coute plus cher que de le rejeter.
+            return ColumnReading(
+                name, None, None, unite, False,
+                "forme « symbole, nom » dont les deux moities ne "
+                "s'accordent pas")
 
     return ColumnReading(name, None, None, unite, False,
                          "ni element ni oxyde reconnu")

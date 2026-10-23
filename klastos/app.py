@@ -482,7 +482,9 @@ def _vue_ensemble(a: Analyse) -> None:
                     unsafe_allow_html=True)
         st.altair_chart(charts.barre_bouclage(a), use_container_width=True)
         if bouclage is not None and statut != "ok":
-            st.caption(T(f"journal.bouclage.{bouclage.status}"))
+            # Idem report.py : la cle est portee par le diagnostic, parce
+            # qu'elle depend du sens de l'ecart et pas seulement du statut.
+            st.caption(T(bouclage.cle_message))
 
 
 def _composition(a: Analyse) -> None:
