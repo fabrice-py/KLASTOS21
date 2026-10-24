@@ -47,3 +47,8 @@ desktop.ini
 # Si le site est deploye sur GitHub Pages sans etape de build, il faudra
 # soit un workflow, soit retirer cette ligne et versionner la sortie.
 site/public/
+
+# Classeur USGS complet (3,2 Mo), telecharge par « klastos usgs
+# --rafraichir ». Comme le Pink Sheet, la donnee ne vit pas dans le depot ;
+# un extrait de test est versionne dans data/exemples/.
+data/MCS2026_Commodities_Data.csv

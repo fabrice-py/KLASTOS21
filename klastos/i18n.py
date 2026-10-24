@@ -1008,6 +1008,30 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "Credentials are read from the environment, never from an "
               "argument.",
     },
+    "cli.cmd.usgs": {
+        "fr": "moyennes annuelles de l'USGS, gratuites et redistribuables "
+              "(couvre le cobalt et le lithium)",
+        "en": "USGS annual averages, free and redistributable (covers "
+              "cobalt and lithium)",
+    },
+    "cli.cmd.usgs_description": {
+        "fr": "Affiche ou rafraîchit les moyennes annuelles de l'USGS. "
+              "Deuxième source gratuite et redistribuable du projet, et la "
+              "première qui couvre le cobalt et le lithium. Ce sont des "
+              "moyennes ANNUELLES : une valorisation opposable sera refusée "
+              "sur ces prix, et c'est voulu. Elles servent à chiffrer un "
+              "lot sans attendre le fichier de prix du client.",
+        "en": "Show or refresh the USGS annual averages. The project's "
+              "second free and redistributable source, and the first to "
+              "cover cobalt and lithium. These are ANNUAL averages: a "
+              "binding valuation will be refused on them, and that is "
+              "deliberate. They serve to price a lot without waiting for "
+              "the client's price file.",
+    },
+    "cli.aide.annee": {
+        "fr": "année de la moyenne voulue (défaut : la dernière renseignée)",
+        "en": "year of the average wanted (default: the latest on file)",
+    },
     "cli.cmd.pink": {
         "fr": "moyennes mensuelles de la Banque mondiale (source gratuite)",
         "en": "World Bank monthly averages (free source)",

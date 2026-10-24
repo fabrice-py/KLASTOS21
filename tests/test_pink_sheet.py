@@ -135,7 +135,24 @@ def test_un_metal_absent_leve_avec_l_adresse_ou_le_trouver(xlsx, metal, nom):
 
     # Il nomme des sources alternatives, pas seulement l'absence.
     assert "Fastmarkets" in message or "agence" in message
-    assert "gre a gre" in message
+
+    # Cette assertion exigeait « gre a gre », parce que le message affirmait
+    # que ces quatre metaux etaient « des marches de gre a gre, SANS
+    # COTATION DE BOURSE ». C'etait vrai a l'ecriture et ne l'est plus : le
+    # CME, le LME et le GFEX listent des contrats cobalt et lithium depuis
+    # 2023. Le test figeait donc une affirmation devenue fausse, et il
+    # aurait empeche de la corriger.
+    #
+    # Ce qui compte n'a pas change : le message doit donner une ADRESSE. Il
+    # en donne trois, par cout croissant, et la plus interessante est
+    # gratuite.
+    assert "klastos usgs" in message, (
+        "le message doit nommer la route gratuite, sinon un operateur sans "
+        "abonnement reste bloque")
+    assert "licenciee" in message, (
+        "la distinction entre consulter et rediffuser doit etre dite : "
+        "c'est elle qui decide si un chiffre peut figurer dans un rapport "
+        "client")
 
 
 def test_le_cobalt_ne_rend_jamais_zero(xlsx):

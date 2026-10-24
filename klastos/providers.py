@@ -27,6 +27,7 @@ Ce que ce module refuse de faire
 from __future__ import annotations
 
 import csv
+import io as _io
 import datetime as _dt
 import json
 import pathlib
@@ -482,12 +483,25 @@ PINK_SHEET_ABSENTS = {
     "C": "graphite",
 }
 
+#: Ou chercher ce que le Pink Sheet ne cote pas.
+#:
+#: CE TEXTE A ETE CORRIGE le 24 octobre 2026. Il affirmait que le cobalt et
+#: le lithium etaient « des marches de gre a gre, SANS COTATION DE BOURSE ».
+#: C'etait vrai a l'ecriture et ne l'est plus : le CME, le LME et le GFEX
+#: listent des contrats cobalt et lithium depuis 2023. Le message disait
+#: donc au client quelque chose de faux.
 _OU_TROUVER = (
     "Le Pink Sheet de la Banque mondiale ne cote ni le cobalt, ni le "
-    "lithium, ni le manganese, ni le graphite : ce sont des marches de gre "
-    "a gre, sans cotation de bourse. Il faut une evaluation d'agence "
-    "(Fastmarkets, Benchmark Mineral Intelligence, SMM - voir "
-    "klastos/feeds.py) ou les prix contractuels du client."
+    "lithium, ni le manganese, ni le graphite. Trois voies pour le cobalt "
+    "et le lithium, par ordre de cout croissant. (1) GRATUIT ET "
+    "REDIFFUSABLE : les moyennes ANNUELLES de l'USGS, voir « klastos usgs » "
+    "et UsgsProvider. (2) Les reglements du CME, qui cotent le cobalt "
+    "standard grade Rotterdam et l'hydroxyde de lithium CIF Chine-Japon-"
+    "Coree : consultables gratuitement, mais leur rediffusion dans un "
+    "document client est licenciee, le produit gratuit ayant ete supprime "
+    "en septembre 2024. (3) Une evaluation d'agence (Fastmarkets, Benchmark "
+    "Mineral Intelligence, SMM - voir klastos/feeds.py), ou les prix "
+    "contractuels du client."
 )
 
 
@@ -741,4 +755,283 @@ class PinkSheetProvider:
         raise ProviderError(
             f"{self.chemin.name} : mois {voulu!r} absent du classeur. "
             f"Derniere periode disponible : {candidats[-1][0]}."
+        )
+
+
+# ==========================================================================
+# USGS : Mineral Commodity Summaries
+# ==========================================================================
+#
+# DEUXIEME source gratuite et REDIFFUSABLE du projet, et la premiere qui
+# couvre le cobalt et le lithium.
+#
+# Le Pink Sheet de la Banque mondiale ne cote que l'aluminium, le cuivre et
+# le nickel. Pour les deux metaux qui portent l'essentiel de la valeur d'une
+# black mass, il fallait jusqu'ici une evaluation d'agence payante ou les
+# prix du client. L'USGS publie les deux, dans un fichier lisible par
+# machine, et son travail est une oeuvre du gouvernement federal americain :
+# domaine public, CC0 1.0. Aucune contrepartie, pas meme une attribution
+# juridiquement exigible - on l'inscrit quand meme.
+#
+# CE QUE CETTE SOURCE EST, ET N'EST PAS
+# -------------------------------------
+# Ce sont des MOYENNES ANNUELLES. L'edition 2026 couvre 2021 a 2025, et sa
+# derniere annee est donc close depuis des mois. `is_production_source` vaut
+# False, et la regle de fraicheur de `market.py` fera son travail : une
+# valorisation opposable sera REFUSEE sur ces prix. C'est le comportement
+# voulu, pas une limite a contourner.
+#
+# L'ordre de grandeur de l'enjeu, mesure : la moyenne annuelle USGS 2025 du
+# carbonate de lithium vaut 9 000 USD/t, quand la cotation Benchmark CIF
+# Asie du 2 septembre 2026 vaut 19 750 USD/t. Un facteur 2,2. Trois causes
+# se cumulent : l'annee, la base geographique, et un marche qui a pris plus
+# de 100 % debut 2026. Cette source sert donc au CRIBLAGE, jamais au
+# contrat.
+#
+# Ironie a declarer : les prix de l'USGS sont eux-memes repris d'agences -
+# S&P Global Platts pour le cobalt et l'aluminium, Benchmark Mineral
+# Intelligence pour le lithium. L'USGS en publie la moyenne annuelle dans le
+# domaine public. On obtient donc legalement la reference d'agence, au prix
+# de sa fraicheur.
+
+#: Item ScienceBase de l'edition 2026, enfant « Commodity Salient U.S. and
+#: World Statistics ». Le DOI du jeu complet est 10.5066/P1WKQ63T.
+USGS_ITEM = "69837e43b66b01367d7ec7c7"
+
+#: API de l'item. Le lien de telechargement du CSV porte un condensat qui
+#: change a chaque republication : on le DEMANDE a l'API plutot que de le
+#: coder en dur, erreur deja commise par l'URL du Pink Sheet.
+USGS_URL = f"https://www.sciencebase.gov/catalog/item/{USGS_ITEM}?format=json"
+
+USGS_FICHIER = pathlib.Path("data") / "MCS2026_Commodities_Data.csv"
+
+USGS_ATTRIBUTION = (
+    "U.S. Geological Survey, Mineral Commodity Summaries 2026 "
+    "(domaine public, CC0 1.0)"
+)
+
+#: ENCODAGE. Le fichier n'est PAS en UTF-8 : il porte des octets cp1252,
+#: dont un tiret cadratin a l'octet 170. Le lire en UTF-8 leve
+#: UnicodeDecodeError des la premiere ligne.
+USGS_ENCODAGE = "cp1252"
+
+#: Correspondance unite du fichier -> unite du projet. L'unite est LUE,
+#: jamais deduite du metal : le cuivre et l'aluminium sont en CENTS par
+#: livre, et les confondre avec des dollars fausse d'un facteur cent.
+USGS_UNITES = {
+    "dollars per metric ton": PriceUnit.PER_TONNE,
+    "dollars per pound": PriceUnit.PER_POUND,
+    "cents per pound": PriceUnit.PER_POUND_CENT,
+}
+
+
+@dataclass(frozen=True)
+class SerieUsgs:
+    """Une serie de prix de l'USGS, designee sans ambiguite."""
+
+    commodity: str
+    fragment: str
+    """Fragment du libelle `Statistics_detail` qui identifie la serie. Le
+    libelle complet est cite dans le commentaire de la table ci-dessous."""
+
+    basis: str = "metal"
+    libelle: str = ""
+
+
+#: Les CINQ series retenues. Une seule par metal, choisie et declaree :
+#: plusieurs series coexistent pour le meme metal, et prendre la premiere
+#: venue serait un arbitrage cache.
+#:
+#: Libelles complets, verifies sur l'edition 2026 :
+#:   Co  « Price, average, dollars per pound: London Metal Exchange (LME),
+#:         cash »
+#:   Li  « Price, annual average-real, battery-grade lithium carbonate,
+#:         dollars per metric ton »
+#:   Ni  « Price, average annual, London Metal Exchange (LME), cash:
+#:         Dollars per metric ton »
+#:   Cu  « Price, annual average, cents per pound: London Metal Exchange,
+#:         grade A, cash »
+#:   Al  « Price, ingot, average U.S. market (spot), cents per pound »
+USGS_SERIES: dict[str, SerieUsgs] = {
+    "Co": SerieUsgs("Cobalt", "London Metal Exchange (LME), cash",
+                    libelle="cobalt, LME cash"),
+    "Li": SerieUsgs("Lithium", "battery-grade lithium carbonate",
+                    basis="Li2CO3",
+                    libelle="carbonate de lithium qualite batterie"),
+    "Ni": SerieUsgs("Nickel", "cash: Dollars per metric ton",
+                    libelle="nickel, LME cash"),
+    "Cu": SerieUsgs("Copper", "London Metal Exchange, grade A, cash",
+                    libelle="cuivre, LME grade A cash"),
+    "Al": SerieUsgs("Aluminum", "ingot, average U.S. market (spot)",
+                    libelle="aluminium, lingot marche americain"),
+}
+
+#: Series PRESENTES dans le fichier et volontairement NON offertes, avec la
+#: raison. Un operateur qui demande le manganese doit lire pourquoi, pas
+#: recevoir un chiffre faux ni un silence.
+USGS_ECARTEES = {
+    "Mn": (
+        "le manganese est cote en dollars par TONNE-UNITE de minerai "
+        "(dmtu), pas par tonne de metal : 4,50 USD en 2025. Convertir "
+        "exigerait la teneur du minerai, que l'USGS ne donne pas. La bande "
+        "de plausibilite de klastos/units.py refuserait d'ailleurs la "
+        "valeur brute, ce qui est le bon comportement."
+    ),
+    "C": (
+        "le graphite naturel est cote en trois qualites - flake, lump, "
+        "amorphe - de 470 a 2 600 USD/t en 2025, et klastos/units.py n'a "
+        "aucune bande de plausibilite pour le carbone. Choisir une qualite "
+        "et poser une bande sont deux arbitrages a prendre, pas a deviner."
+    ),
+}
+
+
+class UsgsProvider:
+    """
+    Moyennes annuelles de l'USGS, lues dans un fichier LOCAL.
+
+    Meme parti que `PinkSheetProvider` : le telechargement est une action
+    separee - `klastos usgs --rafraichir` - et le fournisseur lit ce qui est
+    sur le disque. Une valorisation ne doit jamais dependre d'un lien
+    susceptible de mourir pendant l'analyse.
+
+    L'echec est BRUYANT : fichier absent, serie introuvable, unite inconnue,
+    annee manquante produisent une erreur nommee, jamais un zero.
+    """
+
+    name = "usgs"
+
+    #: Oeuvre du gouvernement federal americain, domaine public CC0 1.0.
+    #: Avec le Pink Sheet, le seul flux du projet ou cela vaut True.
+    redistribution_licensed = True
+
+    #: Moyennes ANNUELLES. Voir le commentaire en tete de section : la regle
+    #: de fraicheur refusera une valorisation opposable, et c'est voulu.
+    is_production_source = False
+
+    def __init__(
+        self,
+        chemin: str | pathlib.Path | None = None,
+        *,
+        annee: int | None = None,
+        url: str = USGS_URL,
+    ) -> None:
+        self.chemin = pathlib.Path(chemin or USGS_FICHIER)
+        #: Annee voulue. None prend la DERNIERE annee renseignee.
+        self.annee = annee
+        self.url = url
+
+    # ------------------------------------------------------------------
+    def quotes(self, metaux: Iterable[str] | None = None) -> list[RawQuote]:
+        """Les cotations demandees, par defaut les cinq series offertes."""
+        voulus = list(metaux) if metaux is not None else list(USGS_SERIES)
+
+        inconnus = [m for m in voulus if m not in USGS_SERIES]
+        if inconnus:
+            ecartes = [m for m in inconnus if m in USGS_ECARTEES]
+            if ecartes:
+                raisons = " ".join(
+                    f"{m} : {USGS_ECARTEES[m]}" for m in ecartes)
+                raise MissingPriceError(
+                    f"{', '.join(ecartes)} present(s) dans le fichier USGS "
+                    f"mais volontairement non offert(s). {raisons}"
+                )
+            raise MissingPriceError(
+                f"{inconnus} hors des series USGS retenues. Disponibles : "
+                f"{sorted(USGS_SERIES)}."
+            )
+
+        lignes = self._lire()
+        return [self._cotation(m, lignes) for m in voulus]
+
+    # ------------------------------------------------------------------
+    def _lire(self) -> list[dict[str, str]]:
+        if not self.chemin.exists():
+            raise ProviderError(
+                f"{self.chemin} absent. Telechargez-le une fois :\n"
+                f"       klastos usgs --rafraichir"
+            )
+        brut = self.chemin.read_bytes()
+        try:
+            texte = brut.decode(USGS_ENCODAGE)
+        except UnicodeDecodeError as e:
+            raise ProviderError(
+                f"{self.chemin.name} : illisible en {USGS_ENCODAGE} ({e}). "
+                "Le fichier a peut-etre change d'encodage."
+            ) from None
+        lignes = list(csv.DictReader(_io.StringIO(texte)))
+        if not lignes:
+            raise ProviderError(f"{self.chemin.name} : aucune ligne.")
+        attendues = {"Commodity", "Statistics", "Statistics_detail",
+                     "Unit", "Year", "Value"}
+        manquantes = attendues - set(lignes[0])
+        if manquantes:
+            raise ProviderError(
+                f"{self.chemin.name} : colonnes absentes "
+                f"{sorted(manquantes)}. Le format de l'USGS a change."
+            )
+        return lignes
+
+    # ------------------------------------------------------------------
+    def _cotation(self, metal: str, lignes: list[dict[str, str]]) -> RawQuote:
+        serie = USGS_SERIES[metal]
+        candidats = [
+            l for l in lignes
+            if l["Commodity"] == serie.commodity
+            and "price" in l["Statistics"].lower()
+            and serie.fragment in l["Statistics_detail"]
+            and l["Value"].strip()
+        ]
+        if not candidats:
+            raise ProviderError(
+                f"{self.chemin.name} : serie {serie.fragment!r} introuvable "
+                f"pour {serie.commodity}. Le libelle de l'USGS a change."
+            )
+
+        par_annee = {l["Year"]: l for l in candidats}
+        if self.annee is not None:
+            ligne = par_annee.get(str(self.annee))
+            if ligne is None:
+                raise ProviderError(
+                    f"{self.chemin.name} : {metal} absent pour "
+                    f"{self.annee}. Annees disponibles : "
+                    f"{sorted(par_annee)}."
+                )
+        else:
+            ligne = par_annee[max(par_annee)]
+
+        unite = USGS_UNITES.get(ligne["Unit"].strip().lower())
+        if unite is None:
+            raise ProviderError(
+                f"{self.chemin.name} : unite {ligne['Unit']!r} inconnue "
+                f"pour {metal}. Unites admises : {sorted(USGS_UNITES)}."
+            )
+
+        brut = ligne["Value"].replace(",", "").replace(" ", "").strip()
+        try:
+            valeur = float(brut)
+        except ValueError:
+            raise ProviderError(
+                f"{self.chemin.name} : valeur {ligne['Value']!r} illisible "
+                f"pour {metal}."
+            ) from None
+
+        annee = int(ligne["Year"])
+        return RawQuote(
+            metal=metal,
+            value=valeur,
+            unit=unite,
+            currency="USD",
+            # DERNIER jour de l'annee. Une moyenne annuelle ne peut pas etre
+            # connue avant la fin de la periode qu'elle resume ; la dater du
+            # 1er janvier la ferait exister avant ses propres donnees.
+            as_of=_dt.date(annee, 12, 31),
+            source=USGS_ATTRIBUTION,
+            reference_name=f"{serie.libelle}, moyenne annuelle {annee}",
+            basis=serie.basis,
+            note=(
+                f"MOYENNE ANNUELLE {annee}, pas une evaluation spot. "
+                f"Source dans le domaine public, redistribuable. "
+                f"Libelle USGS : {ligne['Statistics_detail']}"
+            ),
         )

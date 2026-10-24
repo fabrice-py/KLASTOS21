@@ -38,6 +38,12 @@ class PriceUnit(Enum):
     PER_KILOGRAM = ("USD/kg", KG_PER_TONNE)
     PER_POUND = ("USD/lb", LB_PER_TONNE)
     PER_TROY_OUNCE = ("USD/oz t", TROY_OZ_PER_TONNE)
+    #: Cents par livre. L'USGS cote le cuivre et l'aluminium dans cette
+    #: unite, et la confondre avec le dollar par livre fausse la
+    #: valorisation d'un facteur CENT. Elle existe donc comme unite a part
+    #: entiere, declaree et lue, plutot que par une division cachee dans un
+    #: fournisseur.
+    PER_POUND_CENT = ("USD cent/lb", LB_PER_TONNE / 100.0)
 
     def __init__(self, label: str, units_per_tonne: float) -> None:
         self.label = label

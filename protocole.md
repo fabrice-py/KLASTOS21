@@ -858,6 +858,58 @@ generis* des bases de données protège les recueils d'évaluations, et une
 valorisation fondée sur une source illicite n'est pas défendable devant un
 client.
 
+#### L'étage gratuit, et ce qu'il ne peut pas faire
+
+Recherche du 24 octobre 2026. L'outil devait pouvoir chiffrer un lot **sans
+attendre le fichier de prix du client**. Constat : **gratuit, quotidien et
+redistribuable n'existe pas** pour le cobalt et le lithium. C'est une
+propriété du marché, pas un manque d'outillage.
+
+| Source | Couvre | Fréquence | Coût | Redistribuable |
+|---|---|---|---|---|
+| Pink Sheet, Banque mondiale | Al, Cu, Ni | mensuel | gratuit | **oui**, avec attribution |
+| **USGS** Mineral Commodity Summaries | **Co, Li**, Ni, Cu, Al | annuel | gratuit | **oui**, CC0 1.0 |
+| Règlements CME | Co Rotterdam, Li CIF CJK | quotidien | gratuit à consulter | **non** |
+| Fastmarkets, Benchmark, SMM | tout, plus les payables | quotidien | payant | oui, sous licence |
+
+**L'USGS est la source retenue.** Œuvre du gouvernement fédéral américain,
+donc domaine public : cinq métaux dans un CSV lisible par machine, DOI
+10.5066/P1WKQ63T, téléchargé par `klastos usgs --rafraichir`. C'est le
+premier flux du projet qui cote le cobalt et le lithium sans abonnement.
+
+Ironie à déclarer : les prix de l'USGS sont eux-mêmes repris d'agences,
+S&P Global Platts pour le cobalt et l'aluminium, Benchmark Mineral
+Intelligence pour le lithium. L'USGS en publie la moyenne annuelle dans le
+domaine public. On obtient donc légalement la référence d'agence, **au prix
+de sa fraîcheur**.
+
+**Ce que cet étage ne peut pas faire, mesuré.** Moyenne annuelle USGS 2025
+du carbonate de lithium : 9 000 USD/t. Cotation Benchmark CIF Asie du
+2 septembre 2026 : 19 750 USD/t. **Un facteur 2,2**, trois causes cumulées —
+l'année, la base géographique, et un marché qui a pris plus de 100 % début
+2026. Le même fichier montre le lithium à 63 700 USD/t en 2022 contre 9 000
+en 2025, soit **un facteur 7 en trois ans**.
+
+En conséquence `UsgsProvider.is_production_source` vaut `False`, et une
+valorisation **opposable est refusée** sur ces prix. Le refus est le
+comportement voulu : l'étage gratuit sert au **criblage** d'un lot, jamais au
+contrat. Le mode démonstration donne la valeur indicative, et le document
+porte la mention.
+
+**Deux séries présentes et volontairement écartées.** Le manganèse est coté
+en dollars par tonne-unité de minerai (dmtu), pas par tonne de métal :
+4,50 USD en 2025, que la bande de plausibilité refuserait d'ailleurs.
+Convertir exigerait la teneur du minerai, que l'USGS ne donne pas. Le
+graphite naturel est coté en trois qualités de 470 à 2 600 USD/t, et aucune
+bande de plausibilité n'existe pour le carbone. Les deux sont déclarés avec
+leur raison dans `USGS_ECARTEES`, jamais devinés.
+
+**Une correction de fait.** Le message d'orientation du Pink Sheet affirmait
+que le cobalt et le lithium étaient « des marchés de gré à gré, sans
+cotation de bourse ». C'était vrai à l'écriture et ne l'est plus : le CME,
+le LME et le GFEX listent des contrats sur ces deux métaux depuis 2023. Le
+texte corrigé renvoie vers les trois voies, avec leur licence.
+
 ### L'unité de cotation n'est jamais devinée
 
 > **Une cotation sans unité déclarée est refusée.**

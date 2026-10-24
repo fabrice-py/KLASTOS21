@@ -623,9 +623,101 @@ def cmd_pink_sheet(args) -> int:
     for q in cotations:
         print(f"  {q.metal:3} {q.value:>12,.2f} USD/t   {q.reference_name}")
     print("\nMOYENNES MENSUELLES, pas des evaluations spot. Le cobalt, le "
-          "lithium, le\nmanganese et le graphite n'y figurent pas : ce sont "
-          "des marches de gre a gre.")
+          "lithium, le\nmanganese et le graphite n'y figurent pas. Pour le "
+          "cobalt et le lithium,\nvoir « klastos usgs » : moyennes "
+          "annuelles, gratuites et redistribuables.")
     print(f"Metaux couverts : {sorted(PINK_SHEET_METAUX)}")
+    return EXIT_OK
+
+
+def cmd_usgs(args) -> int:
+    """
+    Affiche - ou rafraichit - les moyennes annuelles de l'USGS.
+
+    DEUXIEME source gratuite et redistribuable du projet, et la premiere qui
+    couvre le COBALT et le LITHIUM. Oeuvre du gouvernement federal
+    americain, donc domaine public.
+
+    Ce sont des moyennes ANNUELLES : la valorisation opposable sera refusee
+    sur ces prix, et c'est voulu. Elles servent au criblage d'un lot sans
+    attendre le fichier de prix du client.
+    """
+    import json
+
+    from .providers import (USGS_ATTRIBUTION, USGS_ECARTEES, USGS_FICHIER,
+                            USGS_SERIES, USGS_URL, ProviderError,
+                            UsgsProvider)
+
+    chemin = pathlib.Path(args.fichier or USGS_FICHIER)
+    url = args.url or USGS_URL
+
+    if args.rafraichir:
+        # Le lien du CSV porte un condensat qui change a chaque
+        # republication. On interroge donc l'API de l'item pour l'obtenir,
+        # au lieu de coder une adresse qui mourra - erreur deja faite avec
+        # l'URL du Pink Sheet.
+        import urllib.error
+        import urllib.request
+
+        entete = {"User-Agent": "KLASTOS21"}
+        print(f"Interrogation de l'item : {url}")
+        try:
+            demande = urllib.request.Request(url, headers=entete)
+            with urllib.request.urlopen(demande, timeout=60) as reponse:
+                item = json.loads(reponse.read())
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            return _erreur(
+                f"item USGS injoignable : {e}\n"
+                f"       Verifiez le DOI 10.5066/P1WKQ63T sur usgs.gov, "
+                f"puis relancez avec --url."
+            )
+
+        fichiers = [f for f in item.get("files", [])
+                    if str(f.get("name", "")).lower().endswith(".csv")]
+        if not fichiers:
+            return _erreur(
+                "aucun CSV attache a l'item USGS. Le jeu de donnees a "
+                "change de forme."
+            )
+        cible = max(fichiers, key=lambda f: f.get("size", 0))
+        print(f"Telechargement : {cible['name']} "
+              f"({cible.get('size', 0):,} octets)")
+        try:
+            demande = urllib.request.Request(cible["url"], headers=entete)
+            with urllib.request.urlopen(demande, timeout=120) as reponse:
+                octets = reponse.read()
+        except (urllib.error.URLError, OSError) as e:
+            return _erreur(f"telechargement impossible : {e}")
+
+        if b"Commodity" not in octets[:4096]:
+            return _erreur(
+                "le fichier telecharge ne porte pas la colonne "
+                "« Commodity ». Le format de l'USGS a change."
+            )
+        chemin.parent.mkdir(parents=True, exist_ok=True)
+        chemin.write_bytes(octets)
+        print(f"Ecrit : {chemin}  ({len(octets):,} octets)")
+
+    try:
+        cotations = UsgsProvider(chemin, annee=args.annee, url=url).quotes()
+    except ProviderError as e:
+        return _erreur(str(e))
+
+    print(f"\n{USGS_ATTRIBUTION}")
+    print(f"Fichier : {chemin}\n")
+    for q in cotations:
+        par_tonne = q.to_metal_price().value_per_tonne
+        print(f"  {q.metal:3} {q.value:>12,.2f} {q.unit.label:<13} "
+              f"= {par_tonne:>11,.0f} USD/t   {q.reference_name}")
+
+    print("\nMOYENNES ANNUELLES, pas des evaluations spot. Une valorisation "
+          "OPPOSABLE sera\nREFUSEE sur ces prix : ils servent au criblage. "
+          "Mesure de l'ecart : le\ncarbonate de lithium vaut 9 000 USD/t en "
+          "moyenne 2025 contre 19 750 USD/t\nau comptant CIF Asie en "
+          "septembre 2026, soit un facteur 2,2.")
+    print(f"\nMetaux couverts : {sorted(USGS_SERIES)}")
+    for m, raison in USGS_ECARTEES.items():
+        print(f"  {m} ecarte : {raison}")
     return EXIT_OK
 
 
@@ -768,6 +860,29 @@ def build_parser(langue: str | None = None) -> argparse.ArgumentParser:
         help=i18n.t("cli.aide.rafraichir", lg),
     )
     ps.set_defaults(func=cmd_pink_sheet)
+
+    ug = sous.add_parser(
+        "usgs",
+        help=i18n.t("cli.cmd.usgs", lg),
+        description=i18n.t("cli.cmd.usgs_description", lg),
+    )
+    ug.add_argument(
+        "--fichier", metavar="FICHIER", default=None,
+        help=i18n.t("cli.aide.fichier", lg),
+    )
+    ug.add_argument(
+        "--url", metavar="URL", default=None,
+        help=i18n.t("cli.aide.url", lg),
+    )
+    ug.add_argument(
+        "--annee", type=int, metavar="N", default=None,
+        help=i18n.t("cli.aide.annee", lg),
+    )
+    ug.add_argument(
+        "--rafraichir", action="store_true",
+        help=i18n.t("cli.aide.rafraichir", lg),
+    )
+    ug.set_defaults(func=cmd_usgs)
 
     u = sous.add_parser(
         "ui", help=i18n.t("cli.cmd.ui", lg),

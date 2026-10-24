@@ -306,9 +306,9 @@ une cotation manquante dans une serie serait invisible.
 
 ## Pink Sheet : demontrable sans abonnement
 
-Le classeur mensuel de la Banque mondiale est la **seule source de prix
-gratuite et rediffusable** du projet. Elle rend KLASTOS21 demontrable sans
-aucun abonnement d'agence.
+Le classeur mensuel de la Banque mondiale est la **premiere** des deux
+sources de prix gratuites et rediffusables du projet. La seconde est l'USGS,
+decrite plus bas, et c'est elle qui apporte le cobalt et le lithium.
 
 ```powershell
 # telecharge le classeur, puis affiche les trois metaux
@@ -331,13 +331,83 @@ jamais un zero.
 | | |
 |---|---|
 | **Trois metaux, et trois seulement** | Aluminium, cuivre, nickel. Verifie sur l'edition d'octobre 2026. |
-| **Le cobalt et le lithium n'y sont pas** | Ni le manganese, ni le graphite. Ce sont des marches de gre a gre, sans cotation de bourse. Les demander leve `MissingPriceError` **avec l'adresse ou les trouver**, jamais un zero, qui traverserait toute la chaine sans qu'aucun controle le refuse. |
+| **Le cobalt et le lithium n'y sont pas** | Ni le manganese, ni le graphite. Les demander leve `MissingPriceError` **avec l'adresse ou les trouver**, jamais un zero, qui traverserait toute la chaine sans qu'aucun controle le refuse. Pour le cobalt et le lithium, l'adresse est desormais `klastos usgs`. |
 | **Moyennes mensuelles, pas du spot** | `is_production_source = False`. Le mois retenu figure dans la reference, dans la note et dans le libelle du jeu : une moyenne d'octobre ne s'oppose pas a une cargaison du 21 octobre. |
-| **Rediffusable** | `redistribution_licensed = True`, **seul flux du projet dans ce cas**. Un abonnement d'agence couvre l'usage interne, pas l'affichage dans un document remis a un tiers ; une donnee publique, si. Contrepartie : l'attribution « Banque mondiale, Commodity Price Data (Pink Sheet) » est portee dans la provenance et dans le rapport. |
+| **Rediffusable** | `redistribution_licensed = True`, l'un des deux flux du projet dans ce cas, avec l'USGS. Un abonnement d'agence couvre l'usage interne, pas l'affichage dans un document remis a un tiers ; une donnee publique, si. Contrepartie : l'attribution « Banque mondiale, Commodity Price Data (Pink Sheet) » est portee dans la provenance et dans le rapport. |
 
 C'est cette derniere ligne qui fait la difference pratique : la ou un prix
 d'agence fait **refuser** un rapport destine a un tiers, le Pink Sheet le
 laisse passer.
+
+## USGS : le cobalt et le lithium sans abonnement
+
+Le trou que l'outil portait depuis le debut : sans le fichier de prix du
+client, il ne pouvait pas chiffrer un lot, parce que les deux metaux qui
+font l'essentiel de la valeur d'une black mass n'etaient dans aucune source
+gratuite.
+
+L'USGS les publie tous les deux. Son travail est une **oeuvre du
+gouvernement federal americain**, donc domaine public, CC0 1.0 : aucune
+contrepartie, pas meme une attribution juridiquement exigible.
+
+```powershell
+# telecharge le CSV (3,2 Mo), puis affiche les cinq metaux
+klastos usgs --rafraichir
+
+# ensuite, lecture locale seule
+klastos usgs
+
+# une annee anterieure, pour relire une decision passee
+klastos usgs --annee 2022
+```
+
+| Metal | Serie retenue | 2025 | Converti |
+|---|---|---|---|
+| Co | LME cash | 15,00 USD/lb | 33 069 USD/t |
+| Li | carbonate qualite batterie | 9 000 USD/t | 9 000 USD/t |
+| Ni | LME cash | 15 000 USD/t | 15 000 USD/t |
+| Cu | LME grade A cash | 440 cents/lb | 9 700 USD/t |
+| Al | lingot marche americain | 180 cents/lb | 3 968 USD/t |
+
+Le lien du CSV porte un condensat qui change a chaque republication : le
+fournisseur **interroge l'API de l'item** pour l'obtenir, au lieu de coder
+une adresse qui mourra. C'est l'erreur deja faite avec l'URL du Pink Sheet.
+
+### Trois pieges, tous verifies par test
+
+| | |
+|---|---|
+| **Le fichier n'est pas en UTF-8** | Il porte des octets cp1252, dont un cadratin a l'octet 170. Le lire en UTF-8 leve `UnicodeDecodeError` des la premiere ligne. L'extrait de test reproduit le piege, sinon le test passerait sur une fixture plus propre que la realite. |
+| **Le cuivre et l'aluminium sont en CENTS par livre** | D'ou `PriceUnit.PER_POUND_CENT`. Les confondre avec des dollars par livre fausse d'un facteur **cent**, et dans le sens qui echappe a la bande de plausibilite : 4,40 USD/lb donne 9 700 USD/t, parfaitement dans la bande. |
+| **Le lithium est cote en CARBONATE** | `basis="Li2CO3"`, et `valuation.py` ramene au lithium contenu. Sans cette base, 9 000 USD/t de carbonate se liraient comme 9 000 USD/t de lithium metal : un facteur 5,3 par omission. |
+
+### Ce que cet etage ne peut pas faire
+
+Ce sont des **moyennes annuelles**. `is_production_source = False`, et une
+valorisation **opposable est refusee** sur ces prix.
+
+Mesure de l'ecart : la moyenne 2025 du carbonate de lithium vaut
+**9 000 USD/t**, quand la cotation Benchmark CIF Asie du 2 septembre 2026
+vaut **19 750 USD/t**. Un facteur 2,2. Le meme fichier donne 63 700 USD/t en
+2022, soit **un facteur 7 en trois ans**.
+
+L'etage gratuit sert donc au **criblage** d'un lot, jamais au contrat. Le
+mode demonstration donne la valeur indicative, et le document porte la
+mention.
+
+Ironie a declarer : les prix de l'USGS sont eux-memes repris d'agences,
+S&P Global Platts pour le cobalt, Benchmark pour le lithium. L'USGS en
+publie la moyenne annuelle dans le domaine public. On obtient donc
+legalement la reference d'agence, **au prix de sa fraicheur**.
+
+### Deux series ecartees, avec leur raison
+
+Le **manganese** est cote en dollars par tonne-unite de minerai (dmtu), pas
+par tonne de metal : 4,50 USD en 2025. Convertir exigerait la teneur du
+minerai, que l'USGS ne donne pas, et la bande de plausibilite refuserait la
+valeur brute. Le **graphite** est cote en trois qualites de 470 a
+2 600 USD/t, et `units.py` n'a aucune bande pour le carbone. Les deux sont
+declares dans `USGS_ECARTEES` avec leur motif, jamais devines.
 
 ## Conversion de devises
 
