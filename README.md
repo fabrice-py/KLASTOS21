@@ -400,6 +400,36 @@ S&P Global Platts pour le cobalt, Benchmark pour le lithium. L'USGS en
 publie la moyenne annuelle dans le domaine public. On obtient donc
 legalement la reference d'agence, **au prix de sa fraicheur**.
 
+### Le cobalt au mois, et son plafond
+
+La moyenne annuelle sous-estime lourdement le cobalt recent. Serie LME cash :
+
+| Source | Cobalt | Ecart |
+|---|---|---|
+| moyenne annuelle 2025 | 15,00 USD/lb | reference |
+| decembre 2025 | 23,31 USD/lb | +55 % |
+| **janvier 2026** | **25,05 USD/lb** | **+67 %** |
+
+```powershell
+klastos usgs --mois 202601 --rafraichir
+```
+
+**Le plafond est deja atteint, et il faut le savoir.** Le prix ne vit dans
+aucune table : il est dans un document Word EMBARQUE dans le classeur, et la
+lecture traverse cinq couches - xlsx, zip, docx, zip, XML. A partir de
+**fevrier 2026**, l'USGS a cesse d'embarquer ce document : les classeurs
+recents annoncent « includes 5 tables » au lieu de « includes an embedded
+Word document and 5 tables », et aucune de ces tables ne porte de prix.
+
+Le dernier mois lisible par machine est donc **janvier 2026**. Au-dela, seul
+le PDF porte le prix, et l'extraire d'une prose serait la devinette que ce
+projet refuse. Le lecteur echoue alors **bruyamment**, nomme la cause, et
+renvoie vers la moyenne annuelle.
+
+La periode est **lue dans le document**, jamais deduite du nom de fichier :
+un fichier renomme ne doit pas pouvoir dater une cotation de travers. Un
+test le verifie en renommant la fixture en « mis-209912 ».
+
 ### Deux series ecartees, avec leur raison
 
 Le **manganese** est cote en dollars par tonne-unite de minerai (dmtu), pas

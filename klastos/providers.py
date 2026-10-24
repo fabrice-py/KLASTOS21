@@ -28,6 +28,9 @@ from __future__ import annotations
 
 import csv
 import io as _io
+import re
+import xml.etree.ElementTree as _ET
+import zipfile
 import datetime as _dt
 import json
 import pathlib
@@ -1034,4 +1037,227 @@ class UsgsProvider:
                 f"Source dans le domaine public, redistribuable. "
                 f"Libelle USGS : {ligne['Statistics_detail']}"
             ),
+        )
+
+
+# ==========================================================================
+# USGS : prix MENSUEL du cobalt (Mineral Industry Surveys)
+# ==========================================================================
+#
+# POURQUOI, ET A QUEL PRIX
+# ------------------------
+# La moyenne ANNUELLE du MCS sous-estime lourdement le cobalt recent. Mesure
+# sur la serie LME cash :
+#
+#     moyenne annuelle 2025      15,00 USD/lb
+#     decembre 2025              23,31 USD/lb     +55 %
+#     janvier 2026               25,05 USD/lb     +67 %
+#
+# Sur le metal le plus cher du panier, un criblage fonde sur la moyenne
+# annuelle se trompe donc de deux tiers, dans le sens prudent - on
+# sous-estime, donc on perd des affaires plutot que de surpayer.
+#
+# CE QUE CE LECTEUR COUTE, ET IL FAUT LE LIRE AVANT DE S'EN SERVIR
+# ----------------------------------------------------------------
+# Le prix ne vit dans AUCUNE table. Il est dans un document Word EMBARQUE
+# dans le classeur, et la chaine de lecture traverse cinq couches : xlsx ->
+# zip -> docx embarque -> zip -> document.xml -> paragraphes -> expression
+# reguliere sur une table aplatie. C'est fragile par nature.
+#
+# ET LE PLAFOND EST DEJA ATTEINT. A partir de FEVRIER 2026, l'USGS a cesse
+# d'embarquer le document Word : les classeurs recents annoncent « includes
+# 5 tables » au lieu de « includes an embedded Word document and 5 tables »,
+# et aucune de ces cinq tables ne porte de prix. Le dernier mois lisible par
+# machine est donc JANVIER 2026. Les mois suivants n'existent qu'en PDF, et
+# extraire un prix d'une prose en PDF serait exactement la devinette que ce
+# projet refuse.
+#
+# Ce lecteur sert donc a une chose : obtenir le DERNIER point mensuel connu,
+# meilleur que la moyenne annuelle de 67 %, et echouer BRUYAMMENT sur les
+# mois ou l'USGS ne le publie plus. Si l'USGS reembarque un jour le
+# document, il refonctionne sans rien changer.
+
+#: Gabarit d'URL des Mineral Industry Surveys. Le classeur mensuel du
+#: cobalt s'y nomme « mis-AAAAMM-cobal.xlsx ».
+USGS_MIS_GABARIT = (
+    "https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/"
+    "production/s3fs-public/media/files/mis-{aaaamm}-cobal.xlsx"
+)
+
+#: Dernier mois ou l'USGS embarquait encore le document porteur du prix.
+#: Verifie en sondant les douze mois de 2026 : fevrier a juin existent mais
+#: sans document embarque, juillet et au-dela ne sont pas publies.
+USGS_MIS_DERNIER_MOIS = "2026-01"
+
+#: Les deux series du bulletin mensuel. La seconde est retenue par defaut :
+#: le spot americain porte une prime de marche interieur, la moyenne LME est
+#: la reference neutre, et c'est aussi celle que `USGS_SERIES` retient pour
+#: la moyenne annuelle - les deux chiffres restent donc comparables.
+USGS_MIS_SERIES = {
+    "lme": ("LME cash mean", "cobalt, moyenne LME cash"),
+    "spot_us": ("U.S. spot", "cobalt, spot americain"),
+}
+
+#: La DERNIERE somme en dollars de la ligne est le prix moyen. La colonne
+#: precedente porte une fourchette, parfois « Not available » - d'ou le
+#: choix de la derniere et non de la premiere.
+_MIS_MONTANT = re.compile(r"\$([\d,]+\.\d\d)")
+
+_MIS_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+class UsgsCobaltMensuel:
+    """
+    Prix mensuel du cobalt, lu dans le classeur des Mineral Industry Surveys.
+
+    Lire le commentaire en tete de section AVANT de s'en servir : la chaine
+    de lecture est fragile, et l'USGS a cesse de publier ce prix de maniere
+    lisible par machine apres janvier 2026.
+
+    Meme parti que les autres fournisseurs du projet : fichier LOCAL,
+    telechargement separe, echec bruyant.
+    """
+
+    name = "usgs_mis_cobalt"
+
+    #: Oeuvre du gouvernement federal americain, domaine public.
+    redistribution_licensed = True
+
+    #: Moyenne MENSUELLE. Meilleure que l'annuelle, toujours pas du spot.
+    is_production_source = False
+
+    def __init__(
+        self,
+        chemin: str | pathlib.Path,
+        *,
+        serie: str = "lme",
+    ) -> None:
+        if serie not in USGS_MIS_SERIES:
+            raise ProviderError(
+                f"serie {serie!r} inconnue. Disponibles : "
+                f"{sorted(USGS_MIS_SERIES)}."
+            )
+        self.chemin = pathlib.Path(chemin)
+        self.serie = serie
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def url(annee: int, mois: int) -> str:
+        """L'adresse du classeur d'un mois donne."""
+        return USGS_MIS_GABARIT.format(aaaamm=f"{annee}{mois:02d}")
+
+    # ------------------------------------------------------------------
+    def quotes(self, metaux: Iterable[str] | None = None) -> list[RawQuote]:
+        """La cotation du cobalt. Tout autre metal est refuse."""
+        voulus = list(metaux) if metaux is not None else ["Co"]
+        autres = [m for m in voulus if m != "Co"]
+        if autres:
+            raise MissingPriceError(
+                f"{autres} : ce bulletin ne porte que le cobalt. Pour les "
+                f"autres metaux, voir UsgsProvider."
+            )
+
+        periode, valeur = self._lire()
+        etiquette, libelle = USGS_MIS_SERIES[self.serie]
+        annee, mois = periode
+        # Dernier jour du mois : une moyenne mensuelle ne peut pas etre
+        # connue avant la fin de la periode qu'elle resume.
+        suivant = _dt.date(annee + (mois == 12), mois % 12 + 1, 1)
+        fin = suivant - _dt.timedelta(days=1)
+        return [RawQuote(
+            metal="Co",
+            value=valeur,
+            unit=PriceUnit.PER_POUND,
+            currency="USD",
+            as_of=fin,
+            source=USGS_ATTRIBUTION.replace(
+                "Mineral Commodity Summaries 2026",
+                "Mineral Industry Surveys"),
+            reference_name=f"{libelle}, moyenne {annee}-{mois:02d}",
+            note=(
+                f"MOYENNE MENSUELLE {annee}-{mois:02d}, pas une evaluation "
+                f"spot. Serie « {etiquette} ». Source dans le domaine "
+                f"public, redistribuable. L'USGS ne publie plus ce prix de "
+                f"maniere lisible par machine apres "
+                f"{USGS_MIS_DERNIER_MOIS}."
+            ),
+        )]
+
+    # ------------------------------------------------------------------
+    def _lire(self) -> tuple[tuple[int, int], float]:
+        if not self.chemin.exists():
+            raise ProviderError(
+                f"{self.chemin} absent. Telechargez un bulletin mensuel :\n"
+                f"       klastos usgs --mois AAAAMM --rafraichir"
+            )
+        try:
+            classeur = zipfile.ZipFile(self.chemin)
+        except zipfile.BadZipFile:
+            raise ProviderError(
+                f"{self.chemin.name} n'est pas un classeur XLSX."
+            ) from None
+
+        noms = [n for n in classeur.namelist()
+                if n.endswith("Microsoft_Word_Document.docx")]
+        if not noms:
+            raise ProviderError(
+                f"{self.chemin.name} ne porte aucun document embarque, donc "
+                f"aucun prix. A partir de fevrier 2026 l'USGS a cesse de "
+                f"l'embarquer : le dernier mois lisible par machine est "
+                f"{USGS_MIS_DERNIER_MOIS}, et les suivants n'existent qu'en "
+                f"PDF. Utilisez UsgsProvider pour la moyenne annuelle."
+            )
+
+        doc = zipfile.ZipFile(_io.BytesIO(classeur.read(noms[0])))
+        try:
+            xml = doc.read("word/document.xml").decode("utf-8")
+        except KeyError:
+            raise ProviderError(
+                f"{self.chemin.name} : document embarque illisible."
+            ) from None
+
+        racine = _ET.fromstring(xml)
+        paras = []
+        for p in racine.iter(_MIS_W + "p"):
+            t = "".join(n.text or "" for n in p.iter(_MIS_W + "t")).strip()
+            if t:
+                paras.append(t)
+
+        periode = self._periode(paras)
+        etiquette, _ = USGS_MIS_SERIES[self.serie]
+        for t in paras:
+            if t.startswith(etiquette):
+                montants = _MIS_MONTANT.findall(t)
+                if not montants:
+                    raise ProviderError(
+                        f"{self.chemin.name} : ligne « {etiquette} » sans "
+                        f"montant lisible : {t[:90]!r}"
+                    )
+                return periode, float(montants[-1].replace(",", ""))
+
+        raise ProviderError(
+            f"{self.chemin.name} : ligne « {etiquette} » introuvable. La "
+            f"mise en forme de l'USGS a change."
+        )
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _periode(paras: list[str]) -> tuple[int, int]:
+        """
+        L'annee et le mois, LUS dans le document et non deduits du nom de
+        fichier : un fichier renomme ne doit pas pouvoir dater une cotation
+        de travers.
+        """
+        MOIS = {
+            "january": 1, "february": 2, "march": 3, "april": 4,
+            "may": 5, "june": 6, "july": 7, "august": 8,
+            "september": 9, "october": 10, "november": 11, "december": 12,
+        }
+        for t in paras:
+            m = re.match(r"COBALT IN ([A-Z]+) (\d{4})", t.strip().upper())
+            if m and m[1].lower() in MOIS:
+                return int(m[2]), MOIS[m[1].lower()]
+        raise ProviderError(
+            "periode introuvable dans le document : aucun titre de la forme "
+            "« COBALT IN <MOIS> <ANNEE> »."
         )

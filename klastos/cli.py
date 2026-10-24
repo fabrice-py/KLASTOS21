@@ -630,6 +630,79 @@ def cmd_pink_sheet(args) -> int:
     return EXIT_OK
 
 
+def _usgs_mensuel(args) -> int:
+    """
+    Le prix MENSUEL du cobalt, bien meilleur que la moyenne annuelle.
+
+    Mesure sur la serie LME cash : moyenne annuelle 2025 a 15,00 USD/lb,
+    decembre 2025 a 23,31, janvier 2026 a 25,05. L'annuelle sous-estime donc
+    de 67 % le dernier point connu, sur le metal le plus cher du panier.
+
+    Plafond a connaitre : a partir de fevrier 2026 l'USGS n'embarque plus le
+    document qui portait le prix, et les mois suivants n'existent qu'en PDF.
+    Le lecteur echoue alors bruyamment, avec la raison.
+    """
+    from .providers import (USGS_MIS_DERNIER_MOIS, ProviderError,
+                            UsgsCobaltMensuel)
+
+    mois = str(args.mois).strip()
+    if len(mois) != 6 or not mois.isdigit():
+        return _erreur(
+            f"--mois attend AAAAMM, recu {args.mois!r}. Exemple : 202601."
+        )
+    annee, numero = int(mois[:4]), int(mois[4:])
+    if not 1 <= numero <= 12:
+        return _erreur(f"mois {numero} hors de 1-12.")
+
+    defaut = pathlib.Path("data") / f"mis-{mois}-cobal.xlsx"
+    chemin = pathlib.Path(args.fichier or defaut)
+    url = args.url or UsgsCobaltMensuel.url(annee, numero)
+
+    if args.rafraichir:
+        import urllib.error
+        import urllib.request
+
+        print(f"Telechargement : {url}")
+        chemin.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            demande = urllib.request.Request(
+                url, headers={"User-Agent": "KLASTOS21"})
+            with urllib.request.urlopen(demande, timeout=90) as reponse:
+                octets = reponse.read()
+        except (urllib.error.URLError, OSError) as e:
+            return _erreur(
+                f"telechargement impossible : {e}. Le bulletin de {mois} "
+                f"n'est peut-etre pas publie. Dernier mois avec un prix "
+                f"lisible par machine : {USGS_MIS_DERNIER_MOIS}."
+            )
+        if octets[:2] != b"PK":
+            return _erreur("le fichier telecharge n'est pas un classeur.")
+        chemin.write_bytes(octets)
+        print(f"Ecrit : {chemin}  ({len(octets):,} octets)")
+
+    try:
+        cotations = UsgsCobaltMensuel(chemin).quotes()
+    except ProviderError as e:
+        return _erreur(str(e))
+
+    print()
+    for q in cotations:
+        par_tonne = q.to_metal_price().value_per_tonne
+        print(f"  {q.metal:3} {q.value:>8,.2f} {q.unit.label:<8} "
+              f"= {par_tonne:>11,.0f} USD/t   {q.reference_name}")
+        print(f"      {q.source}")
+    print()
+    print("MOYENNE MENSUELLE, pas une evaluation spot : une valorisation")
+    print("opposable sera refusee. Mais elle vaut mieux que l'annuelle, qui")
+    print("sous-estime le cobalt de 67 % face a janvier 2026.")
+    print()
+    print("Dernier mois dont l'USGS publie le prix de maniere lisible par")
+    print(f"machine : {USGS_MIS_DERNIER_MOIS}. Au-dela, seul le PDF le "
+          f"porte, et")
+    print("l'extraire d'une prose serait une devinette.")
+    return EXIT_OK
+
+
 def cmd_usgs(args) -> int:
     """
     Affiche - ou rafraichit - les moyennes annuelles de l'USGS.
@@ -647,6 +720,11 @@ def cmd_usgs(args) -> int:
     from .providers import (USGS_ATTRIBUTION, USGS_ECARTEES, USGS_FICHIER,
                             USGS_SERIES, USGS_URL, ProviderError,
                             UsgsProvider)
+
+    # Le bulletin MENSUEL est un autre fichier et un autre lecteur : il
+    # porte le cobalt seul, et son prix vit dans un document embarque.
+    if args.mois:
+        return _usgs_mensuel(args)
 
     chemin = pathlib.Path(args.fichier or USGS_FICHIER)
     url = args.url or USGS_URL
@@ -877,6 +955,10 @@ def build_parser(langue: str | None = None) -> argparse.ArgumentParser:
     ug.add_argument(
         "--annee", type=int, metavar="N", default=None,
         help=i18n.t("cli.aide.annee", lg),
+    )
+    ug.add_argument(
+        "--mois", metavar="AAAAMM", default=None,
+        help=i18n.t("cli.aide.mois", lg),
     )
     ug.add_argument(
         "--rafraichir", action="store_true",

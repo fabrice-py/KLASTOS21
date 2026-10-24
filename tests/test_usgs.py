@@ -39,7 +39,8 @@ import pytest
 
 from klastos.market import MissingPriceError, StalePriceError
 from klastos.providers import (USGS_ECARTEES, USGS_SERIES, ProviderError,
-                              UsgsProvider, build_price_set)
+                               UsgsCobaltMensuel, UsgsProvider,
+                               build_price_set)
 from klastos.service import Demande, analyser, charger_termes
 from klastos.units import (ImplausiblePriceError, LB_PER_TONNE, PriceUnit,
                            check_plausible)
@@ -347,3 +348,161 @@ def test_la_note_de_chaque_cotation_dit_que_c_est_une_moyenne(source):
         assert "CC0" in q.source, (
             "la licence doit figurer dans la source : c'est elle qui "
             "autorise la redistribution")
+
+
+# ==========================================================================
+# 4. Le prix MENSUEL du cobalt
+# ==========================================================================
+#
+# Pourquoi il existe : la moyenne annuelle sous-estime lourdement le cobalt
+# recent. Serie LME cash, moyenne 2025 a 15,00 USD/lb contre janvier 2026 a
+# 25,05, soit +67 % sur le metal le plus cher du panier.
+#
+# Ce qu'il coute : le prix ne vit dans aucune table. Il est dans un document
+# Word EMBARQUE dans le classeur, et la lecture traverse cinq couches.
+#
+# Son plafond : a partir de FEVRIER 2026, l'USGS n'embarque plus ce
+# document. Le dernier mois lisible par machine est janvier 2026. Les tests
+# ci-dessous figent les deux faits - ce que le lecteur sait faire, et ou il
+# s'arrete.
+
+MENSUEL = pathlib.Path("data/exemples/mis-202601-cobal.xlsx")
+
+#: Valeurs RECOPIEES du bulletin de janvier 2026, en dollars par livre.
+JANVIER_2026 = {"lme": 25.05, "spot_us": 30.64}
+
+
+def test_le_bulletin_mensuel_est_versionne():
+    assert MENSUEL.exists(), f"{MENSUEL} absent"
+
+
+@pytest.mark.parametrize("serie,attendu", sorted(JANVIER_2026.items()))
+def test_chaque_serie_mensuelle_donne_sa_valeur(serie, attendu):
+    q = UsgsCobaltMensuel(MENSUEL, serie=serie).quotes()[0]
+    assert q.metal == "Co"
+    assert q.value == pytest.approx(attendu)
+    assert q.unit is PriceUnit.PER_POUND
+
+
+def test_la_serie_par_defaut_est_la_moyenne_lme():
+    """
+    Choix declare : le spot americain porte une prime de marche interieur,
+    la moyenne LME est la reference neutre. C'est aussi la serie que la
+    moyenne annuelle retient, donc les deux chiffres restent comparables.
+    """
+    assert UsgsCobaltMensuel(MENSUEL).quotes()[0].value == pytest.approx(
+        JANVIER_2026["lme"])
+
+
+def test_le_mensuel_vaut_bien_mieux_que_l_annuel():
+    """
+    LE chiffre qui justifie ce lecteur, et il est mesure sur les deux
+    sources du depot. Un criblage sur la moyenne annuelle se trompe de deux
+    tiers sur le cobalt, dans le sens prudent.
+    """
+    annuel = UsgsProvider(EXTRAIT).quotes(["Co"])[0].value
+    mensuel = UsgsCobaltMensuel(MENSUEL).quotes()[0].value
+    assert annuel == pytest.approx(15.0)
+    ecart = mensuel / annuel - 1.0
+    assert ecart > 0.5, (
+        f"l'ecart annuel/mensuel est tombe a {100 * ecart:.0f} % : si le "
+        f"mensuel n'apporte plus rien, ce lecteur fragile ne se justifie "
+        f"plus")
+
+
+def test_la_date_est_le_dernier_jour_du_mois():
+    q = UsgsCobaltMensuel(MENSUEL).quotes()[0]
+    assert q.as_of == dt.date(2026, 1, 31)
+
+
+def test_la_periode_est_lue_dans_le_document_pas_dans_le_nom(tmp_path):
+    """
+    Un fichier renomme ne doit pas pouvoir dater une cotation de travers.
+    La periode vient du titre « COBALT IN JANUARY 2026 » porte par le
+    document, jamais du nom de fichier.
+    """
+    menteur = tmp_path / "mis-209912-cobal.xlsx"
+    menteur.write_bytes(MENSUEL.read_bytes())
+    q = UsgsCobaltMensuel(menteur).quotes()[0]
+    assert q.as_of == dt.date(2026, 1, 31), (
+        "la date a suivi le nom de fichier au lieu du contenu")
+
+
+def test_un_mois_sans_document_embarque_echoue_bruyamment(tmp_path):
+    """
+    Le plafond, et il est deja atteint. A partir de fevrier 2026 l'USGS
+    publie « includes 5 tables » au lieu de « includes an embedded Word
+    document and 5 tables », et aucune de ces tables ne porte de prix.
+
+    Le lecteur doit alors dire POURQUOI et vers quoi se rabattre, pas rendre
+    un zero ni une valeur de l'annee precedente.
+    """
+    import zipfile
+
+    # On reconstruit le classeur sans son document embarque : c'est
+    # exactement la forme des bulletins de fevrier 2026 et apres.
+    ampute = tmp_path / "sans_document.xlsx"
+    source = zipfile.ZipFile(MENSUEL)
+    with zipfile.ZipFile(ampute, "w") as sortie:
+        for info in source.infolist():
+            if "Microsoft_Word_Document.docx" in info.filename:
+                continue
+            sortie.writestr(info, source.read(info.filename))
+
+    with pytest.raises(ProviderError) as capture:
+        UsgsCobaltMensuel(ampute).quotes()
+    message = str(capture.value)
+    assert "fevrier 2026" in message
+    assert "UsgsProvider" in message, (
+        "le message doit nommer le repli, pas seulement constater l'echec")
+
+
+def test_un_fichier_absent_nomme_la_commande():
+    with pytest.raises(ProviderError) as capture:
+        UsgsCobaltMensuel("data/exemples/inexistant.xlsx").quotes()
+    assert "--mois" in str(capture.value)
+
+
+def test_un_fichier_qui_n_est_pas_un_classeur_est_refuse(tmp_path):
+    f = tmp_path / "pas_un_zip.xlsx"
+    f.write_text("bonjour", encoding="utf-8")
+    with pytest.raises(ProviderError) as capture:
+        UsgsCobaltMensuel(f).quotes()
+    assert "XLSX" in str(capture.value)
+
+
+def test_une_serie_inconnue_est_refusee():
+    with pytest.raises(ProviderError) as capture:
+        UsgsCobaltMensuel(MENSUEL, serie="inventee")
+    assert "lme" in str(capture.value)
+
+
+def test_ce_bulletin_ne_porte_que_le_cobalt():
+    with pytest.raises(MissingPriceError) as capture:
+        UsgsCobaltMensuel(MENSUEL).quotes(["Li"])
+    assert "UsgsProvider" in str(capture.value)
+
+
+def test_le_mensuel_reste_redistribuable_et_non_opposable():
+    source = UsgsCobaltMensuel(MENSUEL)
+    assert source.redistribution_licensed is True
+    assert source.is_production_source is False
+
+
+def test_la_note_mensuelle_annonce_son_plafond():
+    """
+    Un operateur qui lit la note doit apprendre que la serie s'arrete, sans
+    avoir a lire le code.
+    """
+    from klastos.providers import USGS_MIS_DERNIER_MOIS
+
+    q = UsgsCobaltMensuel(MENSUEL).quotes()[0]
+    assert "MOYENNE MENSUELLE" in q.note
+    assert USGS_MIS_DERNIER_MOIS in q.note
+    assert "Mineral Industry Surveys" in q.source
+
+
+def test_l_adresse_d_un_mois_se_construit():
+    url = UsgsCobaltMensuel.url(2026, 1)
+    assert "mis-202601-cobal.xlsx" in url
+    assert url.startswith("https://")

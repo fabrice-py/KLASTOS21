@@ -1028,6 +1028,15 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "deliberate. They serve to price a lot without waiting for "
               "the client's price file.",
     },
+    "cli.aide.mois": {
+        "fr": "bulletin MENSUEL du cobalt, au format AAAAMM (exemple : "
+              "202601). Plus récent que la moyenne annuelle, mais l'USGS a "
+              "cessé de publier ce prix de façon lisible par machine après "
+              "janvier 2026",
+        "en": "MONTHLY cobalt bulletin, as YYYYMM (example: 202601). More "
+              "recent than the annual average, but the USGS stopped "
+              "publishing this price machine-readably after January 2026",
+    },
     "cli.aide.annee": {
         "fr": "année de la moyenne voulue (défaut : la dernière renseignée)",
         "en": "year of the average wanted (default: the latest on file)",

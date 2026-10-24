@@ -896,6 +896,16 @@ comportement voulu : l'étage gratuit sert au **criblage** d'un lot, jamais au
 contrat. Le mode démonstration donne la valeur indicative, et le document
 porte la mention.
 
+**Le cobalt mensuel, et pourquoi il s'arrête.** La moyenne annuelle
+sous-estime le cobalt de **67 %** face à janvier 2026 (15,00 contre
+25,05 USD/lb, série LME cash). Le prix mensuel est donc lu quand il existe,
+par `klastos usgs --mois`. Mais il ne vit dans aucune table : il est dans un
+document Word embarqué dans le classeur, et **l'USGS a cessé de l'embarquer
+en février 2026**. Le dernier mois lisible par machine est janvier 2026 ;
+au-delà, seul le PDF le porte, et extraire un prix d'une prose serait la
+devinette que ce protocole interdit. Le lecteur échoue alors bruyamment et
+renvoie vers la moyenne annuelle.
+
 **Deux séries présentes et volontairement écartées.** Le manganèse est coté
 en dollars par tonne-unité de minerai (dmtu), pas par tonne de métal :
 4,50 USD en 2025, que la bande de plausibilité refuserait d'ailleurs.
