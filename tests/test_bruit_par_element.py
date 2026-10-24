@@ -368,7 +368,7 @@ def test_le_protocole_ne_pretend_plus_que_tout_est_non_valide(protocole):
     # et qu'elle distingue les trois parametres.
     assert "validated=True" in section, (
         "la section doit dire que le modele porte validated=True")
-    assert "sourcé — LNE-LiB01" in section, (
+    assert "sourcé : LNE-LiB01" in section, (
         "rel_sigma doit y etre declare source")
     assert section.count("à valider") == 2, (
         f"deux parametres restent a valider, la section en annonce "

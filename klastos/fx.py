@@ -232,7 +232,7 @@ class Conversion:
             f"par {chemin}"
         )
         if not self.plausibilite_verifiee:
-            mention += (" — bande de plausibilite NON VERIFIEE : la chaine de "
+            mention += (". Bande de plausibilite NON VERIFIEE : la chaine de "
                         "conversion ne produit aucune valeur en "
                         f"{DEVISE_DES_BANDES}")
         return mention

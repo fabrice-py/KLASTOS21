@@ -1,4 +1,4 @@
-﻿Element,Valeur,Commentaire — colonne ignoree par le parseur
+﻿Element,Valeur,Commentaire (colonne ignoree par le parseur)
 Echantillon,BM-2026-0001,"Identifiant du lot. Non lu par le modele, conserve pour la tracabilite du document."
 Li (%),3.28,REQUIS. Le lithium porte une large part de la valeur et contraint la deconvolution. Non mesurable par XRF : exiger une ICP-OES ou une absorption atomique apres mise en solution.
 Ni (%),16.20,REQUIS. Element de cathode.

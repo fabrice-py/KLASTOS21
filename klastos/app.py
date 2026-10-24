@@ -283,7 +283,7 @@ def _page_analyse(reglages: dict) -> None:
                                        reglages["separateur"])
         except Exception as e:
             titre, detail = message_de_refus(e)
-            st.error(f"**{titre}** — {detail}")
+            st.error(f"**{titre}** : {detail}")
             return
 
         with st.expander(T("ui.import.lu")):
@@ -373,7 +373,7 @@ def _page_analyse(reglages: dict) -> None:
                 st.session_state["analyse"] = None
                 titre, detail = message_de_refus(e)
                 with droite:
-                    st.error(f"**{titre}** — {detail}")
+                    st.error(f"**{titre}** : {detail}")
 
     analyse = st.session_state.get("analyse")
     with droite:
@@ -451,7 +451,8 @@ def _vue_ensemble(a: Analyse) -> None:
             T("ui.tuile.par_tonne", devise=v.currency), "prix"),
             unsafe_allow_html=True)
     else:
-        c4.markdown(_tuile(T("ui.tuile.prix_max"), "—",
+        c4.markdown(_tuile(T("ui.tuile.prix_max"),
+                           T("ui.tuile.sans_valeur"),
                            T("ui.tuile.sans_prix")),
                     unsafe_allow_html=True)
 
@@ -738,7 +739,7 @@ def _source_fichier() -> None:
                                                             marche)
             except Exception as e:
                 titre, detail = message_de_refus(e)
-                st.error(f"**{titre}** — {detail}")
+                st.error(f"**{titre}** : {detail}")
 
 
 def _source_agence() -> None:
@@ -770,7 +771,7 @@ def _recuperer_prix(source: str, licence: bool, marche: str) -> None:
         cotations = flux.quotes()
         st.session_state["prix"] = build_price_set(
             cotations,
-            label=f"{source} du {cotations[0].as_of.isoformat()} — {etat}",
+            label=f"{source} du {cotations[0].as_of.isoformat()}, {etat}",
             is_production_source=True, origin=source,
             redistribution_licensed=licence)
         if hasattr(flux, "payables"):
@@ -782,9 +783,9 @@ def _recuperer_prix(source: str, licence: bool, marche: str) -> None:
                 source=T("ui.prix.releve_auto", source=source),
                 validated=True)
     except CredentialsMissing as e:
-        st.error(f"**{T("ui.prix.identifiants_absents")}** — {e}")
+        st.error(f"**{T("ui.prix.identifiants_absents")}** : {e}")
     except (FeedError, ProviderError, ImplausiblePriceError) as e:
-        st.error(f"**{source}** — {e}")
+        st.error(f"**{source}** : {e}")
 
 
 # ==========================================================================
@@ -828,7 +829,7 @@ def _page_historique(reglages: dict) -> None:
 
         choix = st.selectbox(
             T("ui.histo.ressortir"), entrees,
-            format_func=lambda e: f"#{e.id} — {e.lot_id} — "
+            format_func=lambda e: f"#{e.id} | {e.lot_id} | "
                                   f"{e.analyse_le:%Y-%m-%d %H:%M}")
         if choix is None:
             return
@@ -843,7 +844,7 @@ def _page_historique(reglages: dict) -> None:
                 st.success(T("ui.histo.rejoue"))
             except Exception as e:
                 titre, detail = message_de_refus(e)
-                st.error(f"**{titre}** — {detail}")
+                st.error(f"**{titre}** : {detail}")
     finally:
         cx.close()
 

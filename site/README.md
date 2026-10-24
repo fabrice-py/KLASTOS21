@@ -11,7 +11,7 @@ python site/construire.py
 ```
 
 Écrit quatorze fichiers dans `site/public/`. Pour voir le résultat, ouvrir
-`site/public/index.html` — la racine redirige vers la langue par défaut.
+`site/public/index.html`. La racine redirige vers la langue par défaut.
 
 Un autre dossier de sortie :
 
@@ -31,7 +31,7 @@ python site/construire.py --sortie chemin/vers/dossier
 
 **Le site est achromatique partout.** Texte, navigation, cartes, boutons :
 tout est en encre, gris et filets de 1 px. Les quatre couleurs de KLASTOS21
-n'apparaissent que là où elles mesurent quelque chose — cobalt pour une
+n'apparaissent que là où elles mesurent quelque chose : cobalt pour une
 grandeur déterminée, ambre pour une grandeur mal déterminée, rouille pour un
 domaine compatible, vert pour un bouclage accepté.
 
@@ -66,7 +66,7 @@ python -m pytest tests/test_site.py -q
 Le test qui mord le plus est
 `test_aucun_texte_francais_ne_fuit_dans_les_pages_anglaises` : pour chaque
 clé dont les deux langues diffèrent, le texte français ne doit apparaître
-dans aucune page anglaise, ni l'inverse. Il attrape le défaut réel —
+dans aucune page anglaise, ni l'inverse. Il attrape le défaut réel,
 un appel à `t()` qui oublie son argument de langue et retombe sur le
 français par défaut.
 

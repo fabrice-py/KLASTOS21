@@ -114,6 +114,33 @@ def test_une_traduction_identique_est_declaree_ou_refusee():
         f"{sorted(IDENTIQUES_ADMISES - coincident)}")
 
 
+#: Voir `tests/test_i18n.py` : le cadratin est banni des textes affiches de
+#: tout le projet. Le site est le troisieme support, il porte donc le meme
+#: garde.
+CARACTERE_BANNI = "\u2014"      # le cadratin, en echappement
+
+
+def test_aucun_texte_du_site_ne_porte_de_cadratin():
+    """
+    Garde typographique, et il porte aussi sur les PAGES generees, pas
+    seulement sur le catalogue : un gabarit pourrait en introduire un sans
+    passer par une cle.
+    """
+    fautifs = [
+        f"{cle} [{lg}]"
+        for cle, entree in contenu.TEXTES.items()
+        for lg in contenu.LANGUES
+        if CARACTERE_BANNI in entree[lg]
+    ]
+    assert not fautifs, f"cadratin dans le contenu : {fautifs[:6]}"
+
+
+def test_aucune_page_generee_ne_porte_de_cadratin(site):
+    for langue, page, html in _pages(site):
+        assert CARACTERE_BANNI not in html, (
+            f"{langue}/{page} : un gabarit introduit un cadratin")
+
+
 def test_une_cle_absente_donne_un_message_lisible():
     """
     Meme defaut que `i18n.CleInconnue` corrigeait : un KeyError affiche son
@@ -295,7 +322,11 @@ def test_chaque_page_porte_un_titre_et_une_description(site):
     for langue, page, html in _pages(site):
         titre = contenu.t(f"{page}.titre_onglet", langue)
         assert "<title>" in html, f"{langue}/{page} : pas de titre"
-        assert titre.split(" —")[0] in _lisible(html), (
+        # Le titre joint la marque et le sujet par « | », separateur
+        # que le depot emploie deja dans `Analyse.resume()`. On ne
+        # verifie que le premier segment : il suffit a identifier la
+        # page, et le second varie avec la langue.
+        assert titre.split(" | ")[0] in _lisible(html), (
             f"{langue}/{page}")
         assert 'name="description"' in html, f"{langue}/{page}"
 

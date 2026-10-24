@@ -87,8 +87,8 @@ TEXTES: dict[str, dict[str, str]] = {
     # Accueil
     # ================================================================
     "index.titre_onglet": {
-        "fr": "KLASTOS21 — Analyse prédictive de black mass",
-        "en": "KLASTOS21 — Predictive analysis of black mass"},
+        "fr": "KLASTOS21 | Analyse prédictive de black mass",
+        "en": "KLASTOS21 | Predictive analysis of black mass"},
     "index.description": {
         "fr": "KLASTOS21 lit un bulletin d'analyse de black mass et "
               "distingue ce que la donnée détermine de ce qu'elle ne "
@@ -104,13 +104,13 @@ TEXTES: dict[str, dict[str, str]] = {
         "en": "A figure you can stand behind, or nothing at all."},
     "index.chapeau": {
         "fr": "KLASTOS21 lit un bulletin d'analyse de black mass et dit ce "
-              "que la donnée porte — puis ce qu'elle ne porte pas. Une "
+              "que la donnée porte, puis ce qu'elle ne porte pas. Une "
               "grandeur déterminée sort en trait fin. Une grandeur que le "
               "bulletin ne contraint pas sort en bande. Et quand le "
               "bouclage de masse ne tient pas, l'outil refuse d'éditer le "
               "rapport.",
         "en": "KLASTOS21 reads a black mass assay bulletin and states what "
-              "the data carries — then what it does not. A determined "
+              "the data carries, then what it does not. A determined "
               "quantity comes out as a thin line. A quantity the bulletin "
               "fails to constrain comes out as a band. And when mass "
               "closure does not hold, the tool refuses to issue the report."},
@@ -148,10 +148,10 @@ TEXTES: dict[str, dict[str, str]] = {
         "en": "LFP phase"},
     "index.figure.legende": {
         "fr": "Trait fin : grandeur déterminée. Bande : domaine compatible "
-              "avec les mesures — toute valeur de la bande explique le "
+              "avec les mesures. Toute valeur de la bande explique le "
               "bulletin aussi bien qu'une autre.",
         "en": "Thin line: determined quantity. Band: domain compatible with "
-              "the measurements — every value in the band explains the "
+              "the measurements. Every value in the band explains the "
               "bulletin just as well as any other."},
 
     # --- la trichotomie ---
@@ -223,8 +223,8 @@ TEXTES: dict[str, dict[str, str]] = {
               "thin line and a compatible domain is a wide band. That "
               "distinction is precisely what KLASTOS21 sells."},
     "index.refus.source": {
-        "fr": "klastos/render_html.py — docstring du module",
-        "en": "klastos/render_html.py — module docstring"},
+        "fr": "klastos/render_html.py, docstring du module",
+        "en": "klastos/render_html.py, module docstring"},
 
     # --- ce qui reste opposable ---
     "index.ferme.surtitre": {
@@ -243,28 +243,28 @@ TEXTES: dict[str, dict[str, str]] = {
               "manquant lèverait chacune, et a montré que le lithium seul "
               "rendait trois phases supplémentaires identifiables. Les sept "
               "totaux élémentaires restaient les seules grandeurs "
-              "opposables — et elles suffisaient à négocier.",
+              "opposables, et elles suffisaient à négocier.",
         "en": "This is the kind of verdict an obliging tool never gives. "
               "The bulletin examined showed a degeneracy of 5: five "
               "composition directions the measurements do not separate. "
               "KLASTOS21 named them, said which missing assay would lift "
               "each one, and showed that lithium alone made three further "
               "phases identifiable. The seven elemental totals remained the "
-              "only binding quantities — and they were enough to trade on."},
+              "only binding quantities, and they were enough to trade on."},
     "index.ferme.f1": {
-        "fr": "<b>Dégénérescence 5</b> — cinq directions non séparées par "
+        "fr": "<b>Dégénérescence 5</b> : cinq directions non séparées par "
               "les mesures, chacune nommée",
-        "en": "<b>Degeneracy 5</b> — five directions not separated by the "
+        "en": "<b>Degeneracy 5</b>: five directions not separated by the "
               "measurements, each one named"},
     "index.ferme.f2": {
-        "fr": "<b>Chaque dosage ajouté achète exactement 1 rang</b> — donc "
+        "fr": "<b>Chaque dosage ajouté achète exactement 1 rang</b>, donc "
               "l'outil vous dit lequel commander en premier",
-        "en": "<b>Each added assay buys exactly 1 rank</b> — so the tool "
+        "en": "<b>Each added assay buys exactly 1 rank</b>, so the tool "
               "tells you which one to order first"},
     "index.ferme.f3": {
-        "fr": "<b>Sept totaux élémentaires fermes</b> — les seules "
+        "fr": "<b>Sept totaux élémentaires fermes</b> : les seules "
               "grandeurs opposables sur ce lot",
-        "en": "<b>Seven firm elemental totals</b> — the only binding "
+        "en": "<b>Seven firm elemental totals</b>: the only binding "
               "quantities on this lot"},
 
     # --- attestations ---
@@ -292,8 +292,8 @@ TEXTES: dict[str, dict[str, str]] = {
     # La méthode
     # ================================================================
     "methode.titre_onglet": {
-        "fr": "La méthode — KLASTOS21",
-        "en": "Method — KLASTOS21"},
+        "fr": "La méthode | KLASTOS21",
+        "en": "Method | KLASTOS21"},
     "methode.description": {
         "fr": "Identifiabilité, bouclage de masse, dégénérescence : "
               "comment KLASTOS21 décide ce qu'il peut affirmer.",
@@ -341,14 +341,14 @@ TEXTES: dict[str, dict[str, str]] = {
               "voulez des proportions de phases. Plusieurs jeux de phases "
               "très différents peuvent produire exactement les mêmes "
               "totaux. KLASTOS21 calcule combien de directions restent "
-              "libres — c'est la dégénérescence — et les nomme. Une "
+              "libres (c'est la dégénérescence) et les nomme. Une "
               "direction libre du type « carbone total seul » vous dit "
               "immédiatement quel dosage commander.",
         "en": "This is the identifiability question, and it is the heart of "
               "the tool. A bulletin gives elemental totals; you want phase "
               "proportions. Several very different sets of phases can "
               "produce exactly the same totals. KLASTOS21 computes how many "
-              "directions remain free — that is the degeneracy — and names "
+              "directions remain free (that is the degeneracy) and names "
               "them. A free direction of the form \"total carbon alone\" "
               "tells you at once which assay to order."},
 
@@ -403,8 +403,8 @@ TEXTES: dict[str, dict[str, str]] = {
     # Un rapport réel
     # ================================================================
     "rapport.titre_onglet": {
-        "fr": "Un rapport réel — KLASTOS21",
-        "en": "A real report — KLASTOS21"},
+        "fr": "Un rapport réel | KLASTOS21",
+        "en": "A real report | KLASTOS21"},
     "rapport.description": {
         "fr": "Le rapport produit sur un lot de black mass réel, avec son "
               "verdict d'identifiabilité et ses refus.",
@@ -462,7 +462,7 @@ TEXTES: dict[str, dict[str, str]] = {
         "en": "What the tool answered to \"what should I order?\""},
     "rapport.manque.texte": {
         "fr": "Les cinq directions libres portaient des noms exploitables. "
-              "Deux désignaient un seul élément chacune — le carbone total "
+              "Deux désignaient un seul élément chacune : le carbone total "
               "et le PVDF. Les trois autres mélangeaient NMC et NCA, ce qui "
               "veut dire qu'aucune mesure du bulletin ne les distingue. "
               "Chaque dosage ajouté levait exactement une direction, et le "
@@ -470,7 +470,7 @@ TEXTES: dict[str, dict[str, str]] = {
               "identifiables. L'ordre de commande en découlait sans "
               "discussion : lithium d'abord.",
         "en": "The five free directions had usable names. Two pointed at a "
-              "single element each — total carbon and PVDF. The other three "
+              "single element each: total carbon and PVDF. The other three "
               "mixed NMC and NCA, which means no measurement in the "
               "bulletin separates them. Each added assay lifted exactly one "
               "direction, and lithium alone made three further phases "
@@ -501,8 +501,8 @@ TEXTES: dict[str, dict[str, str]] = {
     # Prix et sources
     # ================================================================
     "prix.titre_onglet": {
-        "fr": "Prix et sources — KLASTOS21",
-        "en": "Prices and sources — KLASTOS21"},
+        "fr": "Prix et sources | KLASTOS21",
+        "en": "Prices and sources | KLASTOS21"},
     "prix.description": {
         "fr": "D'où viennent les cotations, à quelle date, et ce que leur "
               "licence autorise.",
@@ -588,19 +588,19 @@ TEXTES: dict[str, dict[str, str]] = {
         "fr": "Les cotations et les taux utilisés sont enregistrés avec "
               "leur date. Un rapport émis il y a six mois peut donc être "
               "relu avec les prix de l'époque, et non avec ceux "
-              "d'aujourd'hui — ce qui est la seule façon honnête de "
+              "d'aujourd'hui, ce qui est la seule façon honnête de "
               "réexaminer une décision passée.",
         "en": "The quotations and rates used are recorded with their date. "
               "A report issued six months ago can therefore be re-read with "
-              "the prices of the time, not today's — which is the only "
+              "the prices of the time, not today's, which is the only "
               "honest way to revisit a past decision."},
 
     # ================================================================
     # Nos missions
     # ================================================================
     "missions.titre_onglet": {
-        "fr": "Nos missions — KLASTOS21",
-        "en": "Our mission — KLASTOS21"},
+        "fr": "Nos missions | KLASTOS21",
+        "en": "Our mission | KLASTOS21"},
     "missions.description": {
         "fr": "Pourquoi un outil qui refuse de répondre vaut mieux qu'un "
               "outil qui répond toujours.",
@@ -691,8 +691,8 @@ TEXTES: dict[str, dict[str, str]] = {
     # Contact
     # ================================================================
     "contact.titre_onglet": {
-        "fr": "Contact — KLASTOS21",
-        "en": "Contact — KLASTOS21"},
+        "fr": "Contact | KLASTOS21",
+        "en": "Contact | KLASTOS21"},
     "contact.description": {
         "fr": "Faire analyser un bulletin, ou poser une question sur la "
               "méthode.",
@@ -707,11 +707,11 @@ TEXTES: dict[str, dict[str, str]] = {
     "contact.chapeau": {
         "fr": "La façon la plus rapide de juger l'outil est de lui donner "
               "un de vos lots. Vous recevrez le rapport complet, y compris "
-              "s'il conclut que vos données ne suffisent pas — c'est "
+              "s'il conclut que vos données ne suffisent pas. C'est "
               "d'ailleurs le cas le plus instructif.",
         "en": "The fastest way to judge the tool is to give it one of your "
               "own lots. You will get the full report, including if it "
-              "concludes that your data is not enough — which is in fact "
+              "concludes that your data is not enough, which is in fact "
               "the most instructive case."},
 
     "contact.quoi.titre": {
@@ -724,8 +724,8 @@ TEXTES: dict[str, dict[str, str]] = {
               "do not need to be normalised."},
     "contact.quoi.f2": {
         "fr": "<b>L'unité des dosages</b>, si elle n'est pas dans le "
-              "fichier — pourcentage, ppm ou g/t.",
-        "en": "<b>The assay unit</b>, if it is not in the file — percent, "
+              "fichier : pourcentage, ppm ou g/t.",
+        "en": "<b>The assay unit</b>, if it is not in the file: percent, "
               "ppm or g/t."},
     "contact.quoi.f3": {
         "fr": "<b>La provenance du lot</b>, si vous souhaitez un rapport "

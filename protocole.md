@@ -1,4 +1,4 @@
-# PROTOCOLE MÉTHODOLOGIQUE — KLASTOS21 v0
+# PROTOCOLE MÉTHODOLOGIQUE KLASTOS21 v0
 
 Ce document engage KLASTOS21 sur ce que l'outil sait, ce qu'il ne sait pas,
 et ce qu'il s'interdit d'affirmer. Il est destiné à accompagner tout rapport
@@ -43,9 +43,9 @@ elle annonçait `validated=False` pour l'ensemble, alors que le code porte
 
 | Paramètre | Valeur | Statut |
 |---|---|---|
-| `rel_sigma` | 6 % | **sourcé** — LNE-LiB01, certifié ISO 33405 |
-| `abs_sigma` | 0,02 % massique | à valider — dépend du laboratoire |
-| `lod` | 0,005 % massique | à valider — dépend de la méthode |
+| `rel_sigma` | 6 % | **sourcé** : LNE-LiB01, certifié ISO 33405 |
+| `abs_sigma` | 0,02 % massique | à valider : dépend du laboratoire |
+| `lod` | 0,005 % massique | à valider : dépend de la méthode |
 
 Les deux derniers seront remplacés par les valeurs réelles des bulletins dès
 le premier lot client. Le premier est discuté ci-dessous : il est sourcé,
@@ -67,20 +67,20 @@ milieu. Le matériau de référence OREAS, lui, donne des écarts-types relatifs
 | Mn | 1,08 % | | F | 5,70 % |
 | C | 2,30 % | | P | 18,57 % |
 
-L'écart est d'un **ordre de grandeur** sur le nickel — 0,51 % contre 6 % — et
-il est **inversé** sur le phosphore — 18,57 % contre 6 %. Cela ne se tranche
+L'écart est d'un **ordre de grandeur** sur le nickel (0,51 % contre 6 %) et
+il est **inversé** sur le phosphore (18,57 % contre 6 %). Cela ne se tranche
 pas en choisissant un certificat.
 
 **Trois statistiques distinctes.** L'hypothèse à vérifier était que les deux
 documents ne mesurent pas la même chose. Elle tient, et il y a au moins trois
 grandeurs en jeu :
 
-1. l'**incertitude d'une valeur certifiée** — à quel point la valeur de
+1. l'**incertitude d'une valeur certifiée** : à quel point la valeur de
    référence est connue. Elle décroît avec le nombre de laboratoires
    participants, approximativement en 1/√n ;
-2. l'**homogénéité** du matériau — ce qu'on risque en prélevant une autre
+2. l'**homogénéité** du matériau : ce qu'on risque en prélevant une autre
    prise d'essai. Indépendante du nombre de laboratoires ;
-3. la **reproductibilité interlaboratoires** — la dispersion des résultats
+3. la **reproductibilité interlaboratoires** : la dispersion des résultats
    entre laboratoires sur le même matériau. Ne décroît pas avec n.
 
 Un facteur k = 2 sépare par ailleurs une incertitude élargie d'une
@@ -90,7 +90,7 @@ sans précaution.
 **Ce que je n'ai pas pu établir, et je le dis plutôt que de le supposer.**
 Aucun des deux certificats n'était disponible pour cette séance. Je dispose
 de la description de LNE-LiB01 déjà portée par `generator.py`, et d'un
-**extrait de données** OREAS — pas du certificat. L'extrait ne permet pas
+**extrait de données** OREAS, pas du certificat. L'extrait ne permet pas
 d'identifier ce que ses propres colonnes rapportent, et c'est mesurable : si
 `Expanded uncertainty Low/High` était une incertitude élargie à k = 2, sa
 demi-largeur vaudrait environ deux fois `1SD`, soit un rapport
@@ -116,7 +116,7 @@ produit par **un** laboratoire, sur un lot client **hétérogène** : c'est de
 la reproductibilité *plus* de l'hétérogénéité d'échantillonnage. Un
 certificat de matériau de référence décrit un matériau finement broyé et
 homogénéisé, analysé par des laboratoires compétents. C'est un **meilleur
-cas**, donc un plancher — pas une estimation.
+cas**, donc un plancher, pas une estimation.
 
 Ensuite, la conséquence d'une erreur est mesurée, et elle est grande. Sur le
 lot OREAS, avec les prix d'exemple du dépôt :
@@ -132,13 +132,14 @@ l'outil prétend savoir.
 
 Enfin, la direction est la dangereuse. Un bruit plus étroit resserre tous les
 intervalles, donc le prix annoncé. Une fausse précision sur un prix d'achat
-se paie comptant, et elle contredit la thèse du produit — ne jamais afficher
+se paie comptant, et elle contredit la thèse du produit : ne jamais afficher
 ce que la donnée ne porte pas.
 
 **Ce qui a néanmoins changé.** `NoiseModel` sait désormais porter un bruit
 **par élément** (`rel_sigma_par_element`), et les trois consommateurs du
-bruit — la pondération du solveur, le rééchantillonnage d'incertitude, le
-bruitage du générateur — passent par une méthode unique, `NoiseModel.sigmas`.
+bruit (la pondération du solveur, le rééchantillonnage d'incertitude, le
+bruitage du générateur) passent par une méthode unique,
+`NoiseModel.sigmas`.
 La valeur par défaut est **inchangée**, et vérifiée bit pour bit. Un modèle
 par élément est donc un **choix explicite de l'appelant**, jamais un défaut.
 
@@ -159,7 +160,7 @@ neuf éléments et trop optimiste sur le phosphore, le seul dont le RSD dépasse
 majeure.* Le RSD de 18,57 % sur le phosphore a été mesuré **à 0,350 %**, près
 de la limite de détection, où un tel écart est normal. L'appliquer à un lot
 LFP où le phosphore vaut 8,86 % n'a aucune justification : la précision
-relative s'améliore avec la concentration, et la corrélation le confirme —
+relative s'améliore avec la concentration, et la corrélation le confirme,
 `log(RSD)` contre `log(concentration)` donne **r = −0,59** sur les 34 éléments
 quantifiés du certificat.
 
@@ -177,7 +178,7 @@ fenêtre de concentration retenue.
 L'accord apparent de 214 ppm avec les 200 ppm du modèle est une
 **coïncidence** : l'estimateur direct sur les traces donne 1,9 ppm, soit cent
 fois moins. Le `1SD` du certificat n'est donc pas descriptible par la forme
-du modèle, ce qui est une raison de plus de ne pas l'y injecter — et
+du modèle, ce qui est une raison de plus de ne pas l'y injecter, et
 `abs_sigma` reste à valider, contrairement à ce que cet ajustement aurait pu
 laisser croire.
 
@@ -189,7 +190,7 @@ concentration soient connus.
 **Ce qu'il faudrait pour trancher.** Les deux certificats complets, afin de
 lire la définition exacte de chaque colonne ; et, idéalement, une
 comparaison interlaboratoires sur un **lot client réel** plutôt que sur un
-matériau de référence — c'est la seule mesure qui porterait sur la grandeur
+matériau de référence. C'est la seule mesure qui porterait sur la grandeur
 dont l'outil a besoin.
 
 ---
@@ -231,7 +232,7 @@ partie. Vérifié sans aucun dépassement sur douze lots.
 
 Une grandeur **ferme** reçoit en revanche un **intervalle de confiance**, pas
 une garantie : son incertitude est purement statistique. L'intervalle 5–95
-couvre la valeur vraie dans environ 90 % des cas — mesuré à 90,2 % sur 315
+couvre la valeur vraie dans environ 90 % des cas, mesuré à 90,2 % sur 315
 observations. Exiger 100 % de couverture imposerait l'enveloppe min/max des
 tirages, qui n'est pas un estimateur stable puisqu'elle s'élargit
 mécaniquement avec le nombre de tirages.
@@ -320,8 +321,8 @@ Deux engagements de rendu en découlent.
 
 ### 2.7 Un seul chemin, deux portes
 
-La chaîne complète — lire le bulletin, résoudre la provenance, propager
-l'incertitude, valoriser, assembler le rapport — vit dans un module unique.
+La chaîne complète (lire le bulletin, résoudre la provenance, propager
+l'incertitude, valoriser, assembler le rapport) vit dans un module unique.
 La ligne de commande et l'interface graphique n'en sont que des
 **adaptateurs** : elles traduisent des arguments ou des widgets en demande,
 puis une analyse en affichage.
@@ -333,11 +334,11 @@ l'interface ne dit plus la même chose que celui issu de la ligne de commande
 pour le même lot, le client a raison et nous avons tort.
 
 Un test interdit à un adaptateur d'appeler lui-même les étapes réservées, et
-vérifie que les deux routes d'entrée — un chemin de fichier, un fichier
-téléversé — produisent un rapport identique au caractère près.
+vérifie que les deux routes d'entrée (un chemin de fichier, un fichier
+téléversé) produisent un rapport identique au caractère près.
 
 La même règle vaut pour la lecture des bulletins : **une seule reconnaissance
-de format dans le projet**. L'interface l'avait réimplémentée et la ratait —
+de format dans le projet**. L'interface l'avait réimplémentée et la ratait.
 un bulletin large à deux colonnes se lisait comme un format long.
 
 ### 2.7 bis. Ce qu'un graphique a le droit de montrer
@@ -358,7 +359,7 @@ construits dans l'espace nul :
 | LFP | 9,62 % | 7,27 % | 2,35 pt |
 
 Les bulletins d'analyse que ces deux lots produiraient sont identiques à
-**2,8 × 10⁻¹⁵ point de masse** près — la précision machine. Aucun laboratoire
+**2,8 × 10⁻¹⁵ point de masse** près, soit la précision machine. Aucun laboratoire
 ne peut les distinguer, et le solveur retient l'un plutôt que l'autre pour
 une raison numérique, pas physique. Dessiner sa part revient à présenter un
 arbitrage d'algorithme comme un résultat de mesure.
@@ -385,7 +386,7 @@ donc en encadrement, et une inégalité **borne** une direction nulle sans la
 supprimer. Mesuré sur le lot d'exemple en provenance VE attestée, à deux
 points d'incertitude : la dégénérescence reste à 2, aucune grandeur ne
 devient ferme, et la largeur cumulée des phases passe de 61,35 à 17,39
-points — 72 % de resserrement. Le camembert ne basculera donc pas sur les
+points, 72 % de resserrement. Le camembert ne basculera donc pas sur les
 phases du fait d'une DRX.
 
 Nombre de phases à quantifier pour annuler la dégénérescence, dans le cas
@@ -475,7 +476,7 @@ paie un essai qui ne répondra pas à sa question.
 
 **Le scénario balaie, il ne se pose jamais sur un point.** Y réinjecter la
 teneur en oxygène prédite par la reconstitution produirait des grandeurs
-exactement déterminées — d'une précision qui n'est qu'un artefact du point
+exactement déterminées, d'une précision qui n'est qu'un artefact du point
 retenu par le solveur, puisque cette valeur sort de la solution elle-même.
 C'est le piège du sommet dans sa forme la plus pure, et c'est la manière
 simple et fausse de produire cette section. Les largeurs rapportées sont donc
@@ -488,13 +489,13 @@ forme linéaire moins un minimum de forme linéaire sur un polytope paramétré
 par son second membre : le premier est concave, le second convexe, donc
 **w(v) est concave**. Or le maximum d'une fonction concave est génériquement
 **intérieur**. Un balayage limité aux bornes et au milieu le manque, et le
-manque toujours par en dessous — il annonce donc un gain plus grand que le
+manque toujours par en dessous, il annonce donc un gain plus grand que le
 gain réel, c'est-à-dire exactement le biais qu'un rapport commercial ne doit
 pas avoir. Mesure sur un lot de provenance non déclarée, grade NMC 811 :
 trois points donnent 26,18 points quand le maximum réel vaut 27,21 points,
-atteint à 42 % de la plage. La concavité fournit aussi la parade — sur une
+atteint à 42 % de la plage. La concavité fournit aussi la parade, sur une
 grille, le maximum réel est encadré par les deux voisins du maximum de grille
-— et le balayage procède par passes de resserrement successives.
+et le balayage procède par passes de resserrement successives.
 
 **Les largeurs de cette section sont structurelles.** Ce sont les largeurs
 structurelles du bulletin central : la part d'incertitude due à la
@@ -505,7 +506,7 @@ la section, faute de quoi le lecteur verrait deux largeurs différentes pour
 la même grandeur sans comprendre pourquoi.
 
 **Une grandeur déjà épinglée à largeur nulle n'entre pas dans le scénario.**
-La non-négativité suffit parfois à déterminer une grandeur non identifiable —
+La non-négativité suffit parfois à déterminer une grandeur non identifiable,
 c'est le piège du sommet. Elle n'a rien à gagner à un dosage, et l'y faire
 figurer la déclarait « deviendrait ferme » dans la section même qui la
 listait parmi celles auxquelles le dosage n'apporte rien.
@@ -531,7 +532,7 @@ d'un dosage d'hydrogène corrigé de l'humidité.
 | **Masse non expliquée** | couverture du modèle | humidité, phase absente, fausse déclaration |
 
 Les deux sont indépendants. À titre d'illustration mesurée, un bulletin
-annonçant 2,09 % de phosphore sans fer ni fluor est impossible — le phosphore
+annonçant 2,09 % de phosphore sans fer ni fluor est impossible, le phosphore
 ne peut venir que du LFP, qui apporte du fer, ou du LiPF₆, qui apporte du
 fluor. Son résidu ressort à 1,79 point contre 0,007 point pour un bulletin
 cohérent présentant la même masse non expliquée.
@@ -551,23 +552,23 @@ façon. Le seuil de rejet est donc asymétrique.
 
 Ces valeurs sont **arbitrées**, et elles le sont contre une mesure.
 
-**Sous-bouclage — 6 % et 20 %.** Sur des lots entièrement décrits par le
+**Sous-bouclage, 6 % et 20 %.** Sur des lots entièrement décrits par le
 modèle, le seul bruit analytique de 6 % produit une masse apparemment
 inexpliquée de 1,8 % en médiane, 5,7 % au 95ᵉ centile et jusqu'à 10,3 % au
-pire. Les premiers seuils envisagés — 3 % et 8 % — étaient donc **sous le
+pire. Les premiers seuils envisagés (3 % et 8 %) étaient donc **sous le
 plancher de bruit** : ils refusaient des lots sains. Le réglage retenu se
-cale sur la réalité métallurgique des black masses — séparateur, solvants
-d'électrolyte, liants aqueux, traces non dosées — plutôt que sur un
+cale sur la réalité métallurgique des black masses (séparateur, solvants
+d'électrolyte, liants aqueux, traces non dosées) plutôt que sur un
 échantillon idéalement caractérisé.
 
-**Sur-bouclage — 12 %.** Un lot peut légitimement porter de la masse que le
+**Sur-bouclage, 12 %.** Un lot peut légitimement porter de la masse que le
 modèle n'explique pas. L'inverse n'a aucun équivalent physique : les phases
 du modèle ne peuvent pas peser plus que le lot. Au-delà du bruit, un
 sur-bouclage est une erreur et non une lacune, et il se rejette donc plus
 tôt.
 
-Mesure, sur 2 500 lots sains — bouclage exactement 1, seul le bruit
-analytique de 6 % — répartis sur les cinq profils de composition :
+Mesure, sur 2 500 lots sains (bouclage exactement 1, seul le bruit
+analytique de 6 %) répartis sur les cinq profils de composition :
 
 | Centile du sur-bouclage observé | Écart |
 |---|---|
@@ -577,13 +578,13 @@ analytique de 6 % — répartis sur les cinq profils de composition :
 | pire observé | +10,10 pt |
 
 Le bruit seul atteint donc **+10 points**. Un seuil en dessous refuserait des
-lots sains — exactement l'erreur écartée plus haut pour le sous-bouclage.
+lots sains. C'est exactement l'erreur écartée plus haut pour le sous-bouclage.
 12 % est le premier palier strictement au-dessus du plancher mesuré.
 
 **Conséquence assumée.** Les deux lots réels qui ont révélé le défaut restent
 en alerte : BM1 à +10,45 pt et BM2 à +7,63 pt ne sont pas séparables du bruit
-par leur bouclage. Ce qui les attrape est ailleurs — la prédiction de fluor à
-17,79 % contre 2,44 % sur matériau certifié, soit un facteur 7 — et relève
+par leur bouclage. Ce qui les attrape est ailleurs (la prédiction de fluor à
+17,79 % contre 2,44 % sur matériau certifié, soit un facteur 7) et relève
 des bandes de plausibilité de composition (§ 2.6 quinquies).
 
 Il serait tentant d'abaisser le seuil pour « attraper » ces deux lots. Ce
@@ -607,7 +608,7 @@ n'étaient dosés, l'outil a prédit **17,79 % de fluor**, en retenant 14,3 %
 de LiPF6 et 11,8 % de PVDF. Le matériau de référence certifié OREAS donne un
 fluor à **2,44 %** : la prédiction valait sept fois la valeur d'un matériau
 réel. Aucun signal n'a été émis, `is_exploitable` valait `True`, et le lot
-serait parti en valorisation avec 110 % de masse — donc à un prix surestimé.
+serait parti en valorisation avec 110 % de masse, donc à un prix surestimé.
 
 Le générateur synthétique ne pouvait pas révéler ce trou : il produit des
 lots cohérents par construction, et `make_lot` refuse même un bouclage
@@ -615,7 +616,7 @@ supérieur à 1.
 
 **Ce que le contrôle fait.** Pour chaque élément non dosé qui possède un
 ancrage certifié, la teneur prédite est comparée à une borne haute, et un
-dépassement nomme l'élément **et la phase porteuse responsable** — sans quoi
+dépassement nomme l'élément **et la phase porteuse responsable**, sans quoi
 l'utilisateur saurait qu'un chiffre est faux sans savoir où agir.
 
 | Élément | Ancrage certifié | Borne à facteur 3 | Statut |
@@ -634,7 +635,7 @@ l'élément n'étant pas dosé :
 
 La cause est chimique. LFP est LiFePO₄ : le phosphore y est un élément
 **majeur**, pas une trace. Le matériau OREAS ne contient quasiment pas de
-LFP, donc son phosphore n'est pas un ancrage — c'est un cas particulier, et
+LFP, donc son phosphore n'est pas un ancrage, c'est un cas particulier, et
 s'en servir revient à supposer qu'aucun lot ne contient de LFP.
 
 Le phosphore ressort donc en **non contrôlé**, déclaré comme tel. L'ancrer
@@ -645,7 +646,7 @@ une borne à 3×, et la prédiction fautive du lot réel à 7,3×.
 
 **Ce que le contrôle ne fait pas.** Un élément **dosé** n'est jamais
 contrôlé : sa valeur est une mesure, et la refuser reviendrait à contester
-le laboratoire. C'est pourquoi le lot OREAS lui-même ne déclenche rien — son
+le laboratoire. C'est pourquoi le lot OREAS lui-même ne déclenche rien, son
 fluor est dosé.
 
 Aucune borne n'est inventée pour un élément sans ancrage. L'hydrogène,
@@ -723,7 +724,7 @@ Trois règles en découlent, chacune verrouillée par un test :
 2. La fonction de valorisation n'a **aucun jeu de prix par défaut**. L'appelant
    déclare explicitement d'où viennent ses chiffres.
 3. Un jeu non déclaré comme source de production est refusé, et un instantané de
-   plus de 7 jours — 60 jours pour des conditions commerciales — interrompt le
+   plus de 7 jours (60 jours pour des conditions commerciales) interrompt le
    calcul.
 
 Un flux de production se branche par `PriceProvider` : toute fonction rendant un
@@ -737,7 +738,7 @@ d'une saisie manuelle.
 Le taux est **fourni par l'utilisateur**, exactement comme ses prix : c'est le
 taux de sa banque qui vaut pour sa transaction, et le logiciel n'a pas à en
 inventer un. Le module de conversion ne contient donc ni appel réseau, ni taux
-littéral, ni valeur de repli — le même raisonnement que pour les prix,
+littéral, ni valeur de repli, le même raisonnement que pour les prix,
 appliqué mot pour mot.
 
 La conversion est un **acte explicite** de l'appelant. Un jeu de prix
@@ -750,7 +751,7 @@ Six règles en découlent, chacune verrouillée par un test :
 1. Un **taux sans source déclarée est refusé**, exactement comme un prix sans
    source. Un chiffre sans origine n'est opposable à personne.
 2. Un **taux périmé est refusé**. Le seuil de fraîcheur est **non arbitré**,
-   donc exposé à l'appelant — un négociant au comptant voudra un jour, un
+   donc exposé à l'appelant, un négociant au comptant voudra un jour, un
    contrat mensuel s'accommode de trente.
 3. Chaque prix converti **conserve son origine** : valeur et devise d'origine,
    taux appliqué, source du taux, date du taux.
@@ -768,8 +769,8 @@ Six règles en découlent, chacune verrouillée par un test :
    celui qui les a fournies. Sans cette mention, l'acheteur ne pourrait pas
    distinguer un prix bas d'un taux faux.
 
-Quand la chaîne ne produit aucune valeur en dollars — une conversion GBP vers
-EUR par taux direct — aucune vérification de plausibilité n'est possible, et la
+Quand la chaîne ne produit aucune valeur en dollars (une conversion GBP vers
+EUR par taux direct), aucune vérification de plausibilité n'est possible, et la
 provenance le **dit** plutôt que de laisser croire à un contrôle qui n'a pas eu
 lieu.
 
@@ -777,7 +778,7 @@ lieu.
 
 KLASTOS21 se branche sur les flux réels de trois agences. Les spécifications
 viennent de leur documentation publique, et le catalogue de symboles vit dans
-`data/symboles_pra.json` — donnée, pas code.
+`data/symboles_pra.json` : donnée, pas code.
 
 | Agence | Accès | Couverture utile |
 |---|---|---|
@@ -833,7 +834,7 @@ licence. Le rapport déclare donc son destinataire :
 | `tiers` (défaut) | **rapport refusé** |
 | `interne` | rapport émis |
 
-Le défaut est le cas réel — un rapport se fabrique pour un client — et c'est
+Le défaut est le cas réel (un rapport se fabrique pour un client), et c'est
 aussi le plus contraignant. Le système ne devine pas où va un document : il le
 demande, exactement comme il demande une attestation de provenance au lieu de
 supposer une origine. Un fichier de prix fourni par le client n'est pas
@@ -924,7 +925,7 @@ Une attestation inexacte fausse le résultat de manière quantifiable. À titre
 d'exemple mesuré, un lot déclaré « véhicule électrique » contenant en
 réalité 7,4 % de LCO voit sa teneur en cobalt sous-estimée de 44 %.
 
-**Détection.** Le signal n'est pas le bouclage massique — le bulletin d'un
+**Détection.** Le signal n'est pas le bouclage massique. Le bulletin d'un
 lot mal déclaré boucle normalement, puisqu'il décrit une réalité physique
 cohérente. Le signal est le **résidu d'ajustement** : le solveur ne parvient
 plus à expliquer le bulletin avec la liste de phases restreinte.

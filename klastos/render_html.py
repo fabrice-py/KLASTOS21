@@ -503,7 +503,7 @@ def to_html(rapport: LotReport) -> str:
         "<!doctype html>", f'<html lang="{lg}">', "<head>",
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
-        f"<title>KLASTOS21 — lot {_e(rapport.lot_id)}</title>",
+        f"<title>KLASTOS21 : lot {_e(rapport.lot_id)}</title>",
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
         'family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&'
@@ -526,14 +526,14 @@ def to_html(rapport: LotReport) -> str:
         f'{_e(i18n.t("rapport.doc.emis_le", lg))} '
         f"<b>{_e(rapport.issued_on.isoformat())}</b><br>"
         f'{_e(i18n.t("rapport.doc.degres", lg))}&nbsp;: <b>'
-        f"{_e(rapport.meta.get('degeneracy', '—'))}</b>"
+        f"{_e(rapport.meta.get('degeneracy', 'n.d.'))}</b>"
         "</div>",
         "</div>", "</header>",
     ]
 
     if rapport.is_demo:
         L.append(
-            '<div class="banniere"><b>Document de démonstration — non '
+            '<div class="banniere"><b>Document de démonstration, non '
             'opposable.</b> Il repose sur des données ou des prix non '
             'destinés à la production, et ne constitue ni une offre '
             'commerciale ni une évaluation opposable.</div>'

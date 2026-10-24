@@ -297,11 +297,11 @@ source ne cote qu'une fois par mois.
 |---|---|
 | **Migration sans perte** | Une base v1 s'ouvre, se complete et passe en 2. Aucune ligne existante n'est touchee : un historique de lots est une donnee commerciale, sur un fichier que personne ne sauvegarde. `ouvrir` continue de **refuser** une base plus recente que le code. |
 | **`refaire` ne restitue ni prix, ni taux** | Ce n'est pas un oubli. Des prix d'il y a six mois rejoues aujourd'hui donneraient une valorisation fausse, et la parite euro-dollar a varie de 0,95 a 1,17 sur vingt-quatre mois. `devise_cible` et `taux` restent a `None` : l'appelant fournit les prix **et** les taux du jour. La reconstitution, elle, ne depend d'aucun prix. |
-| **Aucune valeur monetaire en flottant** | Les montants et les taux sont ranges en **TEXT decimal exact** et relus en `Decimal`. Un REAL SQLite est un double IEEE 754 : 15432.10 n'y est pas representable, et une relecture peut rendre 15432.099999999999 — l'ecart se voit des qu'on multiplie par une masse. |
+| **Aucune valeur monetaire en flottant** | Les montants et les taux sont ranges en **TEXT decimal exact** et relus en `Decimal`. Un REAL SQLite est un double IEEE 754 : 15432.10 n'y est pas representable, et une relecture peut rendre 15432.099999999999, et l'ecart se voit des qu'on multiplie par une masse. |
 
 Un meme `(source, reference, date)` portant **deux metaux differents leve**, au
 lieu d'en perdre un en silence. En pratique un libelle de reference est propre
-a un metal — « LME Nickel cash » — mais rien ne l'impose a un fournisseur, et
+a un metal (« LME Nickel cash »), mais rien ne l'impose a un fournisseur, et
 une cotation manquante dans une serie serait invisible.
 
 ## Pink Sheet : demontrable sans abonnement
@@ -331,7 +331,7 @@ jamais un zero.
 | | |
 |---|---|
 | **Trois metaux, et trois seulement** | Aluminium, cuivre, nickel. Verifie sur l'edition d'octobre 2026. |
-| **Le cobalt et le lithium n'y sont pas** | Ni le manganese, ni le graphite. Ce sont des marches de gre a gre, sans cotation de bourse. Les demander leve `MissingPriceError` **avec l'adresse ou les trouver** — jamais un zero, qui traverserait toute la chaine sans qu'aucun controle le refuse. |
+| **Le cobalt et le lithium n'y sont pas** | Ni le manganese, ni le graphite. Ce sont des marches de gre a gre, sans cotation de bourse. Les demander leve `MissingPriceError` **avec l'adresse ou les trouver**, jamais un zero, qui traverserait toute la chaine sans qu'aucun controle le refuse. |
 | **Moyennes mensuelles, pas du spot** | `is_production_source = False`. Le mois retenu figure dans la reference, dans la note et dans le libelle du jeu : une moyenne d'octobre ne s'oppose pas a une cargaison du 21 octobre. |
 | **Rediffusable** | `redistribution_licensed = True`, **seul flux du projet dans ce cas**. Un abonnement d'agence couvre l'usage interne, pas l'affichage dans un document remis a un tiers ; une donnee publique, si. Contrepartie : l'attribution « Banque mondiale, Commodity Price Data (Pink Sheet) » est portee dans la provenance et dans le rapport. |
 
@@ -349,7 +349,7 @@ explicite** de l'appelant.
 **Aucune source de taux n'est integree, et c'est une decision.** Le taux est
 fourni par l'utilisateur, exactement comme ses prix : c'est le taux de sa
 banque qui vaut pour sa transaction. Il n'y a dans `klastos/fx.py` ni appel
-reseau, ni taux litteral, ni valeur de repli — pas plus que `market.py` ne
+reseau, ni taux litteral, ni valeur de repli, pas plus que `market.py` ne
 contient de prix.
 
 ```powershell
@@ -368,7 +368,7 @@ Convention de paire : `BASE/COTATION`, et le taux donne le nombre d'unites de
 COTATION pour **une** unite de BASE. `EUR/USD` a 1,0842 signifie 1 EUR =
 1,0842 USD.
 
-**JSON** — `as_of` et `source` peuvent etre declares une fois pour le fichier,
+**JSON** : `as_of` et `source` peuvent etre declares une fois pour le fichier,
 et surcharges taux par taux. Exemple complet : `data/taux_exemple.json`.
 
 ```json
@@ -381,7 +381,7 @@ et surcharges taux par taux. Exemple complet : `data/taux_exemple.json`.
 }
 ```
 
-**CSV** — en-tetes tolerants : `paire`/`pair`, `taux`/`rate`/`cours`,
+**CSV** : en-tetes tolerants : `paire`/`pair`, `taux`/`rate`/`cours`,
 `date`/`as_of`, `source`/`banque`, `reference`/`libelle`. Exemple :
 `data/taux_exemple.csv`.
 
@@ -396,22 +396,22 @@ EUR/USD,1.0842,2026-10-20,Releve bancaire du client,spot EUR/USD fixing 16h00 CE
 |---|---|
 | Taux sans source | **Refuse.** Meme exigence que pour un prix. |
 | Taux perime | **Refuse.** Seuil `--taux-age-max`, expose car **non arbitre**. |
-| Origine conservee | Valeur et devise d'origine, taux applique, sa source et sa date — portes jusqu'au rapport. |
+| Origine conservee | Valeur et devise d'origine, taux applique, sa source et sa date, portes jusqu'au rapport. |
 | Paire croisee | Exige **deux** taux declares, tous deux cites. Un taux croise ne se deduit jamais d'un seul. |
 | Bande de plausibilite | Re-verifiee **sur la valeur en USD** que la chaine produit. |
 
 Le dernier point meritait une mesure. Les bandes de `units.py` sont libellees
 en USD : les appliquer telles quelles a un prix converti en wons rejetterait
 une conversion juste d'un facteur 1 350. La conversion passe donc par un pivot,
-et la bande est verifiee sur la valeur en dollars — le seul endroit ou elle
+et la bande est verifiee sur la valeur en dollars, le seul endroit ou elle
 signifie quelque chose. Resultat mesure :
 
 - un taux EUR/USD saisi **108** au lieu de 1,08 porte un nickel de 14 000 EUR/t
   a **1 512 000 USD/t** au pivot, hors bande [5 000 ; 100 000] : **refuse** ;
 - un `USD -> KRW` correct a 1 350 donne 20 412 000 KRW/t : **aucun faux rejet**.
 
-Quand la chaine ne produit aucune valeur en USD — un `GBP -> EUR` par taux
-direct — aucune verification n'est possible, et la provenance le **dit** plutot
+Quand la chaine ne produit aucune valeur en USD (un `GBP -> EUR` par taux
+direct), aucune verification n'est possible, et la provenance le **dit** plutot
 que de laisser croire a un controle qui n'a pas eu lieu.
 
 ## Statut du generateur

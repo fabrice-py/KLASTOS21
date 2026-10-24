@@ -1,4 +1,4 @@
-# Provenance — `bulletin_reel_OREAS_brut.csv`
+# Provenance de `bulletin_reel_OREAS_brut.csv`
 
 ## Ce que ce fichier est
 
@@ -40,7 +40,7 @@ lui-même n'est pas joint.
 Element ; Value ; 1SD ; Expanded uncertainty Low ; Expanded uncertainty High ; Methods
 ```
 
-KLASTOS21 ne lit que les **deux premières** colonnes — l'intitulé et la
+KLASTOS21 ne lit que les **deux premières** colonnes : l'intitulé et la
 valeur. Les trois colonnes d'incertitude et la colonne de méthode sont
 ignorées par le lecteur de format long.
 
@@ -66,7 +66,7 @@ permet pas de dire laquelle est quoi. Voir PROTOCOLE.md § 1.3 bis.
 
 Sur 35 lignes, dix correspondent à un élément du modèle KLASTOS21 ; les
 vingt-cinq autres sont **refusées et listées**, conformément à la règle du
-module d'ingestion — un intitulé non reconnu n'est jamais deviné.
+module d'ingestion : un intitulé non reconnu n'est jamais deviné.
 
 | Élément | Teneur certifiée | 1SD | RSD |
 |---|---|---|---|
@@ -94,12 +94,12 @@ bulletin de routine (PROTOCOLE.md § 2.6).
 
 Le bouclage dépend de la liste de phases retenue, donc de l'attestation. La
 valeur de référence citée au protocole, **93,95 %**, est celle du cas non
-attesté — liste de phases complète.
+attesté, liste de phases complète.
 
 ## Usages dans le dépôt
 
-- `tests/test_ingestion_reelle.py` — cas de non-régression des six formes.
-- `klastos/plausibility.py` — `ANCRAGES_CERTIFIES`, qui ne retient que le
+- `tests/test_ingestion_reelle.py` : cas de non-régression des six formes.
+- `klastos/plausibility.py` : `ANCRAGES_CERTIFIES`, qui ne retient que le
   **fluor**. **Un point n'est pas une bande** : la borne qui en découle porte
   `validated=False`.
 

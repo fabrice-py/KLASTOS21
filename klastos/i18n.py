@@ -252,9 +252,9 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "en": "Range width",
     },
     "rapport.doc.demo": {
-        "fr": "**DOCUMENT DE DÉMONSTRATION — NON OPPOSABLE.** Il repose sur "
+        "fr": "**DOCUMENT DE DÉMONSTRATION, NON OPPOSABLE.** Il repose sur "
               "des données ou des prix non destinés à la production.",
-        "en": "**DEMONSTRATION DOCUMENT — NOT BINDING.** It rests on data or "
+        "en": "**DEMONSTRATION DOCUMENT, NOT BINDING.** It rests on data or "
               "prices not intended for production use.",
     },
     "rapport.doc.pied": {
@@ -528,14 +528,14 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "pour une part importante des tirages de bruit analytique, "
               "aucune répartition des phases ne satisfait les deux mesures. "
               "Ces tirages ont été CONSERVÉS avec leurs bornes non "
-              "contraintes — les écarter aurait resserré l'incertitude du "
+              "contraintes. Les écarter aurait resserré l'incertitude du "
               "laboratoire au motif d'une mesure qui ne porte pas sur elle. "
               "Un taux élevé signale une analyse chimique, une "
               "quantification ou un modèle de phases à reprendre.",
         "en": "High conflict rate between the quantification and the assay: "
               "for a sizeable share of the analytical-noise draws, no phase "
               "distribution satisfies both measurements. Those draws were "
-              "KEPT with their bounds unconstrained — discarding them would "
+              "KEPT with their bounds unconstrained. Discarding them would "
               "have narrowed the laboratory's uncertainty on the strength of "
               "a measurement that does not bear on it. A high rate points to "
               "a chemical assay, a quantification or a phase model that "
@@ -1415,11 +1415,11 @@ CATALOGUE: dict[str, dict[str, str]] = {
     },
     "ui.drx.aide": {
         "fr": "Une phase par ligne : phase, valeur, incertitude. La colonne "
-              "d'incertitude est OBLIGATOIRE — une mesure Rietveld est "
+              "d'incertitude est OBLIGATOIRE : une mesure Rietveld est "
               "précise à 1 ou 3 points, et sans son incertitude elle "
               "passerait pour exacte.",
         "en": "One phase per row: phase, value, uncertainty. The "
-              "uncertainty column is MANDATORY — a Rietveld measurement is "
+              "uncertainty column is MANDATORY: a Rietveld measurement is "
               "precise to 1 or 3 points, and without its uncertainty it "
               "would pass for exact.",
     },
@@ -1474,8 +1474,8 @@ CATALOGUE: dict[str, dict[str, str]] = {
     },
     "ui.verdict.ok": {"fr": "Analyse terminée", "en": "Analysis complete"},
     "ui.verdict.alerte": {
-        "fr": "Analyse terminée — à vérifier",
-        "en": "Analysis complete — needs checking",
+        "fr": "Analyse terminée, à vérifier",
+        "en": "Analysis complete, needs checking",
     },
     "ui.verdict.rejet": {
         "fr": "Lot inexploitable en l'état",
@@ -1495,8 +1495,8 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "en": "The closure is out of tolerance.",
     },
     "ui.demo.avert": {
-        "fr": "Document de démonstration — non opposable.",
-        "en": "Demonstration document — not binding.",
+        "fr": "Document de démonstration, non opposable.",
+        "en": "Demonstration document, not binding.",
     },
 
     # -------------------------------------------------------------- onglets
@@ -1569,10 +1569,10 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.prix.usage_interne": {
         "fr": "**USAGE INTERNE.** Ces prix ne peuvent pas figurer dans un "
               "document remis à un tiers. Un rapport avec destinataire "
-              "« tiers » sera refusé — et c'est voulu.",
+              "« tiers » sera refusé, et c'est voulu.",
         "en": "**INTERNAL USE.** These prices cannot appear in a document "
               "handed to a third party. A report addressed to a third party "
-              "will be refused — and that is deliberate.",
+              "will be refused, and that is deliberate.",
     },
     "ui.prix.carte_fichier": {"fr": "Fichier", "en": "File"},
     "ui.prix.fichier": {
@@ -1601,10 +1601,10 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.prix.licence_aide": {
         "fr": "Un abonnement d'agence couvre l'usage interne, pas la "
               "rediffusion. Sans cette autorisation, un rapport destiné à "
-              "un client sera refusé — et c'est voulu.",
+              "un client sera refusé, et c'est voulu.",
         "en": "An agency subscription covers internal use, not "
               "redistribution. Without this authorisation, a report intended "
-              "for a client will be refused — and that is deliberate.",
+              "for a client will be refused, and that is deliberate.",
     },
     "ui.prix.marche_payables": {
         "fr": "Marché pour les payables", "en": "Market for payables",
@@ -1793,11 +1793,11 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.methode.drx_posee": {
         "fr": "{n} phase(s) quantifiée(s), base <b>{base}</b>. Une mesure "
               "entre en <b>encadrement</b> et non en égalité : elle resserre "
-              "les plages, elle ne rend aucune grandeur ferme — une "
+              "les plages, elle ne rend aucune grandeur ferme. Une "
               "inégalité borne une direction nulle, elle ne la supprime pas.",
         "en": "{n} phase(s) quantified, {base} basis. A measurement enters "
               "as a <b>bound</b> and not as an equality: it narrows the "
-              "ranges, it makes no quantity determined — an inequality "
+              "ranges, it makes no quantity determined. An inequality "
               "bounds a null direction, it does not remove it.",
     },
     "ui.drx.sans_effet": {
@@ -1831,13 +1831,13 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "de gauche. Mesuré sur un lot en provenance VE attestée : une "
               "seule phase quantifiée à <b>±2 points</b> retire <b>72 %</b> "
               "de la largeur cumulée. Mais toutes les phases ne se valent "
-              "pas — cochez le calcul du conseil pour savoir laquelle "
+              "pas. Cochez le calcul du conseil pour savoir laquelle "
               "commander.",
         "en": "No quantification supplied. Drop one in the left-hand column. "
               "Measured on a lot with attested EV provenance: a single phase "
               "quantified to <b>±2 points</b> removes <b>72 %</b> of the "
-              "cumulative width. But not every phase is worth the same — "
-              "tick the advice calculation to find out which one to order.",
+              "cumulative width. But not every phase is worth the same. "
+              "Tick the advice calculation to find out which one to order.",
     },
     "ui.carte.conseil": {
         "fr": "Quelle phase faire quantifier",
@@ -1869,6 +1869,13 @@ CATALOGUE: dict[str, dict[str, str]] = {
     },
     "ui.tuile.par_tonne": {
         "fr": "{devise} par tonne", "en": "{devise} per tonne",
+    },
+    # Marqueur de valeur absente dans une tuile. Il valait un cadratin en
+    # litteral, ce qui le rendait a la fois non traduit et visuellement
+    # etranger au reste. Une abreviation dit la meme chose en le disant.
+    "ui.tuile.sans_valeur": {
+        "fr": "n.d.",
+        "en": "n/a",
     },
     "ui.tuile.sans_prix": {
         "fr": "aucun prix fourni", "en": "no prices supplied",

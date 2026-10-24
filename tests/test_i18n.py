@@ -569,3 +569,31 @@ def test_le_libelle_du_profil_de_provenance_est_traduit(rapports):
     journaux = " ".join(rapports["en"][0].traceability)
     assert en in journaux, journaux
     assert fr not in journaux, "le libelle francais fuit dans le rapport anglais"
+
+#: Caracteres bannis des textes AFFICHES. Le cadratin a ete retire de tout
+#: le projet le 24 octobre 2026 : il tranchait visuellement, et il servait
+#: souvent de ponctuation en plein milieu de phrase la ou une virgule, un
+#: deux-points ou un point disent la meme chose sans faire tache.
+#:
+#: Le demi-cadratin reste admis : il sert aux intervalles numeriques, ou il
+#: est la convention typographique (« 18 - 46 % »).
+CARACTERES_BANNIS = {
+    "\u2014": "cadratin",   # le caractere lui-meme, en echappement
+}
+
+
+@pytest.mark.parametrize("caractere,nom", sorted(CARACTERES_BANNIS.items()))
+def test_aucun_texte_affiche_ne_porte_un_caractere_banni(caractere, nom):
+    """
+    Garde typographique. Sans lui, le caractere revient a la premiere
+    entree ajoutee au catalogue, et il faut tout reprendre.
+    """
+    fautifs = [
+        f"{cle} [{lg}]"
+        for cle, entree in i18n.CATALOGUE.items()
+        for lg in i18n.LANGUES
+        if caractere in entree[lg]
+    ]
+    assert not fautifs, (
+        f"{nom} present dans {len(fautifs)} texte(s) affiche(s) : "
+        f"{fautifs[:6]}")
