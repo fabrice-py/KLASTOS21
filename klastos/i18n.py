@@ -1617,6 +1617,71 @@ CATALOGUE: dict[str, dict[str, str]] = {
     },
     "ui.prix.marche": {"fr": "Marché", "en": "Market"},
     "ui.prix.charger": {"fr": "Charger ces prix", "en": "Load these prices"},
+    # --------------------------------- sources gratuites de prix
+    # Ajoutees le 25 octobre 2026. Les deux sources gratuites du projet
+    # n'existaient que pour la ligne de commande : l'interface n'offrait
+    # qu'un televersement de fichier et les flux d'agence payants. Un
+    # utilisateur sans fichier de prix et sans abonnement voyait donc
+    # « aucun prix fourni » sans qu'aucun ecran ne lui dise quoi faire.
+    "ui.prix.mode_gratuit": {
+        "fr": "Source gratuite",
+        "en": "Free source",
+    },
+    "ui.prix.carte_gratuite": {
+        "fr": "Prix publics, sans abonnement",
+        "en": "Public prices, no subscription",
+    },
+    "ui.prix.gratuite_usgs": {
+        "fr": "USGS : cobalt, lithium, nickel, cuivre, aluminium",
+        "en": "USGS: cobalt, lithium, nickel, copper, aluminium",
+    },
+    "ui.prix.gratuite_pink": {
+        "fr": "Banque mondiale : aluminium, cuivre, nickel",
+        "en": "World Bank: aluminium, copper, nickel",
+    },
+    "ui.prix.gratuite_aide": {
+        "fr": "Données publiques, redistribuables dans un rapport client. "
+              "Ce sont des MOYENNES, pas des cotations du jour : la "
+              "valorisation sortira indicative et le document portera la "
+              "mention. Cochez « valorisation indicative » dans le volet "
+              "Valorisation pour l'autoriser.",
+        "en": "Public data, redistributable in a client report. These are "
+              "AVERAGES, not spot quotes: the valuation will be indicative "
+              "and the document will say so. Tick \"indicative valuation\" "
+              "in the Valuation panel to allow it.",
+    },
+    "ui.prix.gratuite_telecharger": {
+        "fr": "Télécharger les prix publics",
+        "en": "Download the public prices",
+    },
+    "ui.prix.gratuite_charger": {
+        "fr": "Utiliser ces prix",
+        "en": "Use these prices",
+    },
+    "ui.prix.gratuite_absente": {
+        "fr": "Fichier absent. Cliquez sur « Télécharger les prix publics » "
+              "une première fois.",
+        "en": "File missing. Click \"Download the public prices\" once.",
+    },
+    "ui.prix.gratuite_telechargee": {
+        "fr": "Téléchargé : {octets:,} octets.",
+        "en": "Downloaded: {octets:,} bytes.",
+    },
+    "ui.demo.libelle": {
+        "fr": "Valorisation indicative autorisée",
+        "en": "Indicative valuation allowed",
+    },
+    "ui.demo.aide": {
+        "fr": "Autorise une valorisation sur des prix qui ne sont pas des "
+              "cotations de production, comme des moyennes publiques ou des "
+              "prix périmés. "
+              "Le rapport est alors marqué NON OPPOSABLE. Sans cette case, "
+              "l'outil refuse, et c'est le comportement par défaut.",
+        "en": "Allows a valuation on prices that are not production quotes "
+              "such as public averages or stale prices. The report is then marked "
+              "NON-BINDING. Without this box the tool refuses, and that is "
+              "the default.",
+    },
     "ui.prix.carte_agence": {"fr": "Agence", "en": "Agency"},
     "ui.prix.agence": {"fr": "Agence", "en": "Agency"},
     "ui.prix.identifiants": {
@@ -1911,7 +1976,11 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "en": "n/a",
     },
     "ui.tuile.sans_prix": {
-        "fr": "aucun prix fourni", "en": "no prices supplied",
+        # La tuile enoncait le probleme sans son remede. Ailleurs le
+        # projet exige qu'un refus dise quoi faire ensuite ; celle-ci
+        # laissait l'utilisateur devant « n.d. » sans adresse.
+        "fr": "aucun prix : onglet Prix, source gratuite",
+        "en": "no prices: Prices tab, free source",
     },
     "ui.tuile.degres": {
         "fr": "Degrés de liberté", "en": "Degrees of freedom",

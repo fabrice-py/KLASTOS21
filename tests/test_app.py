@@ -587,3 +587,152 @@ def test_l_interface_ne_porte_plus_de_texte_francais_en_dur():
         "texte en dur dans l'interface, a porter au catalogue i18n : "
         + "; ".join(f"L{l} {s!r}" for l, s in sorted(set(fautes)))
     )
+
+
+# ==========================================================================
+# Les sources gratuites, et la case qui leve le refus
+# ==========================================================================
+#
+# Defaut trouve le 25 octobre 2026 sur une capture d'ecran d'utilisateur :
+# la tuile « prix maximal a payer » affichait « n.d. - aucun prix fourni »
+# sur un lot parfaitement analyse.
+#
+# La cause n'etait pas un calcul. Les deux sources de prix GRATUITES du
+# projet - USGS et Pink Sheet - n'existaient que pour la ligne de commande.
+# L'interface n'offrait qu'un televersement de fichier et les flux d'agence
+# PAYANTS. Un utilisateur sans fichier de prix et sans abonnement n'avait
+# donc aucun chemin vers une valorisation, et aucun ecran ne le lui disait.
+#
+# Second defaut, enchaine au premier : `autoriser_demo` n'etait activable
+# NULLE PART dans l'interface. Meme en branchant les sources gratuites,
+# l'analyse aurait refuse - a juste titre, ce sont des moyennes - et
+# l'utilisateur serait passe d'un « n.d. » muet a un mur rouge.
+
+def test_les_trois_modes_de_prix_sont_offerts():
+    """
+    Le mode gratuit doit exister ET venir en premier : c'est le seul qui ne
+    demande ni fichier ni abonnement, donc le seul utilisable a froid.
+    """
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    assert '["gratuit", "fichier", "agence"]' in source, (
+        "les trois modes de source de prix ne sont plus offerts dans cet "
+        "ordre : le mode gratuit doit rester le premier")
+
+
+def test_les_deux_sources_gratuites_sont_declarees():
+    from klastos.app import SOURCES_GRATUITES
+
+    assert set(SOURCES_GRATUITES) == {"usgs", "pink"}
+
+
+def test_la_case_de_valorisation_indicative_atteint_la_demande():
+    """
+    LE verrou de la seconde moitie du defaut. Sans ce passage, cocher la
+    case ne ferait rien et l'analyse refuserait toujours.
+    """
+    d = construire_demande(
+        {"Ni (%)": "20"}, lot_id="L", client="C",
+        provenance="non_declaree", attestee=False, grades=None,
+        tirages=40, graine=0, seuil_alerte=0.06, seuil_rejet=0.20,
+        autoriser_demo=True)
+    assert d.autoriser_demo is True
+
+    d2 = construire_demande(
+        {"Ni (%)": "20"}, lot_id="L", client="C",
+        provenance="non_declaree", attestee=False, grades=None,
+        tirages=40, graine=0, seuil_alerte=0.06, seuil_rejet=0.20)
+    assert d2.autoriser_demo is False, (
+        "le refus doit rester le comportement par defaut")
+
+
+def test_le_reglage_indicatif_sort_bien_des_reglages():
+    """
+    Garde de source. `_reglages()` assemble le dictionnaire que la page
+    d'analyse consomme ; si la cle n'y est pas, l'appel leve KeyError au
+    premier lot et l'ecran montre une trace d'appel.
+    """
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    assert "autoriser_demo=autoriser_demo," in source, (
+        "la case n'est plus transmise par _reglages()")
+    assert 'autoriser_demo=reglages["autoriser_demo"],' in source, (
+        "la page d'analyse ne lit plus le reglage")
+
+
+def test_la_tuile_sans_prix_nomme_son_remede():
+    """
+    Elle enoncait un probleme sans adresse : « aucun prix fourni ». Le
+    projet exige ailleurs qu'un refus dise quoi faire ensuite - c'est la
+    regle qui a fait nommer la phase porteuse dans les alertes de
+    plausibilite, et les dosages manquants dans les conseils.
+    """
+    from klastos import i18n
+
+    #: L'onglet et la source a nommer, dans chaque langue. Une assertion
+    #: commune aux deux serait paresseuse : « Prices » ne contient pas la
+    #: meme sous-chaine que « Prix ».
+    ATTENDUS = {"fr": ("onglet Prix", "gratuite"),
+                "en": ("Prices tab", "free")}
+    for langue, mots in ATTENDUS.items():
+        texte = i18n.t("ui.tuile.sans_prix", langue)
+        for mot in mots:
+            assert mot in texte, (
+                f"[{langue}] la tuile ne nomme plus « {mot} » : elle est "
+                f"revenue a un constat sans remede")
+
+
+def test_la_chaine_complete_donne_un_prix_avec_les_sources_gratuites():
+    """
+    LE test de bout en bout du defaut de la capture d'ecran. Il refait
+    exactement ce que fait l'ecran : prix publics, conditions commerciales,
+    case indicative cochee - et verifie qu'un prix sort.
+
+    Sans la case, le meme appel doit REFUSER : les deux moities du defaut
+    sont donc tenues par un seul test.
+    """
+    from klastos.market import NotAProductionSourceError
+    from klastos.providers import (USGS_ATTRIBUTION, UsgsProvider,
+                                   build_price_set)
+    from klastos.service import analyser, charger_termes
+
+    extrait = pathlib.Path("data/exemples/usgs_mcs2026_extrait.csv")
+    fournisseur = UsgsProvider(extrait)
+    prix = build_price_set(
+        fournisseur.quotes(), label="USGS",
+        is_production_source=fournisseur.is_production_source,
+        origin=USGS_ATTRIBUTION,
+        redistribution_licensed=fournisseur.redistribution_licensed)
+    termes = charger_termes("data/payable_terms.json", "exw_europe")
+
+    lignes = lignes_depuis_csv(
+        pathlib.Path("data/exemples/bulletin_coherent.csv").read_bytes())
+    commun = dict(lignes=lignes, lot_id="CAPTURE", client="C",
+                  provenance="vehicule_electrique", attestee=True,
+                  grades=None, tirages=30, graine=0,
+                  seuil_alerte=0.06, seuil_rejet=0.20,
+                  prix=prix, termes=termes)
+
+    # Sans la case : refus, et c'est le comportement voulu.
+    with pytest.raises(NotAProductionSourceError):
+        analyser(construire_demande(**commun))
+
+    # Avec : une valorisation indicative sort, et le document le dit.
+    a = analyser(construire_demande(**commun, autoriser_demo=True))
+    assert a.valorisation is not None, (
+        "aucune valorisation : l'utilisateur reverrait « n.d. »")
+    assert a.valorisation.max_price_high > a.valorisation.max_price_low > 0
+    assert a.rapport.is_demo, (
+        "un prix bati sur des moyennes publiques doit sortir sur un "
+        "document marque non opposable")
+
+
+def test_le_bouton_de_rapport_existe_bien():
+    """
+    L'utilisateur a signale ne pas le trouver. Il existe, dans le quatrieme
+    onglet. Ce test fige son existence, pour que la reponse « il est dans
+    l'onglet Rapport » reste vraie.
+    """
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    assert "download_button" in source
+    assert 'T("ui.rapport.telecharger")' in source
+    assert 'T("ui.onglet.rapport")' in source, (
+        "l'onglet qui porte le bouton a disparu de la barre d'onglets")

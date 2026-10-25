@@ -356,6 +356,7 @@ def _page_analyse(reglages: dict) -> None:
             specification=reglages["specification"],
             cout=reglages["cout"], marge=reglages["marge"],
             destinataire=reglages["destinataire"],
+            autoriser_demo=reglages["autoriser_demo"],
             emis_le=reglages["emis_le"],
             drx=chemin_drx,
             base_drx=base,
@@ -680,11 +681,20 @@ def _page_prix(reglages: dict) -> None:
             # Cles stables : comparer le LIBELLE affiche aurait envoye les
             # deux modes sur le flux d'agence des que l'ecran passe en
             # anglais. Meme faute que le routage des pages.
-            mode = st.radio(T("ui.prix.source"), ["fichier", "agence"],
+            # « gratuit » vient EN PREMIER, et c'est delibere : c'est la
+            # seule source qui ne demande ni fichier ni abonnement. Les deux
+            # sources gratuites du projet n'existaient que pour la ligne de
+            # commande, si bien qu'un utilisateur sans fichier et sans
+            # abonnement voyait « aucun prix fourni » sans qu'aucun ecran ne
+            # lui dise quoi faire.
+            mode = st.radio(T("ui.prix.source"),
+                            ["gratuit", "fichier", "agence"],
                             format_func=lambda m: T(f"ui.prix.mode_{m}"),
                             label_visibility="collapsed")
 
-        if mode == "fichier":
+        if mode == "gratuit":
+            _source_gratuite()
+        elif mode == "fichier":
             _source_fichier()
         else:
             _source_agence()
@@ -715,6 +725,110 @@ def _page_prix(reglages: dict) -> None:
 
         if not prix.redistribution_licensed:
             st.warning(T("ui.prix.usage_interne"))
+
+
+#: Les deux sources gratuites, et ce qu'elles couvrent. La cle est stable,
+#: le libelle vient du catalogue : comparer un libelle traduit enverrait
+#: l'interface anglaise sur la mauvaise source, meme faute que le routage
+#: des pages.
+SOURCES_GRATUITES = ("usgs", "pink")
+
+
+def _source_gratuite() -> None:
+  with st.container(border=True):
+    st.markdown(_carte_titre("2", T("ui.prix.carte_gratuite")),
+                unsafe_allow_html=True)
+    quelle = st.radio(T("ui.prix.source"), SOURCES_GRATUITES,
+                      format_func=lambda s: T(f"ui.prix.gratuite_{s}"),
+                      key="source_gratuite")
+    st.caption(T("ui.prix.gratuite_aide"))
+    chemin_payables = st.text_input(T("ui.prix.payables"),
+                                    value="data/payable_terms.json",
+                                    key="payables_gratuit")
+    marche = st.text_input(T("ui.prix.marche"), value="exw_europe",
+                           key="marche_gratuit")
+
+    # Le telechargement est un acte EXPLICITE, comme en ligne de commande :
+    # une analyse ne doit jamais dependre d'un lien joignable au moment ou
+    # elle tourne.
+    if st.button(T("ui.prix.gratuite_telecharger"),
+                 use_container_width=True):
+        _telecharger_source_gratuite(quelle)
+
+    if st.button(T("ui.prix.gratuite_charger"), type="primary",
+                 use_container_width=True):
+        _charger_source_gratuite(quelle, chemin_payables, marche)
+
+
+def _telecharger_source_gratuite(quelle: str) -> None:
+    """Rapatrie le fichier de la source, sans rien interpreter."""
+    import urllib.error
+    import urllib.request
+
+    from klastos.providers import (PINK_SHEET_FICHIER, PINK_SHEET_URL,
+                                   USGS_FICHIER, USGS_URL)
+
+    entete = {"User-Agent": "KLASTOS21"}
+    try:
+        if quelle == "usgs":
+            # Le lien du CSV porte un condensat qui change a chaque
+            # republication : on le demande a l'API de l'item.
+            import json
+
+            demande = urllib.request.Request(USGS_URL, headers=entete)
+            with urllib.request.urlopen(demande, timeout=60) as reponse:
+                item = json.loads(reponse.read())
+            fichiers = [f for f in item.get("files", [])
+                        if str(f.get("name", "")).lower().endswith(".csv")]
+            if not fichiers:
+                st.error(T("ui.prix.gratuite_absente"))
+                return
+            cible = max(fichiers, key=lambda f: f.get("size", 0))
+            url, chemin = cible["url"], pathlib.Path(USGS_FICHIER)
+        else:
+            url, chemin = PINK_SHEET_URL, pathlib.Path(PINK_SHEET_FICHIER)
+
+        demande = urllib.request.Request(url, headers=entete)
+        with urllib.request.urlopen(demande, timeout=120) as reponse:
+            octets = reponse.read()
+        chemin.parent.mkdir(parents=True, exist_ok=True)
+        chemin.write_bytes(octets)
+        st.success(T("ui.prix.gratuite_telechargee", octets=len(octets)))
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        titre, detail = message_de_refus(e)
+        st.error(f"**{titre}** : {detail}")
+
+
+def _charger_source_gratuite(quelle: str, chemin_payables: str,
+                             marche: str) -> None:
+    """
+    Construit le jeu de prix depuis le fichier local.
+
+    `is_production_source` vaut False des deux cotes : ce sont des
+    MOYENNES. L'analyse refusera donc une valorisation opposable, et c'est
+    voulu. La case « valorisation indicative » du volet Valorisation leve ce
+    refus en marquant le document non opposable.
+    """
+    from klastos.providers import (PINK_SHEET_ATTRIBUTION, USGS_ATTRIBUTION,
+                                   PinkSheetProvider, ProviderError,
+                                   UsgsProvider, build_price_set)
+
+    fournisseur = UsgsProvider() if quelle == "usgs" else PinkSheetProvider()
+    origine = (USGS_ATTRIBUTION if quelle == "usgs"
+               else PINK_SHEET_ATTRIBUTION)
+    try:
+        cotations = fournisseur.quotes()
+        st.session_state["prix"] = build_price_set(
+            cotations,
+            label=f"{origine}, {cotations[0].as_of.isoformat()}",
+            is_production_source=fournisseur.is_production_source,
+            origin=origine,
+            redistribution_licensed=fournisseur.redistribution_licensed)
+        st.session_state["termes"] = charger_termes(chemin_payables, marche)
+    except (ProviderError, ImplausiblePriceError, MissingPriceError,
+            OSError, KeyError) as e:
+        titre, detail = message_de_refus(e)
+        st.error(f"**{titre}** : {detail}")
 
 
 def _source_fichier() -> None:
@@ -929,6 +1043,12 @@ def _reglages() -> dict:
         cout = st.number_input(T("ui.cout.libelle"),
                                min_value=0.0, value=0.0, step=10.0)
         marge = st.slider(T("ui.marge.libelle"), 0.0, 0.6, 0.0, 0.01)
+        # Sans cette case, une valorisation sur moyennes publiques ou sur
+        # prix perimes est REFUSEE, et c'est le defaut. Elle n'existait
+        # nulle part dans l'interface : `autoriser_demo` restait a False et
+        # les sources gratuites menaient a un mur.
+        autoriser_demo = st.checkbox(T("ui.demo.libelle"),
+                                     help=T("ui.demo.aide"))
 
     with st.sidebar.expander(T("ui.volet.seuils")):
         st.caption(T("ui.seuils.arbitres",
@@ -964,6 +1084,7 @@ def _reglages() -> dict:
         # point-virgule, avec pour seul indice « Aucune colonne exploitable ».
         separateur=st.session_state.get("separateur") or ",",
         historique=historique, base=base,
+        autoriser_demo=autoriser_demo,
         emis_le=_dt.date.today())
 
 
