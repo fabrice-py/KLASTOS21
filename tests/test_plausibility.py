@@ -357,3 +357,148 @@ def test_la_cle_de_l_avertissement_existe_dans_les_deux_langues():
                        element="F", valeur=17.73, facteur=7.3, ancrage=2.44,
                        phase="LiPF6", part=14.3, borne=7.32, ecart=3.0)
         assert "F" in texte and "LiPF6" in texte
+
+
+# ==========================================================================
+# 5. L'arbitrage du facteur : l'encadrement par la chimie
+# ==========================================================================
+#
+# Le facteur 3 n'est pas un chiffre rond choisi au hasard. Le fluor d'une
+# black mass ne vient que de deux phases, donc le plafond chimique de
+# n'importe quel scenario se calcule exactement. Ces tests RECALCULENT
+# l'encadrement depuis la stoechiometrie plutot que de recopier la prose du
+# protocole : sinon ils ne verifieraient que ma capacite a transcrire.
+
+def _fluor(pvdf: float, lipf6: float) -> float:
+    """Le fluor total d'un melange, calcule depuis la stoechiometrie."""
+    from klastos.phases import stoichiometry_matrix
+
+    A, els, keys = stoichiometry_matrix()
+    i = els.index("F")
+    return (pvdf * A[i, keys.index("PVDF")]
+            + lipf6 * A[i, keys.index("LiPF6")])
+
+
+def test_les_deux_phases_porteuses_de_fluor_sont_celles_annoncees():
+    """
+    Tout l'encadrement repose sur ces deux teneurs. Si une phase change de
+    formule, les bornes ci-dessous ne veulent plus rien dire.
+    """
+    from klastos.phases import stoichiometry_matrix
+
+    A, els, keys = stoichiometry_matrix()
+    i = els.index("F")
+    assert A[i, keys.index("PVDF")] == pytest.approx(0.5934, abs=1e-4)
+    assert A[i, keys.index("LiPF6")] == pytest.approx(0.7504, abs=1e-4)
+    # Et aucune autre phase ne porte de fluor : sinon le calcul serait faux.
+    porteuses = {keys[j] for j in range(len(keys)) if A[i, j] > 0}
+    assert porteuses == {"PVDF", "LiPF6"}
+
+
+def test_le_facteur_tombe_dans_l_encadrement_chimique():
+    """
+    LE test de l'arbitrage. Le protocole 2.6 quinquies enferme le facteur
+    dans [2,75 ; 3,68], et ces deux bornes sont des SCENARIOS :
+
+      borne basse  un lot mal seche, 5 % de PVDF et 5 % d'electrolyte,
+                   atteint 6,72 % de fluor. Descendre sous ce rapport
+                   signalerait un lot que le procede explique.
+      borne haute  un sechage tres defaillant, 8 % d'electrolyte, atteint
+                   8,97 %. Depasser ce rapport laisserait passer un lot que
+                   rien n'explique.
+
+    Si le facteur sort de cet encadrement, ce n'est plus celui que le
+    protocole justifie.
+    """
+    ancre = ANCRAGES_CERTIFIES["F"]
+    basse = _fluor(0.05, 0.05) / ancre       # lot mal seche
+    haute = _fluor(0.05, 0.08) / ancre       # sechage tres defaillant
+
+    assert basse == pytest.approx(2.75, abs=0.02)
+    assert haute == pytest.approx(3.68, abs=0.02)
+    assert basse < FACTEUR_PLAUSIBILITE < haute, (
+        f"le facteur {FACTEUR_PLAUSIBILITE} est sorti de l'encadrement "
+        f"[{basse:.2f} ; {haute:.2f}] que le protocole justifie")
+
+
+def test_le_facteur_tolere_un_lot_mal_seche():
+    """
+    La propriete qui rend le seuil utilisable. Un retrait d'electrolyte
+    imparfait est un defaut de procede courant, pas une donnee fausse : il
+    ne doit pas declencher d'alerte.
+    """
+    borne = ANCRAGES_CERTIFIES["F"] * FACTEUR_PLAUSIBILITE
+    assert _fluor(0.05, 0.05) < borne, (
+        "un lot a 5 % d'electrolyte residuel est signale : le seuil refuse "
+        "un defaut de procede ordinaire")
+
+
+@pytest.mark.parametrize("nom,pvdf,lipf6", [
+    ("sechage tres defaillant", 0.05, 0.08),
+    ("liant double", 0.10, 0.02),
+])
+def test_le_facteur_refuse_ce_qu_aucun_procede_n_explique(nom, pvdf, lipf6):
+    borne = ANCRAGES_CERTIFIES["F"] * FACTEUR_PLAUSIBILITE
+    assert _fluor(pvdf, lipf6) > borne, f"{nom} n'est plus signale"
+
+
+def test_le_plafond_des_profils_passe_largement():
+    """
+    Les profils du generateur plafonnent a 5 % de PVDF et 2 % d'electrolyte,
+    soit 4,47 % de fluor. C'est ce plafond qui explique les 0 % de faux
+    positifs mesures : il est a 1,64 fois sous la borne.
+    """
+    borne = ANCRAGES_CERTIFIES["F"] * FACTEUR_PLAUSIBILITE
+    plafond = _fluor(0.05, 0.02)
+    assert plafond == pytest.approx(0.0447, abs=1e-4)
+    assert borne / plafond > 1.5, (
+        "la marge entre le plafond plausible et la borne est tombee sous "
+        "1,5 : des lots sains vont commencer a etre signales")
+
+
+def test_le_facteur_reste_non_arbitre_tant_que_les_deux_questions_tiennent():
+    """
+    Le plafond de 4,47 % derive des bornes du generateur, que le protocole
+    1.1 qualifie d'hypotheses metier NON SOURCEES. Un seuil arbitre contre
+    des hypotheses non sourcees serait un seuil blanchi.
+
+    Ce test tombera le jour ou quelqu'un passera le drapeau a True, et c'est
+    voulu : il faudra alors avoir les deux reponses du geometallurgiste, et
+    le dire dans le protocole.
+    """
+    assert FACTEUR_VALIDE is False, (
+        "le facteur a ete declare arbitre : les deux questions du protocole "
+        "2.6 quinquies ont-elles recu une reponse ecrite ?")
+
+
+# ==========================================================================
+# 6. Le protocole porte l'arbitrage
+# ==========================================================================
+
+@pytest.fixture(scope="module")
+def protocole():
+    import re
+
+    texte = pathlib.Path("PROTOCOLE.md").read_text(encoding="utf-8")
+    return re.sub(r"\s+", " ", texte.replace("**", "").replace("`", ""))
+
+
+def test_le_protocole_porte_le_tableau_des_scenarios(protocole):
+    for attendu in ("5 % d'électrolyte résiduel", "Liant doublé",
+                    "6,72 %", "7,43 %", "8,97 %", "17,73 %"):
+        assert attendu in protocole, f"« {attendu} » absent du protocole"
+
+
+def test_le_protocole_pose_les_deux_questions_fermees(protocole):
+    """
+    Le livrable de l'arbitrage n'est pas un chiffre, c'est une question
+    qu'un geometallurgiste tranche sans ouvrir un chantier.
+    """
+    assert "[2,75 ; 3,68]" in protocole
+    assert "ne peut pas descendre sous" in protocole
+    assert "ne peut pas dépasser" in protocole
+
+
+def test_le_protocole_dit_pourquoi_le_facteur_n_est_pas_arbitre(protocole):
+    assert "hypothèses métier, non sourcées" in protocole
+    assert "validated=False" in protocole

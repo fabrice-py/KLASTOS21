@@ -163,6 +163,34 @@ def test_la_dette_technique_est_listee_et_reelle(texte):
     assert PROVENANCE_PROFILES["deee"].validated is False
 
 
+def test_le_registre_des_dettes_porte_les_deux_dettes_du_25_octobre(texte):
+    """
+    Le registre 4.3 etait PERIME : il declarait la dette sur l'erreur
+    relative « soldee », sans dire qu'une dette NOUVELLE s'etait ouverte en
+    confrontant LNE-LiB01 au certificat OREAS - les deux se contredisent
+    d'un ordre de grandeur sur le nickel.
+
+    Solder la premiere ne solde pas la seconde. Un registre qui ne porte que
+    la bonne nouvelle ment par omission, et c'est precisement ce qu'un
+    registre de dettes ne doit pas faire.
+
+    Les deux dettes ouvertes du jour y figurent donc, chacune avec son
+    chemin de resolution.
+    """
+    from klastos.plausibility import FACTEUR_VALIDE
+
+    # Le bruit : la contradiction, et l'analyse en double qui la tranchera.
+    assert contient(texte, "contradiction entre les deux certificats")
+    assert contient(texte, "analyse en double sur lot réel")
+
+    # Le facteur de plausibilite, et ses deux questions fermees.
+    assert contient(texte, "Bandes de plausibilité, facteur appliqué")
+    assert contient(texte, "deux questions fermées")
+    assert FACTEUR_VALIDE is False, (
+        "le facteur est declare arbitre dans le code : le registre 4.3 et "
+        "le 2.6 quinquies doivent etre reecrits en consequence")
+
+
 def test_la_dette_sur_le_bruit_est_soldee(texte):
     """
     Le protocole annonce une calibration sur reference certifiee : le code

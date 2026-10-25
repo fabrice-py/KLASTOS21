@@ -375,3 +375,79 @@ def test_le_protocole_ne_pretend_plus_que_tout_est_non_valide(protocole):
         f"{section.count('à valider')}")
     assert "rel_sigma" in section and "abs_sigma" in section \
         and "lod" in section
+
+
+# ==========================================================================
+# 6. L'engagement du 1.3 ter : l'analyse en double
+# ==========================================================================
+#
+# C'est le seul engagement du protocole qui porte sur une MESURE A ACQUERIR
+# plutot que sur une regle de calcul. Il existe parce que la grandeur dont
+# l'outil a besoin - l'erreur d'UN laboratoire sur un lot HETEROGENE - n'est
+# publiee par personne.
+#
+# Ces tests tiennent l'engagement lui-meme : son existence, ses deux
+# precautions de protocole, son chemin de repli, et le fait que le modele
+# n'ait pas bouge tant qu'il n'est pas tenu.
+
+def test_le_protocole_porte_l_engagement_d_analyse_en_double(protocole):
+    assert "1.3 ter" in protocole
+    assert "ANALYSE EN DOUBLE" in protocole, (
+        "l'engagement doit etre ecrit en majuscules comme les autres "
+        "engagements du protocole, pour qu'il se voie")
+
+
+def test_l_engagement_nomme_les_deux_precautions(protocole):
+    """
+    Les deux precautions ne sont pas des details : s'en passer mesurerait
+    une autre grandeur, et la recalibration serait fausse tout en paraissant
+    rigoureuse.
+
+    1. Meme prise d'essai divisee en deux. Prelever deux fois dans le lot
+       mesurerait l'HETEROGENEITE d'echantillonnage, pas la
+       reproductibilite entre laboratoires.
+    2. Sur le lot le plus heterogene. Choisir le plus propre refait
+       exactement l'erreur des certificats, qui decrivent un materiau broye
+       et homogeneise.
+    """
+    assert "Même prise d'essai divisée en deux" in protocole
+    assert "hétérogénéité" in protocole
+    assert "le plus hétérogène disponible" in protocole
+    assert "pas le plus propre" in protocole
+
+
+def test_l_engagement_admet_un_chemin_de_repli(protocole):
+    """
+    Une analyse en double PUBLIEE vaut autant, a deux conditions : qu'elle
+    porte sur une matiere reelle et non sur un materiau de reference, et que
+    sa provenance soit citee. Sans ce repli, l'engagement serait bloque sur
+    une mesure que personne n'a peut-etre les moyens de commander.
+    """
+    assert "Chemin de repli" in protocole
+    assert "publiée" in protocole
+    assert "non sur un matériau de référence" in protocole
+    assert "note de provenance" in protocole
+
+
+def test_l_engagement_chiffre_ce_que_l_attente_coute(protocole):
+    """
+    Un engagement sans son enjeu se perd. Les deux chiffres disent pourquoi
+    la question merite une depense, et pourquoi elle ne merite pas un
+    raccourci.
+    """
+    assert "84 %" in protocole
+    assert "125 %" in protocole
+    assert "fausse précision" in protocole
+
+
+def test_le_modele_n_a_pas_bouge_tant_que_l_engagement_n_est_pas_tenu():
+    """
+    Le verrou. L'engagement dit « tant qu'elle n'a pas eu lieu, `rel_sigma`
+    reste a 6 % uniformes et aucun resserrement n'est applique ».
+
+    Ce test tombera le jour ou quelqu'un touchera au bruit, et c'est voulu :
+    il faudra alors avoir l'analyse en double, l'avoir versee au depot avec
+    sa provenance, et reecrire le 1.3 ter.
+    """
+    assert DEFAULT_NOISE.rel_sigma == pytest.approx(0.06)
+    assert DEFAULT_NOISE.rel_sigma_par_element == ()

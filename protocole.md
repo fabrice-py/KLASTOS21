@@ -187,11 +187,52 @@ OREAS, même dans une variante qui n'élargirait que le phosphore. La capacité
 par élément attend une source dont la définition et le domaine de
 concentration soient connus.
 
-**Ce qu'il faudrait pour trancher.** Les deux certificats complets, afin de
-lire la définition exacte de chaque colonne ; et, idéalement, une
-comparaison interlaboratoires sur un **lot client réel** plutôt que sur un
-matériau de référence. C'est la seule mesure qui porterait sur la grandeur
-dont l'outil a besoin.
+### 1.3 ter. Engagement : l'analyse en double qui tranchera le bruit
+
+> **Le modèle de bruit sera recalibré sur une ANALYSE EN DOUBLE d'un lot
+> réel. Tant qu'elle n'a pas eu lieu, ou qu'une analyse en double publiée
+> n'a pas été trouvée et reprise, `rel_sigma` reste à 6 % uniformes et
+> aucun resserrement n'est appliqué.**
+
+C'est le seul engagement de ce protocole qui porte sur une **mesure à
+acquérir** plutôt que sur une règle de calcul. Il existe parce que la
+grandeur dont l'outil a besoin n'est publiée par personne.
+
+**Ce qu'il faut mesurer, exactement.** `rel_sigma` doit modéliser l'erreur
+d'**un** bulletin, produit par **un** laboratoire, sur un lot client
+**hétérogène**. Les deux certificats disponibles décrivent un matériau
+finement broyé et homogénéisé, analysé par des laboratoires compétents :
+c'est un meilleur cas, donc un plancher, et jamais une estimation.
+
+**Le protocole de la mesure.** Deux précautions, et elles ne sont pas des
+détails :
+
+1. **Même prise d'essai divisée en deux**, puis envoyée à deux laboratoires.
+   Prélever deux fois dans le lot mesurerait l'hétérogénéité
+   d'échantillonnage, qui est une autre grandeur.
+2. **Sur le lot le plus hétérogène disponible**, pas le plus propre. C'est le
+   pire cas qui doit calibrer le modèle, sans quoi on recommence l'erreur
+   des certificats.
+
+**Chemin de repli, également admis.** Une analyse en double **publiée** sur
+une black mass réelle — comparaison interlaboratoires, étude de
+reproductibilité, essai circulaire d'un organisme de normalisation — vaut
+autant, à condition qu'elle porte sur une matière réelle et non sur un
+matériau de référence, et que sa provenance soit citée comme l'est celle du
+bulletin OREAS au § 1.3 bis. Si une telle donnée est trouvée, elle doit être
+versée au dépôt avec sa note de provenance et le modèle recalibré.
+
+**Ce que l'attente coûte, et ce qu'elle protège.** Le resserrement en jeu
+vaut **84 %** de la largeur de l'intervalle de prix sur un lot NMC, et un
+**élargissement de 125 %** sur un lot LFP. L'enjeu est donc considérable
+dans les deux sens. Mais resserrer sans la mesure produirait une fausse
+précision sur un prix d'achat, qui se paie comptant — d'où le refus
+d'avancer sans elle.
+
+**À défaut.** Les deux certificats complets permettraient au moins de lire
+la définition exacte de chaque colonne, et donc de savoir laquelle des trois
+statistiques du § 1.3 bis chacun rapporte. Ils ne mesureraient toujours pas
+la grandeur dont l'outil a besoin.
 
 ---
 
@@ -663,12 +704,46 @@ existe à ce niveau-là. Les bornes portent donc
 `Demande.facteur_plausibilite` l'expose au code appelant), comme les seuils
 de bouclage, parce qu'un réglage non arbitré doit pouvoir se discuter.
 
-**À arbitrer.** Le facteur 3 est un filet large, dans l'esprit des bandes de
-prix de `units.py` qui sont « volontairement très larges » et ne servent
-qu'à attraper les erreurs grossières. Tout facteur inférieur à 7,3
-signalerait encore le lot réel. La question à poser à un géométallurgiste
-est : quelle teneur en fluor une black mass peut-elle atteindre quand le
-liant PVDF et le sel d'électrolyte LiPF6 sont tous deux abondants ?
+**Où le facteur 3 tombe, et pourquoi là.** Le fluor d'une black mass ne vient
+que de deux phases : **PVDF à 59,34 % de F** et **LiPF6 à 75,04 %**. Le
+plafond chimique de n'importe quel scénario se calcule donc exactement. La
+borne au facteur 3 vaut **7,32 %** de fluor.
+
+| Scénario | PVDF | LiPF6 | F total | × ancrage | Verdict |
+|---|---|---|---|---|---|
+| Matériau certifié OREAS | — | — | 2,44 % | 1,00 | passe |
+| Plafond des profils du générateur | 5 % | 2 % | 4,47 % | 1,83 | passe |
+| Lot **mal séché**, électrolyte 5 % | 5 % | 5 % | 6,72 % | 2,75 | **passe de justesse** |
+| Liant **doublé**, PVDF 10 % | 10 % | 2 % | 7,43 % | 3,05 | **signalé de justesse** |
+| Séchage très défaillant, 8 % | 5 % | 8 % | 8,97 % | 3,68 | signalé |
+| Prédiction fautive du lot réel | 12 % | 14 % | 17,73 % | 7,27 | signalé |
+
+Le facteur 3 tombe **entre les deux cas limites**. Il tolère un lot dont
+l'électrolyte a été mal retiré, et refuse un liant doublé ou un séchage très
+défaillant. Ce n'est donc pas un chiffre arbitraire : c'est la frontière
+entre ce qu'un procédé médiocre explique et ce qu'il n'explique plus.
+
+**Pourquoi il reste néanmoins `validated=False`.** Le plafond de 4,47 %
+dérive des bornes de composition du générateur, que le § 1.1 qualifie
+lui-même d'**hypothèses métier, non sourcées et non statistiques**. Arbitrer
+un seuil contre des hypothèses non sourcées serait le faire passer pour
+mesuré alors qu'il est seulement cohérent. Le drapeau reste donc à `False`.
+
+**Les deux questions qui l'arbitreraient.** Elles sont volontairement
+fermées, pour qu'un géométallurgiste les tranche sans ouvrir un chantier :
+
+1. Une black mass avec **5 % d'électrolyte résiduel** est-elle plausible ?
+   Si oui, le facteur ne peut pas descendre sous **2,75**.
+2. Une black mass avec **8 % d'électrolyte résiduel**, ou **10 % de liant**,
+   est-elle implausible ? Si oui, le facteur ne peut pas dépasser **3,68**.
+
+Deux oui enferment le facteur dans **[2,75 ; 3,68]**, et 3 s'y trouve. Le
+drapeau passerait alors à `True`, arbitré contre une mesure comme les seuils
+de bouclage du § 2.6 ter.
+
+Mesure complémentaire déjà acquise : sur **1 200 lots** que les profils du
+générateur déclarent plausibles, fluor non dosé, le taux de faux positifs au
+facteur 3 est de **0,0 %**.
 
 ### 2.7 Origine de la dégénérescence
 
@@ -1030,9 +1105,19 @@ attestée.
 | Élément | Statut | Résolution prévue |
 |---|---|---|
 | Profils de composition (4) | `validated=False` | v1.1, sur lots réels |
-| Modèle de bruit, erreur relative | **soldée** | 6 %, calibré sur LNE-LiB01 |
+| Modèle de bruit, erreur relative **non sourcée** | **soldée** | 6 %, calibré sur LNE-LiB01 |
+| Modèle de bruit, **contradiction entre les deux certificats** | ouverte | § 1.3 ter, analyse en double sur lot réel |
 | Modèle de bruit, bruit de fond et limite de détection | `validated=False` | premier lot client |
+| **Bandes de plausibilité, facteur appliqué à l'ancrage** | `validated=False` | § 2.6 quinquies, deux questions fermées |
 | Profil de provenance `deee` | `validated=False` | arbitrage métier en attente |
+
+Deux lignes de ce tableau ont changé le 25 octobre 2026, et la nuance
+importe. La dette d'origine sur l'erreur relative — **elle n'était pas
+sourcée** — est bien soldée : `rel_sigma` vaut 6 %, calibré sur LNE-LiB01.
+Mais une dette **nouvelle** s'est ouverte en confrontant ce certificat à
+celui d'OREAS : les deux se contredisent d'un ordre de grandeur sur le
+nickel. Solder la première ne solde pas la seconde, et le tableau aurait
+menti en ne portant que la première.
 
 ---
 
