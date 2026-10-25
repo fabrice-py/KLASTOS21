@@ -29,6 +29,7 @@ une pile de repli système, et le fichier reste lisible hors ligne.
 from __future__ import annotations
 
 import html as _html
+import re as _re
 
 from . import i18n
 from .report import (SECTION_CONSEIL, SECTION_DIAGNOSTIC, SECTION_DRX,
@@ -123,8 +124,18 @@ CSS = """
      portait donc deux sens sur le meme document, alors que l'ecran
      affichait bien du vert pour cet etat. */
   --green: #0E7A5F;
-  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --f-body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* TIMES NEW ROMAN pour tout le document. C'est la police des pieces
+     contractuelles, et un rapport qui se discute en reunion gagne a en
+     avoir l'allure. L'ecran, lui, reste en IBM Plex Sans : les deux
+     supports partagent la PALETTE, qui porte le sens, et non la police,
+     qui porte le registre. */
+  --f-display: "Times New Roman", Times, Georgia, serif;
+  --f-body: "Times New Roman", Times, Georgia, serif;
+  /* Les COLONNES DE CHIFFRES restent en chasse fixe. Times New Roman n'a
+     pas de chiffres tabulaires : un « 1 » y est plus etroit qu'un « 8 »,
+     et les virgules decimales d'une colonne cessent de s'aligner. Sur un
+     tableau de teneurs, cet alignement est ce qui permet de comparer deux
+     lignes d'un coup d'oeil. */
   --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
 }
 * { box-sizing: border-box; }
@@ -132,7 +143,7 @@ html { background: var(--paper); }
 body {
   margin: 0 auto; max-width: 196mm; padding: 14mm 12mm 18mm;
   background: var(--bg); color: var(--ink);
-  font-family: var(--f-body); font-size: 10.5pt; line-height: 1.55;
+  font-family: var(--f-body); font-size: 11pt; line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 h1, h2, h3 { font-family: var(--f-display); font-weight: 700; margin: 0; }
@@ -223,10 +234,18 @@ th {
 }
 td { padding: 2.2mm 3mm 2.2mm 0; border-bottom: 0.5pt solid var(--line); vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
-.c-lab { width: 40%; }
-.c-bar { width: 32%; }
+.c-lab { width: 33%; }
+.c-bar { width: 27%; }
 .c-val { width: 20%; text-align: right; white-space: nowrap; }
-.c-st  { width: 8%;  text-align: right; white-space: nowrap; }
+/* La precision relative : « ± 10 % ». Elle repond a la seule question
+   qu'un acheteur pose devant un tableau de teneurs, et elle se compare
+   d'une ligne a l'autre sans calcul. */
+.c-prec { width: 11%; text-align: right; white-space: nowrap; }
+.c-st  { width: 9%;  text-align: right; white-space: nowrap; }
+.prec {
+  font-family: var(--f-mono); font-size: 8.5pt; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .val {
   font-family: var(--f-mono); font-size: 9pt;
   font-variant-numeric: tabular-nums;
@@ -239,12 +258,35 @@ tr:last-child td { border-bottom: 0; }
 .st-large  { color: var(--amber); }
 .st-ouvert { color: var(--rust); }
 
-/* ---------- Barres d'intervalle ---------- */
+/* ---------- Barres d'intervalle ----------
+   CE QUE LA BARRE DOIT DIRE, et ce qu'elle ne disait pas.
+   L'acheteur n'a qu'une question : de combien ce chiffre peut-il bouger ?
+   Donc la LARGEUR de l'intervalle, pas sa position.
+
+   L'echelle est commune a la section - 0 a 50 % sur les teneurs - alors
+   que les valeurs valent 2 a 5 %. La bande occupait donc 4 % de la piste,
+   tassee a gauche, et l'intervalle d'une grandeur ferme - 0,66 point sur
+   un axe de 50 - faisait moins d'un pixel. La barre ne disait rien de la
+   fermete, qui est pourtant sa seule raison d'etre.
+
+   Trois corrections. La piste est plus haute, donc une bande fine reste
+   visible. Des reperes au quart, a la moitie et aux trois quarts rendent
+   la position lisible sans lire l'echelle. Et toute bande recoit une
+   largeur minimale : une grandeur ferme se lit alors comme un TRAIT NET,
+   ce qui est exactement ce qu'elle est. */
 .piste {
-  position: relative; height: 7pt; background: var(--paper);
+  position: relative; height: 11pt; background: var(--paper);
   border: 0.5pt solid var(--line-strong);
+  /* Reperes au quart. Ils situent la valeur sans qu'on ait a lire les
+     bornes de l'echelle sous le tableau. */
+  background-image: repeating-linear-gradient(
+    to right, transparent 0 calc(25% - 0.25pt),
+    var(--line) calc(25% - 0.25pt) 25%);
 }
-.bande { position: absolute; top: 0; bottom: 0; }
+.bande {
+  position: absolute; top: 1.5pt; bottom: 1.5pt;
+  border-radius: 0.5pt;
+}
 /* Largeur avant dosage : un fantôme hachuré, sous la bande du « après ». */
 .avant {
   position: absolute; left: 0; top: 0; bottom: 0;
@@ -252,10 +294,18 @@ tr:last-child td { border-bottom: 0; }
     -45deg, var(--line-strong) 0 1pt, transparent 1pt 3pt);
   border-right: 0.5pt solid var(--muted);
 }
-.b-ferme  { background: var(--accent); min-width: 1.6pt; }
-.b-large  { background: var(--amber); min-width: 1.6pt; }
-.b-ouvert { background: var(--rust-soft); border: 0.5pt solid var(--rust); }
-.b-irr    { background: var(--rust); min-width: 1.6pt; }
+/* Une grandeur FERME est un trait net : largeur minimale genereuse, pour
+   qu'elle se lise comme une certitude et non comme une bande ecrasee. */
+.b-ferme  { background: var(--accent); min-width: 3pt; }
+.b-large  { background: var(--amber); min-width: 3pt; }
+/* Un DOMAINE COMPATIBLE est une bande pleine et translucide, pas un
+   contour vide : « large et flou » doit se voir comme tel. Le contour
+   seul se lisait comme une boite, donc comme une borne nette. */
+.b-ouvert {
+  background: var(--rust); opacity: 0.30;
+  border: 0.5pt solid var(--rust); min-width: 3pt;
+}
+.b-irr    { background: var(--rust); min-width: 3pt; }
 .echelle {
   display: flex; justify-content: space-between;
   font-family: var(--f-mono); font-size: 6.5pt; color: var(--muted);
@@ -272,7 +322,8 @@ tr:last-child td { border-bottom: 0; }
 }
 .lg-ferme { background: var(--accent); }
 .lg-large { background: var(--amber); }
-.lg-ouvert { background: var(--rust-soft); border: 0.5pt solid var(--rust); }
+.lg-ouvert { background: var(--rust); opacity: 0.30;
+             border: 0.5pt solid var(--rust); }
 .lg-irr { background: var(--rust); }
 .lg-avant {
   background: repeating-linear-gradient(
@@ -315,6 +366,30 @@ footer {
   a { color: inherit; text-decoration: none; }
 }
 """
+
+
+def _sans_commentaires(css: str) -> str:
+    """
+    La feuille de style, debarrassee de ses commentaires.
+
+    POURQUOI. Les commentaires de `CSS` sont ecrits en francais et
+    expliquent des choix de rendu : ils s'adressent a qui maintient le
+    module, pas au destinataire du rapport. Ils partaient pourtant dans
+    CHAQUE document livre, y compris les rapports anglais - ou le test de
+    fuite de vocabulaire les a trouves, sur le mot « largeur ».
+
+    Les retirer regle trois choses d'un coup : plus de francais dans un
+    document anglais, un fichier plus leger, et un client qui ouvre la
+    source ne lit pas nos notes de travail.
+
+    La constante `CSS` garde ses commentaires : c'est elle que lisent les
+    tests de charte et les relecteurs.
+    """
+    return _re.sub(r"/\*.*?\*/", "", css, flags=_re.S)
+
+
+#: Ce qui part reellement dans le document livre. Calcule une fois.
+CSS_LIVRE = _sans_commentaires(CSS)
 
 
 def _e(texte: object) -> str:
@@ -368,6 +443,37 @@ def _barre(ligne: ReportRow, echelle: float, vocabulaire: dict | None = None) ->
             f'style="left:{gauche:.2f}%;width:{largeur:.2f}%"></span></div>')
 
 
+def _precision(ligne: ReportRow, lg: str) -> str:
+    """
+    La demi-largeur de l'intervalle, en pourcentage de la valeur centrale.
+
+    POURQUOI CETTE COLONNE EXISTE. L'acheteur n'a qu'une question devant un
+    tableau de teneurs : de combien ce chiffre peut-il bouger ? La reponse
+    etait dans la colonne VALEUR - « 3,19 [2,86 - 3,52] % » - mais elle
+    demandait un calcul mental, ligne par ligne, pour comparer deux
+    elements.
+
+    La barre ne la donnait pas davantage : l'echelle est commune a la
+    section, 0 a 50 % sur les teneurs, et dix lignes sur quatorze valent
+    moins de 5 %. Elles rendaient donc toutes la meme petite marque.
+
+    « ± 10 % » se lit d'un coup d'oeil et se compare d'une ligne a l'autre.
+
+    Rien n'est affiche quand la valeur centrale manque : un DOMAINE
+    COMPATIBLE n'en a pas, et en inventer une - le milieu de la plage -
+    serait exactement le representant arbitraire que ce rapport refuse de
+    presenter comme une estimation.
+    """
+    if ligne.point is None or ligne.low is None or ligne.high is None:
+        return ""
+    if ligne.point <= 0:
+        return ""
+    relatif = (ligne.high - ligne.low) / 2.0 / ligne.point
+    if relatif > 1.0:
+        return i18n.t("rapport.doc.precision_large", lg)
+    return f"± {relatif * 100:.0f} %"
+
+
 def _tableau(section: ReportSection, lg: str = i18n.DEFAUT) -> str:
     echelle = _echelle(section)
     avec_barres = any(r.has_bar for r in section.rows)
@@ -382,8 +488,26 @@ def _tableau(section: ReportSection, lg: str = i18n.DEFAUT) -> str:
         entete = i18n.t("rapport.doc.col_largeur" if largeur
                         else "rapport.doc.col_domaine", lg)
         L.append(f'<th class="c-bar">{_e(entete)}</th>')
-    L += [f'<th class="c-val">{_e(i18n.t("rapport.doc.col_valeur", lg))}</th>',
-          f'<th class="c-st">{_e(i18n.t("rapport.doc.col_statut", lg))}</th>',
+    # La colonne n'apparait que si la section porte de vraies VALEURS
+    # CENTRALES. Deux cas l'excluent, et le second etait un piege.
+    #
+    # Une section de DOMAINES COMPATIBLES n'a pas de valeur centrale : une
+    # colonne vide y suggererait qu'il manque quelque chose.
+    #
+    # Et dans les sections de LARGEUR - reduire, sensibles, scenario, drx,
+    # conseil - le champ `point` ne porte PAS une valeur centrale mais la
+    # largeur AVANT dosage, dessinee en fantome derriere la largeur apres.
+    # La formule y rendait « ± 0 % », c'est-a-dire une precision parfaite,
+    # sur des lignes qui mesurent une incertitude. Exactement l'inverse de
+    # ce que le tableau dit.
+    avec_precision = not largeur and any(
+        r.point is not None and r.low is not None for r in section.rows)
+    L.append(f'<th class="c-val">'
+             f'{_e(i18n.t("rapport.doc.col_valeur", lg))}</th>')
+    if avec_precision:
+        L.append(f'<th class="c-prec">'
+                 f'{_e(i18n.t("rapport.doc.col_precision", lg))}</th>')
+    L += [f'<th class="c-st">{_e(i18n.t("rapport.doc.col_statut", lg))}</th>',
           "</tr></thead><tbody>"]
 
     for r in section.rows:
@@ -397,6 +521,9 @@ def _tableau(section: ReportSection, lg: str = i18n.DEFAUT) -> str:
         if avec_barres:
             L.append(f'<td class="c-bar">{_barre(r, echelle, vocabulaire)}</td>')
         L.append(f'<td class="c-val val">{_e(r.value)}</td>')
+        if avec_precision:
+            L.append(f'<td class="c-prec prec">'
+                     f'{_e(_precision(r, lg))}</td>')
         L.append(f'<td class="c-st"><span class="st {classe}">'
                  f'{_e(libelle)}</span></td>')
         L.append("</tr>")
@@ -508,7 +635,7 @@ def to_html(rapport: LotReport) -> str:
         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
         'family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&'
         'family=IBM+Plex+Sans:wght@400;500&display=swap">',
-        f"<style>{CSS}</style>", "</head>", "<body>",
+        f"<style>{CSS_LIVRE}</style>", "</head>", "<body>",
     ]
 
     # --- en-tête ---------------------------------------------------------

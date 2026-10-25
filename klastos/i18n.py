@@ -244,6 +244,14 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "en": "Issue date",
     },
     "rapport.doc.col_grandeur": {"fr": "Grandeur", "en": "Quantity"},
+    "rapport.doc.col_precision": {
+        "fr": "Précision",
+        "en": "Precision",
+    },
+    "rapport.doc.precision_large": {
+        "fr": "> 100 %",
+        "en": "> 100%",
+    },
     "rapport.doc.col_valeur": {"fr": "Valeur", "en": "Value"},
     "rapport.doc.col_statut": {"fr": "Statut", "en": "Status"},
     "rapport.doc.col_domaine": {"fr": "Domaine", "en": "Range"},

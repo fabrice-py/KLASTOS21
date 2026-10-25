@@ -427,3 +427,239 @@ def test_le_theme_est_clair_uniquement(document):
     toujours sur blanc. Le choix est delibere : pas de media sombre.
     """
     assert "prefers-color-scheme" not in document
+
+# ==========================================================================
+# Refonte visuelle du rapport, 25 octobre 2026
+# ==========================================================================
+#
+# Trois demandes, et un piege trouve en chemin.
+#
+# TYPOGRAPHIE. Times New Roman pour tout le document : c'est la police des
+# pieces contractuelles, et un rapport qui se discute en reunion gagne a en
+# avoir l'allure. Interligne ramene a 1,45.
+#
+# LES BARRES. Elles ne disaient pas ce qu'elles devaient dire. L'echelle est
+# commune a la section - 0 a 50 % sur les teneurs - alors que dix valeurs
+# sur quatorze valent moins de 5 %. Chaque bande occupait donc 4 % de la
+# piste, tassee a gauche, et l'intervalle d'une grandeur ferme faisait moins
+# d'un pixel. La barre ne portait aucune information sur la FERMETE, qui est
+# pourtant la seule question d'un acheteur.
+#
+# LA COLONNE PRECISION. « ± 10 % » se lit d'un coup d'oeil et se compare
+# d'une ligne a l'autre. L'information existait - dans « 3,19 [2,86 - 3,52] »
+# - mais elle demandait un calcul mental par ligne.
+
+def _rapport_complet():
+    """Un rapport qui porte toutes les natures de section."""
+    from klastos.service import Demande, analyser
+
+    return analyser(Demande(
+        bulletin="data/exemples/bulletin_coherent.csv",
+        provenance="vehicule_electrique", attestee=True,
+        tirages=60, conseil_drx=True)).rapport
+
+
+# --------------------------------------------------------------------------
+# Typographie
+# --------------------------------------------------------------------------
+
+def test_les_commentaires_ne_partent_pas_dans_le_document():
+    """
+    Les commentaires de `CSS` sont ecrits en francais et expliquent des
+    choix de rendu : ils s'adressent a qui maintient le module, pas au
+    destinataire du rapport.
+
+    Ils partaient pourtant dans CHAQUE document livre. Le test de fuite de
+    vocabulaire les a trouves dans un rapport ANGLAIS, sur le mot
+    « largeur » - un commentaire que je venais d'ecrire.
+
+    Les retirer regle trois choses : plus de francais dans un document
+    anglais, un fichier plus leger d'un tiers, et un client qui ouvre la
+    source ne lit pas nos notes de travail.
+    """
+    from klastos.render_html import CSS, CSS_LIVRE, to_html
+
+    assert "/*" in CSS, "la constante source doit garder ses commentaires"
+    assert "/*" not in CSS_LIVRE
+    assert len(CSS_LIVRE) < len(CSS) * 0.8
+
+    # Et le document livre ne les porte pas davantage.
+    html = to_html(_rapport_complet())
+    assert "/*" not in html
+
+
+def test_la_feuille_allegee_garde_toutes_ses_regles():
+    """
+    Garde du retrait. Une expression trop gourmande emporterait des regles
+    avec les commentaires, et le document sortirait sans mise en page -
+    sans qu'aucune erreur ne soit levee.
+    """
+    from klastos.render_html import CSS_LIVRE
+
+    for regle in ("--f-body:", ".piste {", ".b-ferme", ".b-ouvert {",
+                  ".c-prec", "@page", "@media print"):
+        assert regle in CSS_LIVRE, (
+            f"« {regle} » a disparu de la feuille livree")
+
+
+def test_le_rapport_est_compose_en_times_new_roman():
+    from klastos.render_html import CSS
+
+    assert '--f-body: "Times New Roman"' in CSS
+    assert '--f-display: "Times New Roman"' in CSS
+
+
+def test_les_colonnes_de_chiffres_gardent_une_chasse_fixe():
+    """
+    Times New Roman n'a pas de chiffres tabulaires : un « 1 » y est plus
+    etroit qu'un « 8 », et les virgules decimales d'une colonne cessent de
+    s'aligner. Sur un tableau de teneurs, cet alignement est ce qui permet
+    de comparer deux lignes d'un coup d'oeil.
+    """
+    from klastos.render_html import CSS
+
+    assert "--f-mono:" in CSS
+    assert "tabular-nums" in CSS
+    for classe in (".val", ".prec"):
+        bloc = CSS[CSS.index(classe + " {"):]
+        bloc = bloc[:bloc.index("}")]
+        assert "var(--f-mono)" in bloc, (
+            f"{classe} a perdu sa chasse fixe : la colonne ne s'aligne plus")
+
+
+def test_l_interligne_est_dans_la_fourchette_demandee():
+    import re
+
+    from klastos.render_html import CSS
+
+    bloc = CSS[CSS.index("body {"):]
+    bloc = bloc[:bloc.index("}")]
+    trouve = re.search(r"line-height:\s*([\d.]+)", bloc)
+    assert trouve is not None, "le corps n'a plus d'interligne declare"
+    valeur = float(trouve[1])
+    assert 1.0 <= valeur <= 1.5, (
+        f"interligne {valeur} hors de la fourchette 1 a 1,5")
+
+
+# --------------------------------------------------------------------------
+# Les barres
+# --------------------------------------------------------------------------
+
+def test_une_grandeur_ferme_reste_visible():
+    """
+    Sur l'echelle commune, un intervalle ferme represente moins d'un pixel.
+    Une largeur minimale le fait lire comme un TRAIT NET, ce qu'il est.
+    """
+    from klastos.render_html import CSS
+
+    for classe in (".b-ferme", ".b-large", ".b-irr", ".b-ouvert"):
+        bloc = CSS[CSS.index(classe + " "):]
+        bloc = bloc[:bloc.index("}")]
+        assert "min-width" in bloc, (
+            f"{classe} n'a plus de largeur minimale : une grandeur ferme "
+            f"redevient invisible")
+
+
+def test_un_domaine_compatible_se_lit_comme_une_bande_floue():
+    """
+    Il etait dessine en contour vide, ce qui se lit comme une BOITE, donc
+    comme des bornes nettes. Un domaine compatible est l'inverse : large et
+    sans valeur privilegiee a l'interieur.
+    """
+    from klastos.render_html import CSS
+
+    bloc = CSS[CSS.index(".b-ouvert {"):]
+    bloc = bloc[:bloc.index("}")]
+    assert "opacity" in bloc, (
+        "le domaine compatible a perdu sa transparence : il redevient une "
+        "boite a bornes nettes")
+
+
+def test_la_piste_porte_des_reperes():
+    """
+    Ils situent la valeur sans qu'on ait a lire les bornes de l'echelle
+    sous le tableau.
+    """
+    from klastos.render_html import CSS
+
+    bloc = CSS[CSS.index(".piste {"):]
+    bloc = bloc[:bloc.index("}")]
+    assert "repeating-linear-gradient" in bloc
+
+
+# --------------------------------------------------------------------------
+# La colonne de precision, et le piege qu'elle a failli poser
+# --------------------------------------------------------------------------
+
+def test_la_precision_se_calcule_sur_la_valeur_centrale():
+    from klastos.report import ReportRow
+    from klastos.render_html import _precision
+
+    r = ReportRow(label="x", value="", status="ferme",
+                  low=0.90, high=1.10, point=1.00)
+    assert _precision(r, "fr") == "± 10 %"
+
+
+def test_sans_valeur_centrale_rien_n_est_affiche():
+    """
+    Un DOMAINE COMPATIBLE n'a pas de valeur centrale. En inventer une - le
+    milieu de la plage - serait exactement le representant arbitraire que
+    ce rapport refuse de presenter comme une estimation.
+    """
+    from klastos.report import ReportRow
+    from klastos.render_html import _precision
+
+    r = ReportRow(label="x", value="", status="ouvert",
+                  low=0.0, high=0.33, point=None)
+    assert _precision(r, "fr") == ""
+
+
+def test_un_intervalle_plus_large_que_la_valeur_le_dit():
+    from klastos.report import ReportRow
+    from klastos.render_html import _precision
+
+    r = ReportRow(label="x", value="", status="ferme_large",
+                  low=0.0, high=0.172, point=0.0497)
+    assert _precision(r, "fr") == "> 100 %"
+
+
+def test_aucune_precision_dans_les_sections_de_largeur():
+    """
+    LE PIEGE, trouve en verifiant plutot qu'en supposant.
+
+    Dans les sections de largeur - reduire, sensibles, scenario, drx,
+    conseil - le champ `point` ne porte PAS une valeur centrale mais la
+    LARGEUR AVANT dosage, dessinee en fantome derriere la largeur apres. La
+    formule y rendait « ± 0 % », c'est-a-dire une precision PARFAITE, sur
+    des lignes qui mesurent precisement une incertitude.
+
+    C'est l'inverse exact de ce que le tableau dit. Un lecteur y aurait lu
+    que les grandeurs les plus incertaines du rapport sont les mieux
+    connues.
+    """
+    from klastos.render_html import to_html
+
+    html = to_html(_rapport_complet())
+    assert "± 0 %" not in html, (
+        "une section de largeur affiche de nouveau une precision : « point »"
+        " y est une largeur, pas une valeur centrale")
+    assert html.count('c-prec">Pr') == 1, (
+        "la colonne Precision apparait dans plus d'une section")
+
+
+def test_la_precision_figure_bien_sur_les_grandeurs_fermes():
+    """
+    Le pendant positif. Sans lui, exclure la colonne de PARTOUT passerait
+    le test ci-dessus sans rien dire.
+    """
+    import re
+
+    from klastos.render_html import to_html
+
+    html = to_html(_rapport_complet())
+    valeurs = set(re.findall(r'class="c-prec prec">([^<]+)<', html))
+    valeurs = {v for v in valeurs if v.strip()}
+    assert len(valeurs) >= 3, (
+        f"seulement {len(valeurs)} precision(s) distincte(s) : la colonne "
+        f"n'informe plus")
+    assert any("±" in v for v in valeurs)
