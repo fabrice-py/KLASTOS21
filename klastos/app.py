@@ -176,7 +176,14 @@ def message_de_refus(exc: Exception) -> tuple[str, str]:
     if isinstance(exc, ReportRefused):
         return (T("ui.refus.rapport"), str(exc))
     if isinstance(exc, NotAProductionSourceError):
-        return (T("ui.refus.source_prix"), str(exc))
+        # Le message de `valuation.py` dit « passer allow_stale=True » :
+        # c'est exact, et c'est adresse a un developpeur. A l'ecran on
+        # nomme la case a cocher, sans quoi l'utilisateur lit un refus
+        # qu'il ne sait pas lever - c'est arrive.
+        return (T("ui.refus.source_prix"),
+                T("ui.refus.source_prix_remede",
+                  case=T("ui.demo.libelle"),
+                  volet=T("ui.volet.valorisation")))
     if isinstance(exc, StalePriceError):
         return (T("ui.refus.prix_perimes"), str(exc))
     if isinstance(exc, MissingPriceError):
@@ -726,6 +733,13 @@ def _page_prix(reglages: dict) -> None:
         if not prix.redistribution_licensed:
             st.warning(T("ui.prix.usage_interne"))
 
+        # Prevenir ICI, au moment ou les prix sont charges, et pas
+        # seulement au refus deux ecrans plus loin.
+        if not prix.is_production_source:
+            st.info(T("ui.prix.indicatif_requis",
+                      case=T("ui.demo.libelle"),
+                      volet=T("ui.volet.valorisation")))
+
 
 #: Les deux sources gratuites, et ce qu'elles couvrent. La cle est stable,
 #: le libelle vient du catalogue : comparer un libelle traduit enverrait
@@ -1036,7 +1050,10 @@ def _reglages() -> dict:
         if x == DESTINATAIRE_TIERS else T("ui.destinataire.interne"),
         help=T("ui.destinataire.aide"))
 
-    with st.sidebar.expander(T("ui.volet.valorisation")):
+    # Deplie par defaut : la case « valorisation indicative » y vit, et
+    # repliee elle etait introuvable. Un utilisateur a charge des prix
+    # gratuits, recu un refus, et n'a pas pu le lever.
+    with st.sidebar.expander(T("ui.volet.valorisation"), expanded=True):
         aucune = T("ui.spec.aucune")
         spec = st.selectbox(T("ui.spec.libelle"),
                             [aucune] + sorted(REFERENCE_SPECS))

@@ -265,8 +265,22 @@ def test_les_seuils_et_la_graine_sont_transmis():
 def test_chaque_refus_recoit_un_titre_lisible(exc, attendu):
     titre, detail = message_de_refus(exc)
     assert attendu in titre
-    assert detail == str(exc)
     assert "Traceback" not in detail
+    assert detail.strip(), "un refus sans explication n'est pas une decision"
+
+    # Le detail est conserve MOT POUR MOT, sauf pour la source non
+    # destinee a la production. Cette assertion valait pour tous les refus
+    # jusqu'au 25 octobre 2026, et elle etait trop forte : elle exigeait le
+    # verbatim quand la regle reelle est « une explication lisible et
+    # actionnable ».
+    #
+    # Le message de `valuation.py` dit « passer allow_stale=True », ce qui
+    # satisfaisait la lettre du test tout en echouant son intention. Un
+    # utilisateur a lu ce refus sans savoir le lever. L'interface le
+    # remplace donc par la consigne, et deux tests dedies verifient qu'elle
+    # nomme la case et ne laisse plus fuir de vocabulaire de code.
+    if not isinstance(exc, NotAProductionSourceError):
+        assert detail == str(exc)
 
 
 def test_le_detail_du_refus_est_conserve_mot_pour_mot():
@@ -736,3 +750,123 @@ def test_le_bouton_de_rapport_existe_bien():
     assert 'T("ui.rapport.telecharger")' in source
     assert 'T("ui.onglet.rapport")' in source, (
         "l'onglet qui porte le bouton a disparu de la barre d'onglets")
+
+
+# ==========================================================================
+# Un refus doit nommer l'ACTION, pas le parametre Python
+# ==========================================================================
+#
+# Defaut signale le 25 octobre 2026, sur un ecran reel. Des prix publics
+# etaient charges, l'analyse les refusait a juste titre, et le bandeau
+# affichait le message de `valuation.py` :
+#
+#     « Brancher un flux via PriceProvider, ou passer allow_stale=True
+#       pour une demonstration. »
+#
+# C'est exact, et c'est adresse a un DEVELOPPEUR. L'utilisateur, lui, lit un
+# refus qu'il ne sait pas lever. La case existait pourtant, mais repliee
+# dans un volet de la barre laterale.
+#
+# Trois corrections tenues ici : le refus nomme la case, le volet s'ouvre,
+# et la page Prix previent au moment du chargement plutot qu'au refus deux
+# ecrans plus loin.
+
+def test_le_refus_de_source_nomme_la_case_a_cocher():
+    from klastos import i18n
+    from klastos.market import NotAProductionSourceError
+
+    _, detail = message_de_refus(
+        NotAProductionSourceError("message technique brut"))
+
+    assert i18n.t("ui.demo.libelle") in detail, (
+        "le refus ne nomme pas la case qui le leve")
+    assert i18n.t("ui.volet.valorisation") in detail, (
+        "le refus ne dit pas dans quel volet chercher")
+
+
+def test_le_refus_ne_laisse_plus_fuir_le_vocabulaire_du_code():
+    """
+    Le message d'origine nommait un parametre Python et une classe. Les
+    deux sont justes dans une bibliotheque, et inutilisables a l'ecran.
+    """
+    from klastos.market import NotAProductionSourceError
+
+    _, detail = message_de_refus(NotAProductionSourceError(
+        "n'est pas declare comme source de production. Brancher un flux "
+        "via PriceProvider, ou passer allow_stale=True."))
+
+    for fuite in ("allow_stale", "PriceProvider", "=True"):
+        assert fuite not in detail, (
+            f"« {fuite} » arrive jusqu'a l'ecran : c'est du vocabulaire de "
+            f"code, pas une consigne")
+
+
+def test_le_refus_annonce_la_consequence():
+    """
+    Lever le refus n'est pas neutre : le document sort NON OPPOSABLE. Le
+    dire au moment ou l'on propose de cocher evite une mauvaise surprise au
+    moment de remettre le rapport.
+    """
+    from klastos.market import NotAProductionSourceError
+
+    _, detail = message_de_refus(NotAProductionSourceError("x"))
+    assert "non opposable" in detail.lower()
+
+
+def test_le_volet_qui_porte_la_case_est_deplie():
+    """
+    Replie, le volet rendait la case introuvable - et c'est exactement ce
+    qui est arrive. Un reglage qui leve un refus doit etre visible sans
+    qu'on sache deja qu'il existe.
+    """
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    assert 'T("ui.volet.valorisation"), expanded=True' in source, (
+        "le volet Valorisation s'est referme : la case indicative "
+        "redevient introuvable")
+
+
+def test_la_page_prix_previent_des_le_chargement():
+    """
+    Prevenir au refus, deux ecrans plus loin, est trop tard. La page Prix
+    sait des le chargement que le jeu n'est pas une source de production.
+    """
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    assert "if not prix.is_production_source:" in source
+    assert 'T("ui.prix.indicatif_requis"' in source
+
+
+def test_le_rapport_porte_la_valorisation_quand_elle_existe():
+    """
+    Second point signale : « l'estimation devrait faire partie du rapport ».
+    Elle en fait partie, et ce test le fige - il manquait seulement un prix
+    a mettre dedans.
+    """
+    from klastos.providers import (USGS_ATTRIBUTION, UsgsProvider,
+                                   build_price_set)
+    from klastos.render_html import to_html
+    from klastos.report import SECTION_VALORISATION
+    from klastos.service import analyser, charger_termes
+
+    f = UsgsProvider("data/exemples/usgs_mcs2026_extrait.csv")
+    prix = build_price_set(
+        f.quotes(), label="USGS",
+        is_production_source=f.is_production_source,
+        origin=USGS_ATTRIBUTION,
+        redistribution_licensed=f.redistribution_licensed)
+    lignes = lignes_depuis_csv(
+        pathlib.Path("data/exemples/bulletin_coherent.csv").read_bytes())
+    a = analyser(construire_demande(
+        lignes=lignes, lot_id="T", client="C",
+        provenance="vehicule_electrique", attestee=True, grades=None,
+        tirages=30, graine=0, seuil_alerte=0.06, seuil_rejet=0.20,
+        prix=prix, termes=charger_termes("data/payable_terms.json",
+                                         "exw_europe"),
+        autoriser_demo=True))
+
+    assert a.rapport.section(SECTION_VALORISATION) is not None, (
+        "le rapport ne porte pas de section de valorisation")
+    html = to_html(a.rapport)
+    assert "USD/t" in html, "le prix n'apparait pas dans le document"
+    assert f"{a.valorisation.max_price_high:,.0f}".replace(",", " ") in \
+        html.replace(",", " ").replace(" ", " "), (
+        "la borne haute du prix n'est pas dans le document")

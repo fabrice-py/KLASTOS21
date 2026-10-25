@@ -1623,6 +1623,30 @@ CATALOGUE: dict[str, dict[str, str]] = {
     # qu'un televersement de fichier et les flux d'agence payants. Un
     # utilisateur sans fichier de prix et sans abonnement voyait donc
     # « aucun prix fourni » sans qu'aucun ecran ne lui dise quoi faire.
+    # Remede AFFICHABLE d'un refus de source non destinee a la production.
+    # Le message de `valuation.py` dit « brancher un flux via PriceProvider,
+    # ou passer allow_stale=True » : c'est juste, et c'est adresse a un
+    # developpeur. A l'ecran il faut nommer la case a cocher.
+    "ui.refus.source_prix_remede": {
+        "fr": "Ces prix sont des MOYENNES publiques, pas des cotations de "
+              "production. Pour obtenir une valorisation indicative, cochez "
+              "« {case} » dans le volet « {volet} » de la barre latérale. "
+              "Le rapport sortira alors marqué non opposable, ce qui est "
+              "voulu.",
+        "en": "These prices are public AVERAGES, not production quotes. To "
+              "get an indicative valuation, tick \"{case}\" in the "
+              "\"{volet}\" panel of the sidebar. The report will then be "
+              "marked non-binding, which is intended.",
+    },
+    "ui.prix.indicatif_requis": {
+        "fr": "Ces prix sont chargés, mais ce sont des moyennes : l'analyse "
+              "refusera une valorisation opposable. Cochez « {case} » dans "
+              "le volet « {volet} » de la barre latérale pour obtenir une "
+              "estimation indicative.",
+        "en": "These prices are loaded, but they are averages: the analysis "
+              "will refuse a binding valuation. Tick \"{case}\" in the "
+              "\"{volet}\" sidebar panel to get an indicative estimate.",
+    },
     "ui.prix.mode_gratuit": {
         "fr": "Source gratuite",
         "en": "Free source",
