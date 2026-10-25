@@ -870,3 +870,110 @@ def test_le_rapport_porte_la_valorisation_quand_elle_existe():
     assert f"{a.valorisation.max_price_high:,.0f}".replace(",", " ") in \
         html.replace(",", " ").replace(" ", " "), (
         "la borne haute du prix n'est pas dans le document")
+
+
+# ==========================================================================
+# Le PDF est l'action principale, et en un clic
+# ==========================================================================
+#
+# Signale le 25 octobre 2026 : « le fichier est certes telechargeable mais
+# toujours sous format html, je veux le fichier telecharge en pdf ».
+#
+# Le PDF existait pourtant. Mais il etait en TROISIEME position, derriere un
+# bouton BLEU intitule « Telecharger le rapport (HTML) », et demandait DEUX
+# clics - preparer, puis telecharger. L'utilisateur a clique sur le bouton
+# bleu, obtenu du HTML, et cherche le PDF sans le trouver.
+#
+# Le format que l'on remet a un client est le PDF. C'est donc lui qui porte
+# l'action principale, en tete et en un seul clic.
+
+def test_le_pdf_est_le_premier_bouton():
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    pos_pdf = source.index("_bouton_pdf(a, html, c1)")
+    pos_html = source.index('T("ui.rapport.telecharger"), data=html')
+    assert pos_pdf < pos_html, (
+        "le HTML est repasse devant le PDF : c'est l'agencement qui a fait "
+        "telecharger du HTML a un utilisateur qui voulait un PDF")
+
+
+def test_le_pdf_porte_l_action_principale_et_pas_le_html():
+    """
+    Un seul bouton peut etre `type="primary"`. Si le HTML le redevient, on
+    a refait exactement la faute signalee.
+    """
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    debut = source.index("def _bouton_pdf")
+    fin = source.index("def _rapport")
+    assert 'type="primary"' in source[debut:fin], (
+        "le bouton PDF n'est plus l'action principale")
+
+    # Le bloc du bouton HTML, lui, ne doit plus la porter.
+    bloc_html = source[source.index('T("ui.rapport.telecharger"), data=html'):]
+    bloc_html = bloc_html[:bloc_html.index("c3.download_button")]
+    assert 'type="primary"' not in bloc_html, (
+        "le bouton HTML est redevenu l'action principale")
+
+
+def test_le_pdf_ne_demande_plus_deux_clics():
+    """
+    Le parcours « preparer puis telecharger » a disparu : les octets sont
+    prets au rendu, donc un seul clic suffit.
+    """
+    from klastos import i18n
+
+    assert "ui.rapport.pdf_preparer" not in i18n.CATALOGUE, (
+        "la cle du parcours en deux temps est revenue")
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    assert "pdf_preparer" not in source
+
+
+def test_l_impression_rend_son_erreur_au_lieu_de_la_lever():
+    """
+    LE point subtil du cache. Une exception traversant `st.cache_data`
+    n'est PAS mise en cache : un moteur defaillant serait donc relance a
+    chaque reaffichage de la page, et l'ecran ramerait sans raison visible.
+
+    `_imprimer_pdf` rend donc (octets, erreur) et ne leve rien, pour que
+    l'echec soit cache comme le succes.
+    """
+    import inspect
+
+    from klastos.app import _imprimer_pdf
+
+    # La fonction est decoree : on lit la source de la fonction enveloppee.
+    brute = getattr(_imprimer_pdf, "__wrapped__", _imprimer_pdf)
+    source = inspect.getsource(brute)
+    assert "return None, str(e)" in source, (
+        "l'erreur n'est plus rendue : elle traversera le cache et le "
+        "moteur sera relance a chaque reaffichage")
+    assert "raise" not in source.split('"""')[-1], (
+        "une exception est levee hors du cache")
+
+
+def test_l_impression_est_mise_en_cache():
+    """
+    Sans cache, les octets seraient reproduits a CHAQUE reaffichage de la
+    page - donc a chaque case cochee ailleurs dans l'ecran -, chacun
+    lancant un navigateur sans tete.
+    """
+    source = pathlib.Path("klastos/app.py").read_text(encoding="utf-8")
+    assert "@st.cache_data" in source
+    debut = source.index("@st.cache_data")
+    assert "def _imprimer_pdf" in source[debut:debut + 300], (
+        "le cache ne porte plus sur l'impression du PDF")
+
+
+@pytest.mark.skipif(
+    not __import__("klastos.pdf", fromlist=["x"]).pdf_disponible(),
+    reason="aucun navigateur sur cette machine")
+def test_l_impression_rend_de_vrais_octets_de_pdf():
+    from klastos.app import _imprimer_pdf
+
+    html = ("<!doctype html><html><head><meta charset='utf-8'></head>"
+            "<body><h1>KLASTOS21</h1></body></html>")
+    octets, erreur = _imprimer_pdf(html)
+    assert erreur == ""
+    assert octets is not None
+    assert octets[:5] == b"%PDF-", (
+        "ce ne sont pas des octets de PDF : c'est exactement le defaut "
+        "signale, un fichier HTML rendu sous un nom de PDF")

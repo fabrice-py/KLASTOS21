@@ -633,49 +633,67 @@ def _incertitude(a: Analyse) -> None:
                     use_container_width=True, hide_index=True)
 
 
+@st.cache_data(show_spinner=False, max_entries=4)
+def _imprimer_pdf(html: str) -> tuple[bytes | None, str]:
+    """
+    Imprime le document, et rend (octets, erreur).
+
+    MIS EN CACHE sur le HTML lui-meme. Sans cache, un `download_button`
+    relancerait le navigateur a chaque reaffichage de la page, donc a
+    chaque case cochee ailleurs dans l'ecran. Avec, l'impression a lieu une
+    fois par version du rapport.
+
+    L'ERREUR EST RENDUE, PAS LEVEE. Une exception traversant
+    `st.cache_data` n'est pas mise en cache : un moteur defaillant serait
+    donc relance a chaque reaffichage, et l'ecran ramerait sans raison
+    visible.
+    """
+    import tempfile
+
+    from klastos.pdf import PdfEchec, PdfIndisponible, html_vers_pdf
+
+    try:
+        with tempfile.TemporaryDirectory() as dossier:
+            chemin = pathlib.Path(dossier) / "rapport.pdf"
+            html_vers_pdf(html, chemin)
+            return chemin.read_bytes(), ""
+    except (PdfIndisponible, PdfEchec) as e:
+        return None, str(e)
+
+
 def _bouton_pdf(a: Analyse, html: str, colonne) -> None:
     """
-    Le PDF, en DEUX temps, et c'est voulu.
+    Le PDF, en UN SEUL clic, et en tete.
 
-    L'impression lance un navigateur sans tete : quelques secondes. Un
-    `download_button` recevrait ses octets a CHAQUE reaffichage de la page,
-    donc a chaque case cochee ailleurs dans l'ecran. On prepare d'abord, on
-    telecharge ensuite.
+    Il etait en deux temps - preparer, puis telecharger - et en troisieme
+    position derriere un bouton bleu intitule « Telecharger le rapport
+    (HTML) ». Un utilisateur a clique sur le bouton bleu, obtenu du HTML, et
+    cherche le PDF sans le trouver. Le format que l'on remet a un client est
+    le PDF : c'est donc lui qui porte l'action principale.
 
     Quand aucun navigateur n'est disponible - un serveur sans interface
     graphique, par exemple - le bouton laisse place a l'explication et au
     repli. Jamais de PDF degrade produit en silence.
     """
-    from klastos.pdf import PdfEchec, PdfIndisponible, html_vers_pdf, \
-        pdf_disponible
+    from klastos.pdf import pdf_disponible
 
     if not pdf_disponible():
         colonne.caption(T("ui.rapport.pdf_indisponible"))
         return
 
-    cle = f"pdf_{a.rapport.lot_id}"
-    if colonne.button(T("ui.rapport.pdf_preparer"),
-                      use_container_width=True):
-        with st.spinner(T("ui.rapport.pdf_en_cours")):
-            import tempfile
+    with st.spinner(T("ui.rapport.pdf_en_cours")):
+        octets, erreur = _imprimer_pdf(html)
 
-            try:
-                with tempfile.TemporaryDirectory() as dossier:
-                    chemin = pathlib.Path(dossier) / "rapport.pdf"
-                    html_vers_pdf(html, chemin)
-                    st.session_state[cle] = chemin.read_bytes()
-            except (PdfIndisponible, PdfEchec) as e:
-                st.session_state.pop(cle, None)
-                titre, detail = message_de_refus(e)
-                st.error(f"**{titre}** : {detail}")
+    if octets is None:
+        titre, _ = message_de_refus(RuntimeError(erreur))
+        colonne.caption(f"{titre} : {erreur}")
+        return
 
-    octets = st.session_state.get(cle)
-    if octets:
-        st.success(T("ui.rapport.pdf_pret", octets=len(octets)))
-        st.download_button(T("ui.rapport.pdf_telecharger"), data=octets,
-                           file_name=f"rapport_{a.rapport.lot_id}.pdf",
-                           mime="application/pdf",
-                           use_container_width=True)
+    colonne.download_button(
+        T("ui.rapport.pdf_telecharger"), data=octets,
+        file_name=f"rapport_{a.rapport.lot_id}.pdf",
+        mime="application/pdf", use_container_width=True,
+        type="primary", help=T("ui.rapport.pdf_aide", octets=len(octets)))
 
 
 def _rapport(a: Analyse, reglages: dict) -> None:
@@ -686,16 +704,17 @@ def _rapport(a: Analyse, reglages: dict) -> None:
     # d'enregistrement. Le PDF partageait la colonne du message, qui s'y
     # empilait sous le bouton.
     c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-    c1.download_button(T("ui.rapport.telecharger"), data=html,
+    # Le PDF EN TETE et en bleu : c'est le format que l'on remet a un
+    # client. Le HTML etait l'action principale, et un utilisateur a
+    # telecharge du HTML en cherchant un PDF.
+    _bouton_pdf(a, html, c1)
+    c2.download_button(T("ui.rapport.telecharger"), data=html,
                        file_name=f"rapport_{a.rapport.lot_id}.html",
                        mime="text/html", use_container_width=True,
-                       type="primary",
                        help=T("ui.rapport.telecharger_aide"))
-    c2.download_button("Markdown", data=a.rapport.to_markdown(),
+    c3.download_button("Markdown", data=a.rapport.to_markdown(),
                        file_name=f"rapport_{a.rapport.lot_id}.md",
                        mime="text/markdown", use_container_width=True)
-
-    _bouton_pdf(a, html, c3)
 
     if reglages["historique"] and not st.session_state.get("enregistre"):
         import klastos.store as store

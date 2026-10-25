@@ -1556,9 +1556,11 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.onglet.rapport": {"fr": "Rapport", "en": "Report"},
 
     # --------------------------------------------- onglet « rapport »
-    "ui.rapport.pdf_preparer": {
-        "fr": "Préparer le PDF",
-        "en": "Prepare the PDF",
+    "ui.rapport.pdf_aide": {
+        "fr": "Document A4 prêt à remettre, {octets:,} octets. Imprimé "
+              "depuis le même rendu que la version HTML.",
+        "en": "A4 document ready to hand over, {octets:,} bytes. Printed "
+              "from the same rendering as the HTML version.",
     },
     "ui.rapport.pdf_telecharger": {
         "fr": "Télécharger le PDF",
@@ -1567,10 +1569,6 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.rapport.pdf_en_cours": {
         "fr": "Impression du document…",
         "en": "Printing the document…",
-    },
-    "ui.rapport.pdf_pret": {
-        "fr": "PDF prêt : {octets:,} octets.",
-        "en": "PDF ready: {octets:,} bytes.",
     },
     "ui.rapport.pdf_indisponible": {
         "fr": "PDF indisponible sur cette machine : aucun navigateur n'y a "
