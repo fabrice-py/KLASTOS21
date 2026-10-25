@@ -346,9 +346,15 @@ def test_le_format_html_indique_comment_obtenir_un_pdf(tmp_path, capsys):
 
 
 def test_un_format_inconnu_est_refuse():
+    """
+    Ce test prenait « pdf » pour exemple de format inconnu, parce qu'il
+    n'existait pas. Il existe depuis le 25 octobre 2026, et l'exemple a
+    donc change - l'intention, elle, n'a pas bouge : un format non declare
+    doit etre refuse par argparse, pas interprete au jugé.
+    """
     with pytest.raises(SystemExit):
         build_parser().parse_args(
-            ["rapport", str(BULLETIN), "--format", "pdf"])
+            ["rapport", str(BULLETIN), "--format", "docx"])
 
 
 def test_la_resolution_du_format_est_testable_seule():
@@ -360,6 +366,12 @@ def test_la_resolution_du_format_est_testable_seule():
     assert _format_sortie("auto", "x.htm") == "html"
     assert _format_sortie("html", "x.md") == "html"
     assert _format_sortie("markdown", "x.html") == "markdown"
+    # Une sortie nommee .pdf ne peut rien vouloir dire d'autre, et un
+    # format explicite l'emporte toujours sur l'extension.
+    assert _format_sortie("auto", "x.pdf") == "pdf"
+    assert _format_sortie("auto", "x.PDF") == "pdf"
+    assert _format_sortie("markdown", "x.pdf") == "markdown"
+    assert _format_sortie("pdf", "x.md") == "pdf"
 
 
 # ==========================================================================

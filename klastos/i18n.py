@@ -867,6 +867,19 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "fr": "écrire le rapport dans ce fichier plutôt qu'à l'écran",
         "en": "write the report to this file rather than to the screen",
     },
+    "cli.rapport.pdf_sans_sortie": {
+        "fr": "le format pdf demande un fichier de sortie : ajoutez "
+              "--sortie rapport.pdf. Un PDF ne s'affiche pas dans un "
+              "terminal.",
+        "en": "the pdf format needs an output file: add --sortie "
+              "report.pdf. A PDF does not display in a terminal.",
+    },
+    "cli.rapport.pdf_ecrit": {
+        "fr": "Rapport PDF écrit : {chemin}  ({octets:,} octets, imprimé "
+              "par {moteur})",
+        "en": "PDF report written: {chemin}  ({octets:,} bytes, printed by "
+              "{moteur})",
+    },
     "cli.aide.format": {
         "fr": "rendu du rapport. html produit un document autonome, avec "
               "des barres d'intervalle, prêt à imprimer en PDF depuis le "
@@ -1543,6 +1556,31 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.onglet.rapport": {"fr": "Rapport", "en": "Report"},
 
     # --------------------------------------------- onglet « rapport »
+    "ui.rapport.pdf_preparer": {
+        "fr": "Préparer le PDF",
+        "en": "Prepare the PDF",
+    },
+    "ui.rapport.pdf_telecharger": {
+        "fr": "Télécharger le PDF",
+        "en": "Download the PDF",
+    },
+    "ui.rapport.pdf_en_cours": {
+        "fr": "Impression du document…",
+        "en": "Printing the document…",
+    },
+    "ui.rapport.pdf_pret": {
+        "fr": "PDF prêt : {octets:,} octets.",
+        "en": "PDF ready: {octets:,} bytes.",
+    },
+    "ui.rapport.pdf_indisponible": {
+        "fr": "PDF indisponible sur cette machine : aucun navigateur n'y a "
+              "été trouvé. Téléchargez le HTML et imprimez-le par Ctrl+P, "
+              "le document est conçu pour le papier et le résultat est "
+              "identique.",
+        "en": "PDF unavailable on this machine: no browser was found. "
+              "Download the HTML and print it with Ctrl+P; the document is "
+              "designed for paper and the result is identical.",
+    },
     "ui.rapport.telecharger": {
         "fr": "Télécharger le rapport (HTML)",
         "en": "Download the report (HTML)",

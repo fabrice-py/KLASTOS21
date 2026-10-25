@@ -339,6 +339,53 @@ C'est cette derniere ligne qui fait la difference pratique : la ou un prix
 d'agence fait **refuser** un rapport destine a un tiers, le Pink Sheet le
 laisse passer.
 
+## Le rapport en PDF, sans dependance
+
+```powershell
+klastos rapport bulletin.csv --provenance vehicule_electrique --atteste         --sortie rapport.pdf --format pdf
+```
+
+L'extension suffit : `--sortie rapport.pdf` choisit le format seul.
+L'interface propose le meme document, onglet **Rapport**, bouton
+**Preparer le PDF** puis **Telecharger**.
+
+### Pourquoi un navigateur, et pas une bibliotheque PDF
+
+DECISION, et elle est mesuree. `render_html.py` produit deja un document
+concu pour le papier : `@page { size: A4; margin: 14mm 12mm 16mm }`, un bloc
+`@media print`, et des `break-inside: avoid` sur le verdict, les tuiles, les
+bandeaux et les lignes de tableau. Toute la mise en page est faite, en CSS
+moderne.
+
+| Candidat | Ce qu'il coute |
+|---|---|
+| WeasyPrint | lit bien ce CSS, mais reclame GTK et Pango en natif : installation lourde sous Windows |
+| ReportLab | imposerait de refaire la mise en page a la main, donc d'entretenir **deux** descriptions du meme document |
+| xhtml2pdf | ne supporte qu'un sous-ensemble ancien de CSS |
+| **un navigateur** | applique **exactement** le CSS deja ecrit, et n'ajoute **aucune** dependance Python |
+
+C'est le meme moteur qui affiche le rapport a l'ecran : la fidelite est
+totale par construction, et `requirements.txt` ne bouge pas. Deux tests
+tiennent cette decision - l'un refuse qu'une bibliotheque PDF apparaisse
+dans les dependances, l'autre que `klastos/pdf.py` importe autre chose que
+la bibliotheque standard.
+
+### Ce que ce choix coute
+
+Il demande un navigateur sur la machine. Acquis sous Windows, ou Edge est
+installe d'office ; absent d'un serveur sans interface graphique, comme un
+deploiement Streamlit Community Cloud.
+
+L'echec est alors **bruyant** et nomme le repli : telecharger le HTML et
+l'imprimer par Ctrl+P, ce qui donne rigoureusement le meme document.
+**Jamais de PDF degrade produit en silence** - un rapport dont la mise en
+page a glisse se discute en reunion comme s'il etait juste.
+
+Deux controles apres impression, parce que le code de retour ne suffit pas :
+un navigateur sans tete peut rendre 0 sans rien ecrire. On verifie donc que
+le fichier existe, qu'il n'est pas vide, et que ses premiers octets sont
+bien `%PDF-`.
+
 ## USGS : le cobalt et le lithium sans abonnement
 
 Le trou que l'outil portait depuis le debut : sans le fichier de prix du

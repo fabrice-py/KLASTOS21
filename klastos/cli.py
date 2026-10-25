@@ -227,6 +227,9 @@ def _config_solveur(args):
 #: Extensions qui designent sans ambiguite un rendu HTML.
 EXTENSIONS_HTML = (".html", ".htm")
 
+#: Une sortie nommee .pdf ne peut rien vouloir dire d'autre.
+EXTENSION_PDF = ".pdf"
+
 
 def _format_sortie(demande: str, chemin: str | None) -> str:
     """
@@ -241,8 +244,12 @@ def _format_sortie(demande: str, chemin: str | None) -> str:
     """
     if demande != "auto":
         return demande
-    if chemin and pathlib.Path(chemin).suffix.lower() in EXTENSIONS_HTML:
-        return "html"
+    if chemin:
+        suffixe = pathlib.Path(chemin).suffix.lower()
+        if suffixe in EXTENSIONS_HTML:
+            return "html"
+        if suffixe == EXTENSION_PDF:
+            return "pdf"
     return "markdown"
 
 
@@ -429,6 +436,30 @@ def cmd_rapport(args) -> int:
     val = resultat.valorisation
 
     fmt = _format_sortie(args.format, args.sortie)
+
+    # Le PDF est un flux d'OCTETS, pas du texte : il quitte la chaine
+    # d'ecriture commune avant qu'elle ne suppose une chaine de caracteres.
+    if fmt == "pdf":
+        from .pdf import (PdfEchec, PdfIndisponible, rapport_en_pdf,
+                          trouver_navigateur)
+
+        if not args.sortie:
+            return _erreur(i18n.t("cli.rapport.pdf_sans_sortie",
+                                  _langue(args)))
+        try:
+            ecrit = rapport_en_pdf(rapport, args.sortie)
+        except (PdfIndisponible, PdfEchec) as e:
+            return _erreur(str(e))
+        moteur = trouver_navigateur()
+        print()
+        print(i18n.t("cli.rapport.pdf_ecrit", _langue(args),
+                     chemin=ecrit, octets=ecrit.stat().st_size,
+                     moteur=moteur.name if moteur else "?"))
+        if val is None:
+            print(i18n.t("cli.rapport.sans_valorisation", _langue(args)))
+        print()
+        return EXIT_OK
+
     if fmt == "html":
         from .render_html import to_html
         texte = to_html(rapport)
@@ -879,7 +910,7 @@ def build_parser(langue: str | None = None) -> argparse.ArgumentParser:
     r.add_argument("--sortie", default=None, metavar="FICHIER",
                    help=i18n.t("cli.aide.sortie", lg))
     r.add_argument("--format", default="auto",
-                   choices=("auto", "markdown", "html"),
+                   choices=("auto", "markdown", "html", "pdf"),
                    help=i18n.t("cli.aide.format", lg))
     r.add_argument("--prix", default=None, metavar="FICHIER",
                    help=i18n.t("cli.aide.prix", lg))
