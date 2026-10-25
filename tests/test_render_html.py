@@ -663,3 +663,106 @@ def test_la_precision_figure_bien_sur_les_grandeurs_fermes():
         f"seulement {len(valeurs)} precision(s) distincte(s) : la colonne "
         f"n'informe plus")
     assert any("±" in v for v in valeurs)
+
+
+# ==========================================================================
+# L'echelle gradue la piste, et la remplit
+# ==========================================================================
+#
+# Deux defauts du meme endroit, trouves en regardant le rendu plutot qu'en
+# relisant le code.
+
+def test_les_paliers_bornent_la_piste_perdue():
+    """
+    L'ancienne serie - 5, 10, 25, 50, 75, 100 % - etait trop lache. Un pic a
+    26 % passait a 50 % : la section de scenario n'occupait que la MOITIE de
+    sa piste, et toutes ses bandes etaient comprimees d'autant.
+
+    Ce que garantit la serie, c'est le RAPPORT de deux paliers voisins :
+    c'est lui qui borne la piste perdue dans le pire des cas.
+    """
+    from klastos.render_html import PALIERS
+
+    # En dixiemes de pour-cent : 0,15 / 0,20 vaut 0,7499999999999999 en
+    # flottant, et la garantie se jouerait sur le dernier bit.
+    entiers = [round(x * 1000) for x in PALIERS]
+    pires = [entiers[i] / entiers[i + 1] for i in range(len(entiers) - 1)]
+    assert min(pires) >= 0.75, (
+        f"un saut de palier laisse {(1 - min(pires)) * 100:.0f} % de la "
+        f"piste inutilisee")
+
+
+def test_les_paliers_restent_des_nombres_ronds():
+    """
+    Seules les deux bornes de l'echelle sont ecrites ; les reperes au quart
+    doivent donc rester estimables de tete. Un palier a 0,37 serrerait mieux
+    la piste et rendrait ses reperes illisibles.
+    """
+    from klastos.render_html import PALIERS
+
+    for palier in PALIERS:
+        dixiemes = round(palier * 1000, 6)
+        assert dixiemes == int(dixiemes), (
+            f"le palier {palier} n'est pas un nombre rond de pour-cent")
+
+
+def test_les_paliers_sont_croissants():
+    """`_echelle` rend le PREMIER palier qui couvre le pic : non trie, elle
+    rendrait un palier trop court et les bandes deborderaient."""
+    from klastos.render_html import PALIERS
+
+    assert list(PALIERS) == sorted(PALIERS)
+    assert PALIERS[-1] == 1.0, "aucun palier ne couvre une teneur de 100 %"
+
+
+def test_toute_section_remplit_sa_piste():
+    """
+    Le pendant mesure, sur un vrai rapport : aucune section ne doit gacher
+    plus du quart de sa piste.
+    """
+    from klastos.render_html import _echelle
+
+    rapport = _rapport_complet()
+    for section in rapport.sections:
+        hauts = [r.high for r in section.rows if r.has_bar and r.high is not None]
+        hauts += [r.point for r in section.rows if r.has_bar and r.point is not None]
+        if not hauts:
+            continue
+        part = max(hauts) / _echelle(section)
+        assert part >= 0.75, (
+            f"« {section.title} » n'occupe que {part * 100:.0f} % de sa "
+            f"piste : ses bandes sont comprimees d'autant")
+
+
+def test_les_bornes_de_l_echelle_graduent_la_piste_et_pas_le_tableau():
+    """
+    LE SECOND DEFAUT. Les bornes s'etalaient sur toute la largeur du
+    tableau : le « 0 % » tombait sous la colonne des libelles et le maximum
+    sous celle des statuts, c'est-a-dire de part et d'autre d'une piste qui
+    n'occupe qu'un quart de la ligne. Elles graduaient le tableau, pas la
+    piste - et un lecteur qui s'y fie place les valeurs a plus de trois fois
+    leur abscisse reelle.
+
+    Les caler sur les largeurs declarees ne suffisait pas : quand la colonne
+    de precision manque, les colonnes ne somment plus a 100 % et le
+    navigateur redistribue le reste a sa guise - les bornes retombaient a
+    cote de la piste, d'une section a l'autre et differemment. Elles vivent
+    donc DANS la cellule de la piste, ou l'alignement ne depend plus d'aucun
+    calcul de largeur.
+    """
+    import re
+
+    from klastos.render_html import to_html
+
+    html = to_html(_rapport_complet())
+    pieds = re.findall(r"<tfoot>.*?</tfoot>", html, flags=re.S)
+    assert pieds, "les bornes de l'echelle sont ressorties du tableau"
+    for pied in pieds:
+        cellule = pied[pied.index('<td class="c-bar">'):]
+        cellule = cellule[:cellule.index("</td>")]
+        assert 'class="echelle"' in cellule, (
+            "les bornes ne sont plus dans la colonne de la piste : elles "
+            "graduent de nouveau autre chose qu'elle")
+
+    # Et aucune echelle ne doit subsister hors d'un pied de tableau.
+    assert html.count('class="echelle"') == len(pieds)

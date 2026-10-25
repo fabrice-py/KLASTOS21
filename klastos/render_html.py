@@ -124,6 +124,10 @@ CSS = """
      portait donc deux sens sur le meme document, alors que l'ecran
      affichait bien du vert pour cet etat. */
   --green: #0E7A5F;
+  /* Largeurs de colonnes. Les bornes de l'echelle en derivent, pour
+     qu'elles graduent la piste et non le tableau entier. */
+  --c-lab: 33%;
+  --c-bar: 27%;
   /* TIMES NEW ROMAN pour tout le document. C'est la police des pieces
      contractuelles, et un rapport qui se discute en reunion gagne a en
      avoir l'allure. L'ecran, lui, reste en IBM Plex Sans : les deux
@@ -234,8 +238,8 @@ th {
 }
 td { padding: 2.2mm 3mm 2.2mm 0; border-bottom: 0.5pt solid var(--line); vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
-.c-lab { width: 33%; }
-.c-bar { width: 27%; }
+.c-lab { width: var(--c-lab); }
+.c-bar { width: var(--c-bar); }
 .c-val { width: 20%; text-align: right; white-space: nowrap; }
 /* La precision relative : « ± 10 % ». Elle repond a la seule question
    qu'un acheteur pose devant un tableau de teneurs, et elle se compare
@@ -306,10 +310,12 @@ tr:last-child td { border-bottom: 0; }
   border: 0.5pt solid var(--rust); min-width: 3pt;
 }
 .b-irr    { background: var(--rust); min-width: 3pt; }
+/* Les bornes de l'echelle sont DANS la cellule de la piste : leur
+   alignement ne depend donc d'aucune largeur declaree. */
+tfoot td { border: 0; padding-top: 1.5mm; padding-bottom: 0; }
 .echelle {
   display: flex; justify-content: space-between;
   font-family: var(--f-mono); font-size: 6.5pt; color: var(--muted);
-  margin-top: 1.5mm;
 }
 
 .legende {
@@ -397,6 +403,24 @@ def _e(texte: object) -> str:
     return _html.escape(str(texte if texte is not None else ""))
 
 
+# Paliers d'échelle. L'ancienne série - 5, 10, 25, 50, 75, 100 % - était
+# trop lâche : un pic à 26 % passait à 50 %, et la section de scénario
+# n'occupait que la MOITIE de sa piste. Toutes ses bandes s'en trouvaient
+# comprimées d'autant.
+#
+# Ce que garantit une série, c'est le RAPPORT de deux paliers voisins :
+# c'est lui qui borne la piste perdue dans le pire des cas. Celle-ci tient
+# 3/4 PARTOUT, bas de l'échelle compris - c'est là que la précédente
+# lâchait, un pic à 1,1 % passant encore à 2 %.
+#
+# Les paliers restent des nombres ronds, au dixième de pour-cent près : les
+# repères au quart doivent rester estimables de tête, puisque seules les
+# deux bornes sont écrites sous le tableau.
+PALIERS = (0.010, 0.012, 0.015, 0.020, 0.025, 0.030, 0.040, 0.050,
+           0.060, 0.080, 0.100, 0.120, 0.150, 0.200, 0.250, 0.300,
+           0.400, 0.500, 0.600, 0.750, 1.000)
+
+
 def _echelle(section: ReportSection) -> float:
     """
     Échelle commune à une section, pour que les barres soient comparables
@@ -412,7 +436,7 @@ def _echelle(section: ReportSection) -> float:
     if not hauts:
         return 1.0
     pic = max(hauts)
-    for palier in (0.05, 0.1, 0.25, 0.5, 0.75, 1.0):
+    for palier in PALIERS:
         if pic <= palier:
             return palier
     return 1.0
@@ -527,12 +551,25 @@ def _tableau(section: ReportSection, lg: str = i18n.DEFAUT) -> str:
         L.append(f'<td class="c-st"><span class="st {classe}">'
                  f'{_e(libelle)}</span></td>')
         L.append("</tr>")
-    L.append("</tbody></table>")
+    L.append("</tbody>")
 
+    # Les bornes de l'echelle vont DANS le tableau, en pied de la colonne de
+    # la piste. Posees dessous en bloc libre, elles s'etalaient sur toute la
+    # largeur : le « 0 % » tombait sous les libelles et le maximum sous les
+    # statuts, soit de part et d'autre d'une piste qui n'occupe qu'un quart
+    # de la ligne. Les caler sur les largeurs declarees ne suffisait pas :
+    # quand la colonne de precision manque, les colonnes ne somment plus a
+    # 100 % et le navigateur redistribue le reste a sa guise. Dans une
+    # cellule, l'alignement ne depend plus d'aucun calcul.
     if avec_barres:
         unite = i18n.t("rapport.doc.unite_points", lg) if largeur else "%"
-        L.append(f'<div class="echelle"><span>0 {_e(unite)}</span>'
-                 f'<span>{echelle * 100:.0f} {_e(unite)}</span></div>')
+        apres_piste = 2 + (1 if avec_precision else 0)
+        L.append(f'<tfoot><tr><td></td><td class="c-bar">'
+                 f'<div class="echelle"><span>0 {_e(unite)}</span>'
+                 f'<span>{echelle * 100:.0f} {_e(unite)}</span></div>'
+                 f'</td><td colspan="{apres_piste}"></td></tr></tfoot>')
+    L.append("</table>")
+    if avec_barres:
         statuts = {r.status for r in section.rows if r.has_bar}
         items = []
         if largeur:
