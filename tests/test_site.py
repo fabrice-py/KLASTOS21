@@ -395,14 +395,23 @@ def test_le_logotype_ne_repete_pas_les_chiffres(site):
     litteral : le logotype sortait « KLASTOS21 21 ». La coupure est
     maintenant derivee du nom, et ce test la tient.
     """
+    from klastos import marque as _marque
+
     nom = contenu.t("marque.nom")
     for langue, page, html in _pages(site):
         debut = html.index('<a class="marque"')
         fin = html.index("</a>", debut)
-        marque = re.sub(r"<[^>]+>", "", html[debut:fin])
-        assert marque.strip() == nom, (
-            f"{langue}/{page} : logotype « {marque.strip()} » "
+        bloc = html[debut:fin]
+        # La signature fait partie du verrouillage depuis que le logo est
+        # pose. On l'ote avant de verifier le MOT, qui est le sujet de ce
+        # test : sans cela, il echouerait sur une addition legitime.
+        mot = re.sub(r"<[^>]+>", "", bloc).replace(_marque.SIGNATURE, "")
+        assert mot.strip() == nom, (
+            f"{langue}/{page} : logotype « {mot.strip()} » "
             f"au lieu de « {nom} »")
+        assert _marque.SIGNATURE in bloc, (
+            f"{langue}/{page} : la signature du logo a disparu du "
+            f"verrouillage")
 
 
 def test_chaque_lien_interne_pointe_sur_un_fichier_existant(site):

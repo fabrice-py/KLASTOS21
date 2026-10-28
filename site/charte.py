@@ -140,6 +140,20 @@ code, .mono {
    donc muets ; le logo les porte en couleur. L'orange n'appartient pas a
    la palette semantique du site : il ne signifie que la marque. */
 .marque .mot span { color: var(--marque); font-weight: 700; }
+/* Le mot au-dessus de la signature, alignes entre eux et non sous le
+   cube : c'est la disposition du logo. */
+.marque-texte { display: flex; flex-direction: column; gap: 1px; }
+.marque .mot { line-height: 1.05; }
+.marque-signature {
+  font-family: var(--f-mono); font-size: 7px; font-weight: 400;
+  letter-spacing: .2em; color: var(--muted); line-height: 1;
+}
+/* Dans le pied, la signature precede le descriptif : l'une est la
+   marque, l'autre dit le metier. */
+.pied-signature {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .18em;
+  color: var(--muted); margin-bottom: 6px;
+}
 .nav-liens { display: flex; gap: 24px; flex-wrap: wrap; margin-left: auto; }
 .nav-liens a {
   font-size: 15px; text-decoration: none; color: var(--muted);

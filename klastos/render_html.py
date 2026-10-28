@@ -173,6 +173,14 @@ header { margin-bottom: 10mm; }
   letter-spacing: 0.02em;
 }
 .marque svg { display: block; flex: none; }
+/* Le mot au-dessus de la signature, ALIGNES ENTRE EUX et non sous le
+   cube : c'est la disposition du logo. */
+.marque-texte { display: flex; flex-direction: column; gap: 1pt; }
+.marque-nom { line-height: 1; }
+.marque-signature {
+  font-family: var(--f-mono); font-size: 5.5pt; font-weight: 400;
+  letter-spacing: 0.2em; color: var(--muted);
+}
 /* Les deux chiffres passent à l'ORANGE DE LA MARQUE, et non plus à
    var(--accent). Le cobalt signifie « grandeur déterminée » dans ce
    document : porté aussi par le logotype, il disait deux choses à la fois.
@@ -181,7 +189,7 @@ header { margin-bottom: 10mm; }
 .marque-21 { color: var(--marque); }
 .soustitre {
   font-family: var(--f-mono); font-size: 7.5pt; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--muted); margin-top: 2pt;
+  text-transform: uppercase; color: var(--muted); margin-top: 4mm;
 }
 .titre-bloc {
   display: flex; justify-content: space-between; align-items: flex-end;
@@ -707,8 +715,7 @@ def to_html(rapport: LotReport) -> str:
     L += [
         "<header>",
         '<div class="marque">'
-        + marque.cube_svg(hauteur="20pt")
-        + f'<span>{marque.logotype_html()}</span></div>',
+        + marque.verrouillage_html(hauteur_cube="22pt") + '</div>',
         f'<div class="soustitre">'
         f'{_e(i18n.t("rapport.doc.soustitre", lg))}</div>',
         '<div class="titre-bloc">',

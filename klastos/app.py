@@ -233,31 +233,43 @@ def resume_statuts(analyse: Analyse) -> dict[str, int]:
 #: claire et sa face droite prend la couleur du fond : dessine tel quel, il
 #: disparaitrait dans la nuit du volet.
 _CSS_MARQUE = f"""<style>
+/* Le cube n'est plus une pastille portant « K21 » : c'est le cube du
+   logo, en SVG. Les regles de la pastille sont donc neutralisees. */
 .marque-cube {{
   width: auto; height: auto; flex: none;
   background: none; box-shadow: none; border-radius: 0;
 }}
-.marque-cube svg {{ display: block; height: 38px; }}
+.marque {{ border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }}
+.marque svg {{ display: block; flex: none; }}
+/* Le mot au-dessus de la signature, ALIGNES ENTRE EUX et non sous le
+   cube : c'est la disposition du logo. */
+.marque-texte {{ display: flex; flex-direction: column; gap: 2px; }}
+.marque-signature {{
+  font-family: {theme.MONO}; font-size: 6.5px; letter-spacing: .2em;
+  color: #7A88A8; line-height: 1;
+}}
 /* Les deux chiffres passent a l'ORANGE DE LA MARQUE. Le bleu precedent
    etait une variante du cobalt, c'est-a-dire de la couleur qui signifie
    « grandeur determinee » : le logotype disait donc un statut. */
 .marque-nom span {{ color: {marque.ORANGE_MARQUE}; }}
+/* La signature appartient a la MARQUE, le descriptif au produit. Colles
+   l'un sous l'autre, ils se lisaient comme deux devises concurrentes. Le
+   filet de separation descend donc sous le descriptif. */
+.marque-sous {{
+  margin-top: 10px; padding-bottom: 16px;
+  border-bottom: 1px solid {theme.BORD_NUIT}; margin-bottom: 16px;
+}}
 </style>"""
 
 
 def _marque() -> None:
-    cube = marque.cube_svg(
-        encre="#FFFFFF", accent=marque.ORANGE_MARQUE, face=theme.NUIT)
+    verrou = marque.verrouillage_html(
+        hauteur_cube="38px", encre="#FFFFFF",
+        accent=marque.ORANGE_MARQUE, face=theme.NUIT, classe_chiffres="")
     st.sidebar.markdown(_CSS_MARQUE, unsafe_allow_html=True)
     st.sidebar.markdown(
-        f"""<div class="marque">
-              <div class="marque-cube">{cube}</div>
-              <div>
-                <div class="marque-nom">{marque.logotype_html(
-                    classe_chiffres="")}</div>
-                <div class="marque-sous">{SOUS_TITRE()}</div>
-              </div>
-            </div>""",
+        f"""<div class="marque">{verrou}</div>
+            <div class="marque-sous">{SOUS_TITRE()}</div>""",
         unsafe_allow_html=True)
 
 

@@ -596,10 +596,20 @@ def test_l_interface_ne_porte_plus_de_texte_francais_en_dur():
     #: Trois mots de suite : de la prose, pas un identifiant ni une unite.
     PROSE = re.compile(r"[A-Za-zÀ-ÿ]{3,}\s+[a-zà-ÿ']{2,}\s+[A-Za-zÀ-ÿ']{2,}")
 
+    # `ast.walk` visite une f-string ET chacun de ses fragments. Un
+    # fragment n'est pas un texte : coupe au milieu d'un bloc de style, il
+    # perd son `<style>` et la regle le prenait pour de la prose. On ne
+    # garde donc que la chaine COMPLETE.
+    fragments = {id(v) for n in ast.walk(arbre)
+                 if isinstance(n, ast.JoinedStr)
+                 for v in n.values if isinstance(v, ast.Constant)}
+
     fautes = []
     for n in ast.walk(arbre):
         texte = None
         if isinstance(n, ast.Constant) and isinstance(n.value, str):
+            if id(n) in fragments:
+                continue
             texte = n.value
         elif isinstance(n, ast.JoinedStr):
             texte = "".join(v.value for v in n.values
@@ -613,12 +623,7 @@ def test_l_interface_ne_porte_plus_de_texte_francais_en_dur():
         # les seules balises laissait passer « width: auto; height: auto;
         # flex: none », que la regle de prose prenait pour une phrase.
         #
-        # La fermeture est FACULTATIVE dans le motif : `ast.walk` visite
-        # aussi les fragments internes d'une f-string, et le morceau qui
-        # precede le premier champ porte le `<style>` ouvrant sans son
-        # `</style>`. Exiger la paire laissait passer ce fragment-la.
-        sans_style = re.sub(r"<style>.*?(?:</style>|\Z)", " ", texte,
-                            flags=re.S)
+        sans_style = re.sub(r"<style>.*?</style>", " ", texte, flags=re.S)
         sans_balises = re.sub(r"<[^>]*>", " ", sans_style)
         if PROSE.search(sans_balises):
             fautes.append((n.lineno, " ".join(sans_balises.split())[:70]))

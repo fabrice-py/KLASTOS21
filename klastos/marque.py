@@ -123,3 +123,28 @@ def logotype_html(nom: str = "KLASTOS", chiffres: str = "21",
     dessine.
     """
     return f'{nom}<span class="{classe_chiffres}">{chiffres}</span>'
+
+
+def verrouillage_html(hauteur_cube: str = "1em",
+                      encre: str = ENCRE_MARQUE,
+                      accent: str = ORANGE_MARQUE,
+                      face: str = "#FFFFFF",
+                      classe_chiffres: str = "marque-21",
+                      signature: bool = True) -> str:
+    """
+    Le verrouillage complet : le cube, puis le mot au-dessus de la signature.
+
+    La disposition reprend celle du logo fourni - le cube a gauche, et a
+    droite KLASTOS21 avec « WHAT THE ASSAY PROVES » dessous, ALIGNE SUR LE
+    MOT et non sous le cube.
+
+    La signature n'est pas traduite. C'est une marque, pas une phrase : la
+    traduire en ferait un texte, c'est-a-dire autre chose.
+    """
+    bloc = f'<span class="marque-nom">{logotype_html(classe_chiffres=classe_chiffres)}</span>'
+    if signature:
+        bloc += f'<span class="marque-signature">{SIGNATURE}</span>'
+    return (
+        f'{cube_svg(encre=encre, accent=accent, face=face, hauteur=hauteur_cube)}'
+        f'<span class="marque-texte">{bloc}</span>'
+    )

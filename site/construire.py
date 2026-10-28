@@ -71,9 +71,14 @@ def logotype(langue: str) -> str:
     nom = escape(t("marque.nom", langue))
     coupe = re.match(r"(.*?)(\d+)$", nom)
     mot = nom if coupe is None else f"{coupe[1]}<span>{coupe[2]}</span>"
-    # Le cube precede le mot, comme sur le logo. Il est VECTORIEL : net a
-    # toute taille, et il ne coute pas une requete de plus.
-    return f'{marque.cube_svg(hauteur="1.25em")}<span class="mot">{mot}</span>'
+    # Le verrouillage du logo : le cube, puis le mot au-dessus de la
+    # signature. Le cube est VECTORIEL - net a toute taille, et il ne
+    # coute pas une requete de plus.
+    return (f'{marque.cube_svg(hauteur="2.1em")}'
+            f'<span class="marque-texte">'
+            f'<span class="mot">{mot}</span>'
+            f'<span class="marque-signature">{marque.SIGNATURE}</span>'
+            f'</span>')
 
 
 
@@ -117,6 +122,7 @@ def pied(langue: str) -> str:
     <div class="pied-interieur">
       <div class="pied-bloc" style="min-width:200px">
         <h4>{escape(t("marque.nom", langue))}</h4>
+        <p class="pied-signature">{escape(marque.SIGNATURE)}</p>
         <p>{escape(t("marque.sous", langue))}</p>
       </div>
       <div class="pied-bloc">
