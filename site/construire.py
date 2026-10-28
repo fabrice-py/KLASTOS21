@@ -24,6 +24,8 @@ from __future__ import annotations
 import argparse
 import pathlib
 import re
+
+from klastos import marque
 import sys
 from html import escape
 
@@ -41,6 +43,11 @@ from contenu import PAGES, t                            # noqa: E402
 #: toute la demonstration, donc l'echelle est une constante et non un
 #: cadrage automatique par ligne.
 AXE_MAX = 50.0
+
+#: Source des declinaisons matricielles de la marque. Elle vit HORS du
+#: dossier de sortie : `site/public` est un produit de construction, pas
+#: un endroit ou deposer des sources.
+MARQUE_SOURCE = pathlib.Path(__file__).resolve().parent / "marque"
 
 
 # ==========================================================================
@@ -63,9 +70,11 @@ def logotype(langue: str) -> str:
     """
     nom = escape(t("marque.nom", langue))
     coupe = re.match(r"(.*?)(\d+)$", nom)
-    if coupe is None:
-        return nom
-    return f"{coupe[1]}<span>{coupe[2]}</span>"
+    mot = nom if coupe is None else f"{coupe[1]}<span>{coupe[2]}</span>"
+    # Le cube precede le mot, comme sur le logo. Il est VECTORIEL : net a
+    # toute taille, et il ne coute pas une requete de plus.
+    return f'{marque.cube_svg(hauteur="1.25em")}<span class="mot">{mot}</span>'
+
 
 
 def nav(page: str, langue: str) -> str:
@@ -137,6 +146,9 @@ def page_complete(page: str, langue: str, corps: str) -> str:
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="{charte.LIEN_POLICES}">
 <link rel="stylesheet" href="../klastos.css">
+<link rel="icon" type="image/png" sizes="32x32"
+      href="../marque/favicon-32.png">
+<link rel="apple-touch-icon" href="../marque/favicon-180.png">
 </head>
 <body>
 {nav(page, langue)}
@@ -192,15 +204,15 @@ def ligne_regle(nom_cle: str, langue: str, bas: float, haut: float,
     """
     gauche = 100.0 * bas / AXE_MAX
     if bas == haut:
-        marque = (f'<span class="regle-trait {teinte}" '
-                  f'style="left:{gauche:.2f}%"></span>')
+        trace = (f'<span class="regle-trait {teinte}" '
+                 f'style="left:{gauche:.2f}%"></span>')
     else:
         largeur = 100.0 * (haut - bas) / AXE_MAX
-        marque = (f'<span class="regle-bande {teinte}" '
-                  f'style="left:{gauche:.2f}%;width:{largeur:.2f}%"></span>')
+        trace = (f'<span class="regle-bande {teinte}" '
+                 f'style="left:{gauche:.2f}%;width:{largeur:.2f}%"></span>')
     return f"""<div class="regle-ligne">
       <div class="regle-nom">{escape(t(nom_cle, langue))}</div>
-      <div class="regle-piste">{marque}</div>
+      <div class="regle-piste">{trace}</div>
       <div class="regle-valeur">{escape(valeur)}</div>
     </div>"""
 
@@ -543,6 +555,19 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
     racine = sortie / "index.html"
     racine.write_text(redirection(), encoding="utf-8")
     ecrits.append(racine)
+
+    # Declinaisons de la marque. Elles sont COPIEES depuis `site/marque`,
+    # qui est leur source, et non deposees a la main dans la sortie : une
+    # construction neuve doit porter ses favicons, sinon le site n'en a que
+    # sur la machine ou quelqu'un les a poses un jour. Un test de liens
+    # morts l'a attrape.
+    if MARQUE_SOURCE.is_dir():
+        cible = sortie / "marque"
+        cible.mkdir(exist_ok=True)
+        for fichier in sorted(MARQUE_SOURCE.glob("*.png")):
+            copie = cible / fichier.name
+            copie.write_bytes(fichier.read_bytes())
+            ecrits.append(copie)
 
     for langue in contenu.LANGUES:
         dossier = sortie / langue

@@ -609,7 +609,17 @@ def test_l_interface_ne_porte_plus_de_texte_francais_en_dur():
             continue
         if texte.lstrip().startswith(("ui.", "rapport.")):
             continue              # une cle de catalogue, pas du texte
-        sans_balises = re.sub(r"<[^>]*>", " ", texte)
+        # Le CORPS d'un bloc de style n'est pas du texte affiche. Retirer
+        # les seules balises laissait passer « width: auto; height: auto;
+        # flex: none », que la regle de prose prenait pour une phrase.
+        #
+        # La fermeture est FACULTATIVE dans le motif : `ast.walk` visite
+        # aussi les fragments internes d'une f-string, et le morceau qui
+        # precede le premier champ porte le `<style>` ouvrant sans son
+        # `</style>`. Exiger la paire laissait passer ce fragment-la.
+        sans_style = re.sub(r"<style>.*?(?:</style>|\Z)", " ", texte,
+                            flags=re.S)
+        sans_balises = re.sub(r"<[^>]*>", " ", sans_style)
         if PROSE.search(sans_balises):
             fautes.append((n.lineno, " ".join(sans_balises.split())[:70]))
 

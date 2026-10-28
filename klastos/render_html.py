@@ -31,7 +31,7 @@ from __future__ import annotations
 import html as _html
 import re as _re
 
-from . import i18n
+from . import i18n, marque
 from .report import (LIGNE_PAYABLE, SECTION_CONSEIL, SECTION_DIAGNOSTIC,
                      SECTION_DRX, SECTION_REDUIRE, SECTION_SCENARIO,
                      SECTION_SENSIBLES, SECTION_VALORISATION, TITRE_CONSEIL,
@@ -125,6 +125,11 @@ CSS = """
      portait donc deux sens sur le meme document, alors que l'ecran
      affichait bien du vert pour cet etat. */
   --green: #0E7A5F;
+  /* ORANGE DE LA MARQUE. Il n'est PAS un statut : il habille le logotype
+     et rien d'autre. Les quatre couleurs ci-dessus sont lues par le client
+     comme des etats ; celle-ci ne veut dire que « KLASTOS21 ». Voir
+     klastos/marque.py, et le test qui tient la separation. */
+  --marque: #B4632B;
   /* Largeurs de colonnes. Les bornes de l'echelle en derivent, pour
      qu'elles graduent la piste et non le tableau entier. */
   --c-lab: 33%;
@@ -163,10 +168,17 @@ p { margin: 0; }
 /* ---------- En-tête ---------- */
 header { margin-bottom: 10mm; }
 .marque {
+  display: flex; align-items: center; gap: 3mm;
   font-family: var(--f-display); font-weight: 700; font-size: 13pt;
   letter-spacing: 0.02em;
 }
-.marque span { color: var(--accent); }
+.marque svg { display: block; flex: none; }
+/* Les deux chiffres passent à l'ORANGE DE LA MARQUE, et non plus à
+   var(--accent). Le cobalt signifie « grandeur déterminée » dans ce
+   document : porté aussi par le logotype, il disait deux choses à la fois.
+   L'orange, lui, ne signifie que la marque — et c'est bien la couleur du
+   logo. Voir klastos/marque.py. */
+.marque-21 { color: var(--marque); }
 .soustitre {
   font-family: var(--f-mono); font-size: 7.5pt; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--muted); margin-top: 2pt;
@@ -694,7 +706,9 @@ def to_html(rapport: LotReport) -> str:
     # --- en-tête ---------------------------------------------------------
     L += [
         "<header>",
-        '<div class="marque">KLASTOS<span>21</span></div>',
+        '<div class="marque">'
+        + marque.cube_svg(hauteur="20pt")
+        + f'<span>{marque.logotype_html()}</span></div>',
         f'<div class="soustitre">'
         f'{_e(i18n.t("rapport.doc.soustitre", lg))}</div>',
         '<div class="titre-bloc">',

@@ -28,7 +28,7 @@ La structure vient de filets de 1px et du blanc.
 
 from __future__ import annotations
 
-from klastos import theme
+from klastos import marque, theme
 
 #: Jetons exposes au CSS. La cle est le nom de la variable CSS, la valeur
 #: vient de `theme` - jamais d'un litteral.
@@ -43,6 +43,9 @@ JETONS: dict[str, str] = {
     "cobalt-soft": theme.COBALT_PALE,
     "amber": theme.AMBRE,
     "amber-soft": theme.AMBRE_PALE,
+    # ORANGE DE LA MARQUE. Il vient du logo, pas de la palette
+    # semantique : il n'est le statut de rien.
+    "marque": marque.ORANGE_MARQUE,
     "rust": theme.ROUILLE,
     "rust-soft": theme.ROUILLE_PALE,
     "green": theme.VERT,
@@ -128,10 +131,15 @@ code, .mono {
   min-height: 66px; flex-wrap: wrap;
 }
 .marque {
+  display: inline-flex; align-items: center; gap: 9px;
   font-family: var(--f-display); font-weight: 700; font-size: 18px;
   letter-spacing: -0.01em; text-decoration: none; white-space: nowrap;
 }
-.marque span { color: var(--muted); font-weight: 500; }
+.marque svg { display: block; flex: none; }
+/* Les deux chiffres passent a l'ORANGE DE LA MARQUE. Ils etaient gris,
+   donc muets ; le logo les porte en couleur. L'orange n'appartient pas a
+   la palette semantique du site : il ne signifie que la marque. */
+.marque .mot span { color: var(--marque); font-weight: 700; }
 .nav-liens { display: flex; gap: 24px; flex-wrap: wrap; margin-left: auto; }
 .nav-liens a {
   font-size: 15px; text-decoration: none; color: var(--muted);

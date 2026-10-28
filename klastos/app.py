@@ -50,7 +50,7 @@ import tempfile
 
 import streamlit as st
 
-from klastos import charts, i18n, theme
+from klastos import charts, i18n, marque, theme
 from klastos.ingestion import IngestionError, parse_rows
 from klastos.market import (MissingPriceError, NotAProductionSourceError,
                             REFERENCE_SPECS, StalePriceError)
@@ -65,6 +65,16 @@ from klastos.structural import (BASE_ABSOLUE, BASE_CRISTALLINE, BASES,
 from klastos.units import ImplausiblePriceError
 
 TITRE = "KLASTOS21"
+
+#: Icone de l'onglet. Le fichier de marque s'il est la, sinon l'emoji
+#: d'origine : l'interface doit demarrer meme sur une copie du depot d'ou
+#: les binaires auraient ete retires.
+_FAVICON = (pathlib.Path(__file__).resolve().parent.parent
+            / "site" / "marque" / "favicon-180.png")
+
+
+def _ICONE_ONGLET():
+    return str(_FAVICON) if _FAVICON.exists() else "⚗"
 
 #: Cles STABLES des pages. Elles etaient les libelles francais eux-memes, et
 #: le routage comparait `page == "Analyse"` : traduire la navigation aurait
@@ -216,12 +226,35 @@ def resume_statuts(analyse: Analyse) -> dict[str, int]:
 # Fragments d'habillage
 # ==========================================================================
 
+#: Habillage de la marque. Il SURCHARGE `theme.py`, qui porte la palette
+#: semantique et reste ferme : l'identite n'y a pas sa place.
+#:
+#: Le cube se renverse sur la barre laterale sombre. Son encre y devient
+#: claire et sa face droite prend la couleur du fond : dessine tel quel, il
+#: disparaitrait dans la nuit du volet.
+_CSS_MARQUE = f"""<style>
+.marque-cube {{
+  width: auto; height: auto; flex: none;
+  background: none; box-shadow: none; border-radius: 0;
+}}
+.marque-cube svg {{ display: block; height: 38px; }}
+/* Les deux chiffres passent a l'ORANGE DE LA MARQUE. Le bleu precedent
+   etait une variante du cobalt, c'est-a-dire de la couleur qui signifie
+   « grandeur determinee » : le logotype disait donc un statut. */
+.marque-nom span {{ color: {marque.ORANGE_MARQUE}; }}
+</style>"""
+
+
 def _marque() -> None:
+    cube = marque.cube_svg(
+        encre="#FFFFFF", accent=marque.ORANGE_MARQUE, face=theme.NUIT)
+    st.sidebar.markdown(_CSS_MARQUE, unsafe_allow_html=True)
     st.sidebar.markdown(
         f"""<div class="marque">
-              <div class="marque-cube">K21</div>
+              <div class="marque-cube">{cube}</div>
               <div>
-                <div class="marque-nom">KLASTOS<span>21</span></div>
+                <div class="marque-nom">{marque.logotype_html(
+                    classe_chiffres="")}</div>
                 <div class="marque-sous">{SOUS_TITRE()}</div>
               </div>
             </div>""",
@@ -1190,7 +1223,8 @@ def _reglages() -> dict:
 # ==========================================================================
 
 def main() -> None:
-    st.set_page_config(page_title=TITRE, page_icon="⚗", layout="wide",
+    st.set_page_config(page_title=TITRE, page_icon=_ICONE_ONGLET(),
+                       layout="wide",
                        initial_sidebar_state="expanded")
     st.markdown(theme.CSS, unsafe_allow_html=True)
     reglages = _reglages()

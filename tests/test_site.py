@@ -300,17 +300,39 @@ def test_chaque_couple_de_couleurs_est_lisible(nom, texte, fond):
 # 3. Les pages generees
 # ==========================================================================
 
-def test_la_generation_ecrit_les_quatorze_fichiers(site):
+def test_la_generation_ecrit_les_quatorze_pages(site):
+    """
+    Les pages et la feuille de style. Les declinaisons de la marque sont
+    comptees a part, par le test suivant : melanger les deux rendrait ce
+    test illisible a chaque ajout de favicon.
+    """
     attendus = {"klastos.css", "index.html"}
     attendus |= {f"{lg}/{p}.html"
                  for lg in contenu.LANGUES for p in contenu.PAGES}
     presents = {
         str(c.relative_to(site)).replace("\\", "/")
-        for c in site.rglob("*") if c.is_file()
+        for c in site.rglob("*")
+        if c.is_file() and c.parent.name != "marque"
     }
     assert presents == attendus, (
         f"manquants : {sorted(attendus - presents)} / "
         f"en trop : {sorted(presents - attendus)}")
+
+
+def test_la_generation_copie_les_declinaisons_de_la_marque(site):
+    """
+    Les favicons etaient deposes a la main dans `site/public`. Une
+    construction neuve n'en portait donc aucun, et les pages pointaient sur
+    des fichiers absents - ce que le test de liens morts a attrape. Les
+    assets sont desormais COPIES depuis `site/marque` a la construction.
+    """
+    from construire import MARQUE_SOURCE
+
+    copiees = {c.name for c in (site / "marque").glob("*.png")}
+    sources = {c.name for c in MARQUE_SOURCE.glob("*.png")}
+    assert copiees == sources, (
+        f"declinaisons non copiees : {sorted(sources - copiees)}")
+    assert {"favicon-32.png", "favicon-180.png"} <= copiees
 
 
 def test_chaque_page_declare_sa_langue(site):
