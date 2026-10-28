@@ -836,8 +836,10 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "half, the geochemical convention)",
     },
     "cli.aide.separateur": {
-        "fr": "séparateur de colonnes du CSV (défaut : virgule)",
-        "en": "CSV column separator (default: comma)",
+        "fr": "force le séparateur de colonnes du CSV. Par défaut il est "
+              "DÉTECTÉ : virgule, point-virgule, tabulation ou barre",
+        "en": "force the CSV column separator. By default it is DETECTED: "
+              "comma, semicolon, tab or pipe",
     },
     "cli.aide.devise": {
         "fr": "convertit les prix vers cette devise avant valorisation, par "
@@ -2335,11 +2337,14 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "fr": "Séparateur du CSV", "en": "CSV separator",
     },
     "ui.separateur.aide": {
-        "fr": "Virgule par défaut. Mettez « ; » si votre fichier vient d'un "
-              "Excel en locale française, qui écrit nativement des "
-              "points-virgules.",
-        "en": "Comma by default. Set it to \";\" if your file comes from a "
-              "French-locale Excel, which natively writes semicolons.",
+        "fr": "Détecté automatiquement : virgule, point-virgule, "
+              "tabulation ou barre verticale. Ne remplissez ce champ que "
+              "pour forcer un séparateur particulier.",
+        "en": "Detected automatically: comma, semicolon, tab or pipe. "
+              "Fill this field only to force a particular separator.",
+    },
+    "ui.separateur.auto": {
+        "fr": "détection automatique", "en": "auto-detected",
     },
 
     "ui.volet.historique": {"fr": "Historique", "en": "History"},

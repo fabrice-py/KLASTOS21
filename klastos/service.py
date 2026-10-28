@@ -37,7 +37,8 @@ from . import i18n
 from .identifiability import (CONSEIL_U_DEFAUT, ConseilQuantification,
                               analyse as _analyse_systeme,
                               conseil_quantification, IdentifiabilityAnalysis)
-from .ingestion import BulletinReading, read_bulletin
+from .ingestion import (BulletinReading, _decoder, detecter_delimiteur,
+                        read_bulletin)
 from .market import PayableTerms, PriceSet, Specification
 from .phases import stoichiometry_matrix
 from .plausibility import (FACTEUR_PLAUSIBILITE, ControlePlausibilite,
@@ -117,7 +118,12 @@ class Demande:
     # --- lecture ----------------------------------------------------------
     unite_par_defaut: str = "%"
     censure: str = "half"
-    separateur: str = ","
+    #: Separateur de colonnes. Laisse a None, il est DETECTE. Le defaut
+    #: etait la virgule, et un bulletin europeen separe par des
+    #: points-virgules - le defaut d'Excel en France, en Allemagne, en
+    #: Espagne et en Italie - rebondissait sur un refus qui ne nommait pas
+    #: le remede. Une valeur explicite reste respectee.
+    separateur: str | None = None
 
     # --- langue du livrable ------------------------------------------------
     #: « fr » ou « en ». Le protocole n'etant pas traduit, un rapport
@@ -359,8 +365,16 @@ def analyser(demande: Demande) -> Analyse:
     # contradiction, et `lire_fichier` la refuse plutot que de l'arbitrer.
     structurale = None
     if demande.drx is not None:
+        # `structural.lire_fichier` passe le separateur droit a `csv.reader`,
+        # qui refuse None. La detection se fait donc ICI, au point d'appel :
+        # le fichier de diffraction merite le meme traitement que le
+        # bulletin, et il arrive du meme laboratoire, donc du meme Excel.
+        sep_drx = demande.separateur
+        if sep_drx is None:
+            texte, _ = _decoder(pathlib.Path(demande.drx).read_bytes())
+            sep_drx = detecter_delimiteur(texte)
         structurale = _lire_drx(demande.drx, basis=demande.base_drx,
-                                separateur=demande.separateur,
+                                separateur=sep_drx,
                                 phase_keys=cles)
         journal = journal + structurale.journal
 

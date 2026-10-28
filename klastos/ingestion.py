@@ -326,7 +326,7 @@ def read_bulletin(
     rows: dict[str, str] | None = None,
     default_unit: str = "%",
     censored_as: str = DEFAULT_CENSORED_MODE,
-    delimiter: str = ",",
+    delimiter: str | None = None,
     langue: str = i18n.DEFAUT,
 ) -> BulletinReading:
     """
@@ -344,6 +344,11 @@ def read_bulletin(
         colonne.
     censored_as : traitement des valeurs sous la limite de detection.
         "zero", "half" (convention geochimique, defaut) ou "threshold".
+    delimiter : separateur de colonnes. Laisse a None, il est DETECTE. Le
+        defaut etait la virgule, et un bulletin europeen separe par des
+        points-virgules - le defaut d'Excel en France, en Allemagne, en
+        Espagne et en Italie - etait refuse avec un message qui ne nommait
+        pas le remede. Une valeur explicite reste respectee telle quelle.
     langue : langue du JOURNAL. Il part dans la tracabilite du rapport
         client, donc il doit sortir dans la langue du document. La lecture
         est faite une fois par analyse, pour un document donne : il n'y a
@@ -424,9 +429,15 @@ def read_bulletin(
             valeurs[col.element] = v
 
     if not valeurs:
+        # LE REFUS NOMME LA SUITE. « Aucune colonne exploitable » laissait
+        # l'utilisateur devant un mur : la cause la plus frequente est un
+        # separateur mal decoupe, et le message ne le disait pas.
         raise IngestionError(
             "Aucune colonne exploitable. Intitules lus : "
-            f"{sorted(rows)}"
+            f"{sorted(rows)}. "
+            "Si cette liste ne contient qu'une seule entree tres longue, "
+            "le separateur a mal decoupe le fichier : declarer le bon "
+            "separateur, point-virgule ou tabulation selon l'export."
         )
 
     # Ordre canonique, elements doses seulement.
@@ -502,10 +513,99 @@ def parse_rows(lignes: list[list[str]], origine: str = "bulletin") -> dict[str, 
     return {h.strip(): v for h, v in zip(entetes, vals) if h.strip()}
 
 
-def _lire_fichier(p: pathlib.Path, delimiter: str) -> dict[str, str]:
-    """Lit un CSV sur disque et delegue la reconnaissance de format."""
+#: Separateurs rencontres sur des bulletins reels. Le point-virgule est le
+#: defaut d'Excel en France, en Allemagne, en Espagne et en Italie, soit la
+#: quasi-totalite du marche vise : le refuser faisait rebondir le format le
+#: plus courant d'Europe.
+DELIMITEURS_CANDIDATS: tuple[str, ...] = (",", ";", "\t", "|")
+
+#: Encodages essayes dans l'ordre. `latin-1` est place en dernier parce
+#: qu'il ne LEVE JAMAIS : tout octet y est decodable. Il sert de filet, pour
+#: qu'un fichier exotique produise un refus motive plutot qu'une
+#: UnicodeDecodeError brute remontee a l'utilisateur.
+ENCODAGES_CANDIDATS: tuple[str, ...] = ("utf-8-sig", "cp1252", "latin-1")
+
+
+def _score_delimiteur(texte: str, delimiteur: str) -> tuple[int, int]:
+    """
+    Note un separateur candidat : (coherence, largeur).
+
+    Un bon separateur decoupe toutes les lignes en un MEME nombre de
+    colonnes, et en plus d'une. Les deux criteres sont necessaires :
+
+    - la coherence seule elirait n'importe quel caractere absent du
+      fichier, qui rend une colonne unique sur chaque ligne ;
+    - la largeur seule tomberait dans le piege de la virgule decimale. Sur
+      un bulletin francais separe par des points-virgules, la virgule
+      decoupe la ligne d'intitules autrement que les lignes de valeurs :
+      elle produit beaucoup de colonnes, mais un compte instable.
+    """
+    lignes = [l for l in texte.splitlines() if l.strip()][:12]
+    if not lignes:
+        return (0, 0)
+    comptes = [len(l) for l in csv.reader(lignes, delimiter=delimiteur)]
+    largeur = max(comptes)
+    if largeur < 2:
+        return (0, 0)
+    dominant = max(set(comptes), key=comptes.count)
+    return (comptes.count(dominant), dominant)
+
+
+def detecter_delimiteur(texte: str) -> str:
+    """
+    Devine le separateur d'un CSV, ou leve en nommant ce qui a ete essaye.
+
+    `csv.Sniffer` a ete ecarte : il se trompe sur les bulletins a colonne
+    unique et sur ceux dont les intitules contiennent des virgules, qui
+    sont exactement les deux cas rencontres sur des fichiers reels.
+    """
+    notes = {d: _score_delimiteur(texte, d) for d in DELIMITEURS_CANDIDATS}
+    meilleur = max(notes, key=lambda d: notes[d])
+    if notes[meilleur] == (0, 0):
+        lisibles = ", ".join(
+            repr(d) if d != "\t" else r"'\t'" for d in DELIMITEURS_CANDIDATS)
+        raise IngestionError(
+            "Aucun separateur ne decoupe ce fichier en colonnes. "
+            f"Essayes : {lisibles}. Verifier qu'il s'agit bien d'un CSV, "
+            "ou declarer le separateur explicitement."
+        )
+    return meilleur
+
+
+def _decoder(octets: bytes) -> tuple[str, str]:
+    """
+    Decode des octets, et rend (texte, encodage retenu).
+
+    Un bulletin exporte depuis l'Excel francais arrive en cp1252. Decode de
+    force en UTF-8, il levait une UnicodeDecodeError non rattrapee : une
+    trace Python au visage de l'utilisateur, la ou le projet s'engage a ne
+    produire que des refus qui nomment la suite.
+    """
+    for encodage in ENCODAGES_CANDIDATS:
+        try:
+            return octets.decode(encodage), encodage
+        except UnicodeDecodeError:
+            continue
+    # Inatteignable : latin-1 decode tout octet. Garde-fou explicite.
+    raise IngestionError(
+        f"Fichier illisible dans les encodages essayes : "
+        f"{', '.join(ENCODAGES_CANDIDATS)}."
+    )
+
+
+def _lire_fichier(p: pathlib.Path, delimiter: str | None) -> dict[str, str]:
+    """
+    Lit un CSV sur disque et delegue la reconnaissance de format.
+
+    `delimiter` a None demande la DETECTION. Une valeur explicite est
+    respectee telle quelle : un appelant qui sait ce qu'il lit ne doit pas
+    etre contredit par une heuristique.
+    """
     if not p.exists():
         raise IngestionError(f"Fichier introuvable : {p}")
 
-    with p.open(encoding="utf-8-sig", newline="") as fh:
-        return parse_rows(list(csv.reader(fh, delimiter=delimiter)), p.name)
+    texte, _ = _decoder(p.read_bytes())
+    if delimiter is None:
+        delimiter = detecter_delimiteur(texte)
+    lignes = list(csv.reader(texte.splitlines(), delimiter=delimiter))
+    return parse_rows(lignes, p.name)

@@ -97,7 +97,8 @@ def SOUS_TITRE() -> str:
 # Fonctions pures : testables sans lancer Streamlit
 # ==========================================================================
 
-def lignes_depuis_csv(contenu: bytes, separateur: str = ",") -> dict[str, str]:
+def lignes_depuis_csv(contenu: bytes,
+                      separateur: str | None = None) -> dict[str, str]:
     """
     Transforme un fichier televerse en lignes exploitables par l'ingestion.
 
@@ -106,7 +107,14 @@ def lignes_depuis_csv(contenu: bytes, separateur: str = ",") -> dict[str, str]:
     l'interface. La reimplementer ici avait produit une detection fausse :
     un bulletin large a deux colonnes se lisait comme un format long.
     """
-    texte = contenu.decode("utf-8-sig", errors="replace")
+    # Decodage et detection delegues a l'ingestion : un fichier televerse
+    # n'arrive pas dans un encodage plus previsible qu'un fichier sur
+    # disque, et dupliquer l'heuristique ici la ferait diverger.
+    from .ingestion import _decoder, detecter_delimiteur
+
+    texte, _ = _decoder(contenu)
+    if not separateur:
+        separateur = detecter_delimiteur(texte)
     lignes = list(csv.reader(io.StringIO(texte), delimiter=separateur))
     return parse_rows(lignes, "fichier televerse")
 
@@ -276,8 +284,11 @@ def _page_analyse(reglages: dict) -> None:
             # il a fait echouer deux analyses d'affilee sur un CSV en
             # point-virgule, l'erreur ne disant qu'« Aucune colonne
             # exploitable ».
-            st.text_input(T("ui.separateur.libelle"), value=",",
-                          key="separateur", help=T("ui.separateur.aide"))
+            # Vide par defaut : la detection s'en charge. Une saisie la
+            # supplante, pour l'utilisateur qui sait ce qu'il lit.
+            st.text_input(T("ui.separateur.libelle"), value="",
+                          key="separateur", help=T("ui.separateur.aide"),
+                          placeholder=T("ui.separateur.auto"))
 
         if fichier is None:
             st.markdown(
@@ -287,7 +298,7 @@ def _page_analyse(reglages: dict) -> None:
 
         try:
             lignes = lignes_depuis_csv(fichier.getvalue(),
-                                       reglages["separateur"])
+                                       reglages["separateur"] or None)
         except Exception as e:
             titre, detail = message_de_refus(e)
             st.error(f"**{titre}** : {detail}")
@@ -1168,7 +1179,7 @@ def _reglages() -> dict:
         # televersement, ou l'utilisateur le cherche. Enfoui sous « Seuils et
         # calcul », il a fait echouer deux analyses d'affilee sur un CSV en
         # point-virgule, avec pour seul indice « Aucune colonne exploitable ».
-        separateur=st.session_state.get("separateur") or ",",
+        separateur=st.session_state.get("separateur") or None,
         historique=historique, base=base,
         autoriser_demo=autoriser_demo,
         emis_le=_dt.date.today())

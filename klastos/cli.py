@@ -114,7 +114,7 @@ def _ajouter_lecture(p: argparse.ArgumentParser,
         help=i18n.t("cli.aide.censure", lg),
     )
     p.add_argument(
-        "--separateur", default=",", metavar="CAR",
+        "--separateur", default=None, metavar="CAR",
         help=i18n.t("cli.aide.separateur", lg),
     )
     p.add_argument(

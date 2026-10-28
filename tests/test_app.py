@@ -542,20 +542,36 @@ def test_la_langue_par_defaut_de_la_demande_est_le_francais():
 def test_le_separateur_est_pose_a_cote_du_televersement():
     """
     Il vivait dans le volet « Seuils et calcul », ou personne ne cherche un
-    reglage de lecture de fichier. Deux analyses d'affilee ont echoue sur un
-    CSV en point-virgule, l'erreur ne disant qu'« Aucune colonne
-    exploitable ». Il est desormais sous le depot du fichier, et son aide
-    nomme le cas Excel francais.
+    reglage de lecture de fichier. Deux analyses d'affilee avaient echoue
+    sur un CSV en point-virgule.
     """
-    from klastos import i18n
-
     src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
     avant_volet = src.split('T("ui.volet.seuils")')[0]
     assert 'key="separateur"' in avant_volet, (
         "le separateur est repasse apres le volet des seuils")
+
+
+def test_le_separateur_n_a_plus_a_etre_saisi():
+    """
+    L'aide nommait le cas de l'Excel francais, parce qu'il fallait que
+    l'utilisateur pense lui-meme a saisir « ; ». Le separateur est
+    desormais DETECTE : le champ ne sert plus qu'a forcer un cas
+    particulier, et son defaut est vide.
+
+    C'est une garantie plus forte qu'un texte d'aide bien redige : elle ne
+    depend pas de ce que le lecteur a remarque.
+    """
+    from klastos import i18n
+
+    src = (RACINE / "klastos" / "app.py").read_text(encoding="utf-8")
+    bloc = src[src.index('key="separateur"') - 400:
+               src.index('key="separateur"') + 200]
+    assert 'value=""' in bloc, (
+        "le champ impose de nouveau un separateur par defaut, donc la "
+        "detection ne joue jamais")
     for langue in i18n.LANGUES:
         aide = i18n.t("ui.separateur.aide", langue)
-        assert ";" in aide and "Excel" in aide, langue
+        assert any(m in aide.lower() for m in ("détect", "detect")), langue
 
 
 def test_l_interface_ne_porte_plus_de_texte_francais_en_dur():
