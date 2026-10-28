@@ -76,6 +76,19 @@ class Valuation:
     margin_rate: float
     max_price_low: float
     max_price_high: float
+
+    #: Base commerciale de la valeur, reprise telle quelle de
+    #: `PayableTerms.market` : « EXW Europe », « CIF Coree du Sud »...
+    #: Elle est REPRISE, jamais devinee ni ecrite en dur : un payable de
+    #: 57,75 % EXW et un payable de 72 % CIF ne decrivent pas le meme
+    #: perimetre de frais, et afficher la mauvaise base donnerait un
+    #: chiffre juste sous un intitule faux.
+    incoterm: str = ""
+
+    #: Humidite retenue, en POUR-CENT, ou None si elle n'a pas ete mesuree.
+    #: Les teneurs etant sur matiere seche, la valeur calculee est une
+    #: valeur par tonne SECHE. Le lot, lui, est pese humide.
+    humidite: float | None = None
     spec_deviations: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     provenance: list[str] = field(default_factory=list)
@@ -104,6 +117,51 @@ class Valuation:
             f"{self.currency}/t"
         )
 
+    def format_gross(self) -> str:
+        """
+        La VALEUR PAYABLE : teneur x pourcentage payable x cours du metal.
+
+        C'est ce chiffre, et non `max_price`, que le rapport met en tete.
+        Les deux coincident tant qu'aucun cout n'est declare - c'est le cas
+        par defaut - mais les confondre reviendrait a appeler \u00ab valeur
+        payable \u00bb un montant dont on a soustrait des frais.
+        """
+        return (
+            f"{self.gross_low:,.0f} \u2013 {self.gross_high:,.0f} "
+            f"{self.currency}/t"
+        )
+
+    @property
+    def couts_declares(self) -> bool:
+        """Vrai si l'appelant a declare des couts ou une marge."""
+        return bool(self.processing_cost) or bool(self.margin_rate)
+
+    @property
+    def part_seche(self) -> float:
+        """Fraction seche du lot pese : 1 - h. Vaut 1 sans humidite."""
+        return 1.0 if self.humidite is None else 1.0 - self.humidite / 100.0
+
+    @property
+    def gross_humide_low(self) -> float:
+        return self.gross_low * self.part_seche
+
+    @property
+    def gross_humide_high(self) -> float:
+        return self.gross_high * self.part_seche
+
+    def format_gross_humide(self) -> str:
+        """
+        La valeur par tonne HUMIDE, c'est-a-dire par tonne pesee.
+
+        Les teneurs portent sur la matiere seche ; le lot se pese et se
+        transporte humide. Payer la valeur seche au tonnage humide revient
+        a payer l'eau au prix du nickel.
+        """
+        return (
+            f"{self.gross_humide_low:,.0f} – {self.gross_humide_high:,.0f} "
+            f"{self.currency}/t"
+        )
+
 
 def value_lot(
     uncertainty_report,
@@ -112,6 +170,7 @@ def value_lot(
     spec: Specification | None = None,
     processing_cost: float = 0.0,
     margin_rate: float = 0.0,
+    moisture: float | None = None,
     today: _dt.date | None = None,
     allow_stale: bool = False,
 ) -> Valuation:
@@ -126,6 +185,10 @@ def value_lot(
     terms : conditions commerciales, egalement obligatoires.
     processing_cost : cout de traitement par tonne, meme devise que `prices`.
     margin_rate : marge visee, en fraction de la valeur brute.
+    moisture : humidite du lot en POUR-CENT, ou None si elle n'a pas ete
+        mesuree. Elle ne change AUCUN calcul de teneur : les teneurs sont
+        deja sur matiere seche a ce stade. Elle sert a exprimer la meme
+        valeur par tonne pesee.
     allow_stale : leve les verrous de fraicheur et de source. Reserve a la
         demonstration et aux tests. Jamais en production.
 
@@ -283,6 +346,8 @@ def value_lot(
         margin_rate=margin_rate,
         max_price_low=pmax_bas,
         max_price_high=pmax_haut,
+        incoterm=terms.market,
+        humidite=moisture,
         spec_deviations=ecarts,
         warnings=avertissements,
         provenance=provenance,
@@ -293,6 +358,7 @@ def value_lot(
             # Statut de bouclage, sans sa prose : le rendu appartient au
             # rapport, qui connait la langue du document.
             "closure_status": getattr(bouclage, "status", None),
+            "moisture": moisture,
             # Conversion de devises, si le jeu de prix en porte une. On lit
             # un attribut optionnel plutot que d'importer `fx` : `valuation`
             # n'a aucune raison de dependre de la conversion, et un jeu non

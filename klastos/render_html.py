@@ -32,10 +32,11 @@ import html as _html
 import re as _re
 
 from . import i18n
-from .report import (SECTION_CONSEIL, SECTION_DIAGNOSTIC, SECTION_DRX,
-                     SECTION_REDUIRE, SECTION_SCENARIO, SECTION_SENSIBLES,
-                     SECTION_VALORISATION, TITRE_CONSEIL, TITRE_DRX,
-                     TITRE_SCENARIO, LotReport, ReportRow, ReportSection)
+from .report import (LIGNE_PAYABLE, SECTION_CONSEIL, SECTION_DIAGNOSTIC,
+                     SECTION_DRX, SECTION_REDUIRE, SECTION_SCENARIO,
+                     SECTION_SENSIBLES, SECTION_VALORISATION, TITRE_CONSEIL,
+                     TITRE_DRX, TITRE_SCENARIO, LotReport, ReportRow,
+                     ReportSection)
 
 # Statuts tels que le client les lit. Les tables portent desormais une CLE
 # i18n et non le texte : le libelle est resolu au rendu, dans la langue du
@@ -225,6 +226,10 @@ header { margin-bottom: 10mm; }
 .tuile.ok .tuile-v { color: var(--green); }
 .tuile.alerte .tuile-v { color: var(--amber); }
 .tuile.rejet .tuile-v { color: var(--rust); }
+/* Tuile INFORMATIVE : elle ne porte aucun verdict. Sans elle, le bouclage
+   apres conversion sur matiere seche sortait en VERT a cote d'un bouclage
+   lu en ambre, et le lecteur prenait le vert pour la conclusion. */
+.tuile.neutre .tuile-v { color: var(--ink); }
 
 /* ---------- Sections ---------- */
 section { margin-bottom: 9mm; }
@@ -619,7 +624,11 @@ def _tuiles(rapport: LotReport) -> str:
     diag = rapport.section(SECTION_DIAGNOSTIC)
     if diag is None or not diag.rows:
         return ""
-    autorisees = {"ok", "alerte", "rejet"}
+    # « neutre » existe pour les tuiles qui INFORMENT sans conclure. Le
+    # repli sur "ok" est une supposition silencieuse : il peignait en vert
+    # le bouclage apres conversion, que le lecteur prenait alors pour le
+    # verdict alors que celui-ci porte sur le bulletin tel que lu.
+    autorisees = {"ok", "alerte", "rejet", "neutre"}
     colonnes = max(1, min(4, len(diag.rows)))
     L = [f'<div class="tuiles" style="grid-template-columns:'
          f'repeat({colonnes},1fr)">']
@@ -647,16 +656,23 @@ def _verdict(rapport: LotReport) -> str:
             '<div class="verdict-n">'
             f'{_e(i18n.t("rapport.verdict.sans_prix", lg))}</div></div>'
         )
-    ligne = next((r for r in val.rows if "MAXIMAL" in r.label.upper()), None)
+    # PAR LA CLE, jamais par le libelle. La recherche precedente testait
+    # « "MAXIMAL" in r.label.upper() » : le libelle est traduit, donc le
+    # rapport anglais ne portait deja pas ce mot, et tout renommage faisait
+    # disparaitre l'encadre SANS RIEN LEVER.
+    ligne = val.ligne(LIGNE_PAYABLE)
     if ligne is None:
         return ""
+    incoterm = rapport.meta.get("incoterm", "")
     return (
         '<div class="verdict">'
         '<div class="verdict-k">'
-        f'{_e(i18n.t("rapport.verdict.prix_maximal", lg))}</div>'
+        f'{_e(i18n.t("rapport.verdict.valeur_payable", lg, incoterm=incoterm))}'
+        '</div>'
         f'<div class="verdict-v">{_e(ligne.value)}</div>'
         '<div class="verdict-n">'
-        f'{_e(i18n.t("rapport.verdict.base_prix", lg))}</div></div>'
+        f'{_e(i18n.t("rapport.verdict.base_prix", lg))} '
+        f'{_e(i18n.t("rapport.mention.pas_un_prix_max", lg))}</div></div>'
     )
 
 

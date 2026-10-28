@@ -408,6 +408,83 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "fr": "Coût de traitement retenu",
         "en": "Processing cost applied",
     },
+    "rapport.ligne.marge": {
+        "fr": "Marge visée", "en": "Target margin",
+    },
+    # N'apparait QUE si des couts ont ete declares par l'appelant. Sans
+    # eux, il n'existe pas de prix maximal : il n'y a qu'une valeur payable.
+    "rapport.ligne.prix_net": {
+        "fr": "Prix maximal après vos coûts déclarés",
+        "en": "Maximum price after your declared costs",
+    },
+    # ------------------------------------------------------------ humidité
+    "rapport.ligne.valeur_payable_humide": {
+        "fr": "Valeur payable par tonne humide, à {humidite} % d'humidité",
+        "en": "Payable value per wet tonne, at {humidite} % moisture",
+    },
+    "rapport.ligne.bouclage_sec": {
+        "fr": "Bouclage après conversion sur matière sèche",
+        "en": "Closure after conversion to dry basis",
+    },
+    "rapport.mention.humidite_absente": {
+        "fr": "Humidité non mesurée : la valeur est exprimée par tonne "
+              "sèche. Le lot réel, pesé humide, vaut moins par tonne pesée.",
+        "en": "Moisture not measured: the value is expressed per dry "
+              "tonne. The actual lot, weighed wet, is worth less per "
+              "weighed tonne.",
+    },
+    # Le verdict reste celui du bulletin TEL QUE LU. Une humidité déclarée
+    # par le client, et non vérifiée, ne doit pas pouvoir faire passer un
+    # lot d'« alerte » à « conforme » : ce serait un bouton pour éteindre
+    # le contrôle de sécurité principal de l'outil.
+    "rapport.mention.bouclage_double": {
+        "fr": "Deux bouclages figurent ci-dessus. Le verdict porte sur le "
+              "bulletin TEL QUE LU : l'humidité déclarée sert à exprimer "
+              "les teneurs sur matière sèche, elle ne lève aucun seuil "
+              "d'alerte ni de rejet.",
+        "en": "Two closure figures appear above. The verdict rests on the "
+              "bulletin AS READ: the declared moisture serves to express "
+              "grades on a dry basis, it lifts no alert or rejection "
+              "threshold.",
+    },
+    "rapport.trace.humidite": {
+        "fr": "Humidité retenue : {valeur}. Teneurs du bulletin exprimées "
+              "sur matière {base}.",
+        "en": "Moisture applied: {valeur}. Bulletin grades expressed on "
+              "a {base} basis.",
+    },
+    "rapport.trace.humidite_absente": {
+        "fr": "non mesurée", "en": "not measured",
+    },
+    "rapport.base.sec": {"fr": "sèche", "en": "dry"},
+    "rapport.base.humide": {"fr": "humide", "en": "wet"},
+    # VALEUR PAYABLE, et non « prix maximal à payer ». Le chiffre est la
+    # valeur brute payable : teneur × pourcentage payable × cours du métal.
+    # Aucun coût n'en est déduit. L'ancien libellé promettait une déduction
+    # qui n'avait jamais lieu, et trompait donc un acheteur.
+    #
+    # L'Incoterm vient de `PayableTerms.market`. Il n'est pas décoratif :
+    # un payable de 57,75 % EXW et un payable de 72 % CIF ne couvrent pas
+    # le même périmètre de frais.
+    "rapport.ligne.valeur_payable": {
+        "fr": "VALEUR PAYABLE, base {incoterm}",
+        "en": "PAYABLE VALUE, {incoterm} basis",
+    },
+    "rapport.mention.pas_un_prix_max": {
+        "fr": "Ce chiffre n'est pas un prix maximal d'achat. Il ne déduit "
+              "ni le transport, ni les frais d'échantillonnage et "
+              "d'analyse, ni la marge de l'acheteur, qui dépendent de "
+              "chaque client. Aucun frais de traitement n'est retranché "
+              "non plus : le pourcentage payable rémunère déjà le "
+              "raffineur, et le déduire une seconde fois compterait ce "
+              "coût deux fois.",
+        "en": "This figure is not a maximum purchase price. It deducts "
+              "neither freight, nor sampling and assay costs, nor the "
+              "buyer's margin, all of which are client-specific. No "
+              "treatment charge is deducted either: the payable "
+              "percentage already remunerates the refiner, and deducting "
+              "it a second time would count that cost twice.",
+    },
     "rapport.note.teneurs_mal_determinees": {
         "fr": "Teneurs mal déterminées entrant dans le prix : {liste}. La "
               "fourchette de valorisation s'en trouve élargie.",
@@ -433,8 +510,9 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "reconstruction, the compatible ranges and the diagnostics "
               "below remain valid.",
     },
-    "rapport.verdict.prix_maximal": {
-        "fr": "Prix maximal à payer", "en": "Maximum price to pay",
+    "rapport.verdict.valeur_payable": {
+        "fr": "Valeur payable, base {incoterm}",
+        "en": "Payable value, {incoterm} basis",
     },
     "rapport.verdict.base_prix": {
         "fr": "Calculé sur les seules teneurs élémentaires, qui sont "
@@ -1814,7 +1892,9 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.histo.col_client": {"fr": "Client", "en": "Client"},
     "ui.histo.col_analyse_le": {"fr": "Analysé le", "en": "Analysed on"},
     "ui.histo.col_bouclage": {"fr": "Bouclage", "en": "Closure"},
-    "ui.histo.col_prix_max": {"fr": "Prix maximal", "en": "Maximum price"},
+    "ui.histo.col_valeur_payable": {
+        "fr": "Valeur payable", "en": "Payable value",
+    },
     "ui.histo.col_destinataire": {"fr": "Destinataire", "en": "Recipient"},
     "ui.histo.col_demo": {"fr": "Démo", "en": "Demo"},
     "ui.histo.oui": {"fr": "oui", "en": "yes"},
@@ -2030,8 +2110,11 @@ CATALOGUE: dict[str, dict[str, str]] = {
     "ui.conseil.sans_effet": {"fr": "sans effet", "en": "no effect"},
 
     # ------------------------------------------- onglet « vue d'ensemble »
-    "ui.tuile.prix_max": {
-        "fr": "Prix maximal à payer", "en": "Maximum price to pay",
+    # « Valeur payable », et non « prix maximal a payer » : aucun cout
+    # n'est deduit de ce chiffre. L'ecran et le document doivent porter le
+    # meme mot, sinon le client lit deux promesses differentes.
+    "ui.tuile.valeur_payable": {
+        "fr": "Valeur payable", "en": "Payable value",
     },
     "ui.tuile.par_tonne": {
         "fr": "{devise} par tonne", "en": "{devise} per tonne",

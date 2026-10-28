@@ -128,6 +128,22 @@ class UncertaintyConfig:
     seed: int | None = None
     solver: SolverConfig | None = None
 
+    facteur_rel_sigma: float = 0.0
+    """
+    Ecart-type RELATIF d'un facteur d'echelle COMMUN a tout le bulletin.
+
+    Il porte aujourd'hui l'incertitude d'humidite, sur un bulletin exprime
+    sur matiere humide et ramene sur sec.
+
+    POURQUOI UN FACTEUR COMMUN, ET NON UN BRUIT DE PLUS PAR ELEMENT. L'eau
+    ne dilue pas le nickel plutot que le cobalt : elle deplace TOUTES les
+    teneurs ensemble, du meme coefficient. Un bruit independant par element
+    se compenserait partiellement a la somme et sous-estimerait donc
+    l'effet reel sur le bouclage comme sur la valeur du lot.
+
+    Vaut 0 par defaut : aucun facteur commun n'est suppose.
+    """
+
 
 @dataclass
 class UncertaintyResult:
@@ -461,6 +477,13 @@ def propagate(
 
     for i in range(config.n_draws):
         tirage = resample_bulletin(b_vec, rng, config.noise, elements=els)
+        # FACTEUR COMMUN, un seul tirage pour tout le vecteur. C'est ce qui
+        # distingue l'humidite d'un bruit analytique : l'eau deplace toutes
+        # les teneurs ensemble. Tire apres le bruit, et multiplicatif,
+        # parce qu'une dilution est une homothetie.
+        if config.facteur_rel_sigma:
+            tirage = tirage * max(
+                1e-6, 1.0 + rng.normal(0.0, config.facteur_rel_sigma))
         try:
             r = solve(tirage, phase_keys=keys, elements=els,
                       config=config.solver)

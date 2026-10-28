@@ -13,6 +13,7 @@ import pathlib
 
 import pytest
 
+from klastos import i18n
 from klastos.cli import EXIT_OK, EXIT_REFUS, EXIT_USAGE, build_parser, main
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
@@ -188,7 +189,13 @@ def test_rapport_avec_prix_client_valorise(tmp_path, capsys):
     assert code == EXIT_OK
     texte = cible.read_text(encoding="utf-8")
     assert "## Valorisation" in texte
-    assert "PRIX MAXIMAL A PAYER" in texte
+    # « VALEUR PAYABLE », et non « PRIX MAXIMAL A PAYER » : aucun cout n'est
+    # deduit de ce chiffre. Cet appel declarant justement un cout et une
+    # marge, la ligne du prix net doit exister EN PLUS, et les deux doivent
+    # porter des montants differents.
+    assert "VALEUR PAYABLE" in texte
+    assert "PRIX MAXIMAL A PAYER" not in texte
+    assert i18n.t("rapport.ligne.prix_net", "fr") in texte
 
 
 def test_la_source_de_demonstration_est_refusee_sans_le_drapeau(capsys):

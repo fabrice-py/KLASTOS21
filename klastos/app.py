@@ -454,12 +454,12 @@ def _vue_ensemble(a: Analyse) -> None:
     if a.valorisation is not None:
         v = a.valorisation
         c4.markdown(_tuile(
-            T("ui.tuile.prix_max"),
+            T("ui.tuile.valeur_payable"),
             f"{v.max_price_low:,.0f}–{v.max_price_high:,.0f}".replace(",", " "),
             T("ui.tuile.par_tonne", devise=v.currency), "prix"),
             unsafe_allow_html=True)
     else:
-        c4.markdown(_tuile(T("ui.tuile.prix_max"),
+        c4.markdown(_tuile(T("ui.tuile.valeur_payable"),
                            T("ui.tuile.sans_valeur"),
                            T("ui.tuile.sans_prix")),
                     unsafe_allow_html=True)
@@ -1018,7 +1018,7 @@ def _page_historique(reglages: dict) -> None:
               T("ui.histo.col_analyse_le"):
                   e.analyse_le.strftime("%Y-%m-%d %H:%M"),
               T("ui.histo.col_bouclage"): e.bouclage_statut.upper(),
-              T("ui.histo.col_prix_max"): e.fourchette(),
+              T("ui.histo.col_valeur_payable"): e.fourchette(),
               T("ui.histo.col_destinataire"): e.destinataire,
               T("ui.histo.col_demo"): T("ui.histo.oui") if e.demo else ""}
              for e in entrees],

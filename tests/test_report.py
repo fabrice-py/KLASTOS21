@@ -223,10 +223,99 @@ def test_le_piege_du_sommet_est_bien_remonte_sur_un_lot_degenere():
 # ==========================================================================
 
 def test_la_valorisation_est_une_fourchette(rapport):
-    val = rapport.section("Valorisation")
-    ligne = next(r for r in val.rows if "MAXIMAL" in r.label)
+    """
+    La ligne se retrouve par sa CLE. Ce test cherchait \u00ab MAXIMAL \u00bb dans le
+    libelle, c'est-a-dire exactement la faute qui faisait disparaitre
+    l'encadre de tete au premier renommage - et qui ne pouvait de toute
+    facon pas fonctionner sur un rapport anglais.
+    """
+    from klastos.report import LIGNE_PAYABLE, SECTION_VALORISATION
+
+    val = rapport.section(SECTION_VALORISATION)
+    ligne = val.ligne(LIGNE_PAYABLE)
+    assert ligne is not None
     assert "\u2013" in ligne.value
     assert "USD/t" in ligne.value
+
+
+def test_la_valeur_payable_ne_se_presente_pas_comme_un_prix_maximal(rapport):
+    """
+    Le chiffre affiche est la valeur brute payable : teneur x pourcentage
+    payable x cours du metal, et AUCUN cout n'en est deduit. L'intituler
+    \u00ab prix maximal a payer \u00bb promettait une deduction qui n'avait pas lieu,
+    et trompait donc un acheteur.
+    """
+    from klastos.report import LIGNE_PAYABLE, SECTION_VALORISATION
+
+    val = rapport.section(SECTION_VALORISATION)
+    ligne = val.ligne(LIGNE_PAYABLE)
+    assert "PRIX MAXIMAL" not in ligne.label.upper()
+    assert "PAYABLE" in ligne.label.upper()
+    assert any("pourcentage payable rémunère déjà le raffineur" in n
+               for n in val.notes), (
+        "la mention qui interdit le double comptage du frais de traitement "
+        "a disparu")
+    assert any("n'est pas un prix maximal" in n for n in val.notes), (
+        "la mention qui dit ce que le chiffre ne deduit pas a disparu")
+
+
+def test_la_valeur_payable_porte_le_brut_et_non_le_net(contexte):
+    """
+    Le pourcentage payable REMUNERE DEJA le raffineur : retrancher un frais
+    de traitement par-dessus compterait ce cout deux fois.
+
+    La ligne « valeur payable » porte donc le BRUT. La fixture `rapport`
+    declare justement un cout de 350 et une marge de 15 % : si la ligne
+    portait `max_price`, on aurait remplace un libelle trompeur par un
+    autre, dans l'autre sens.
+    """
+    from klastos.report import (LIGNE_PAYABLE, LIGNE_PRIX_NET,
+                                SECTION_VALORISATION, build_report)
+
+    _, rep, journal = contexte
+    v = value_lot(rep, prices=PRIX_PROD, terms=TERMES,
+                  processing_cost=350.0, margin_rate=0.15, today=AUJ)
+    val = build_report("L", "C", rep, v, journal,
+                       issued_on=AUJ).section(SECTION_VALORISATION)
+
+    assert val.ligne(LIGNE_PAYABLE).value == v.format_gross()
+    assert val.ligne(LIGNE_PAYABLE).value != v.format_max_price(), (
+        "la valeur payable a ete confondue avec le prix net de couts")
+    assert val.ligne(LIGNE_PRIX_NET).value == v.format_max_price()
+
+
+def test_sans_couts_declares_aucun_prix_maximal_n_est_affiche(contexte):
+    """
+    Le logiciel n'invente aucun cout. Sans cout declare, il n'existe pas de
+    prix maximal : il n'y a qu'une valeur payable, et la ligne « prix
+    maximal apres vos couts » ne doit pas apparaitre.
+    """
+    from klastos.report import (LIGNE_COUT, LIGNE_MARGE, LIGNE_PAYABLE,
+                                LIGNE_PRIX_NET, SECTION_VALORISATION,
+                                build_report)
+
+    _, rep, journal = contexte
+    v = value_lot(rep, prices=PRIX_PROD, terms=TERMES, today=AUJ)
+    val = build_report("L", "C", rep, v, journal,
+                       issued_on=AUJ).section(SECTION_VALORISATION)
+
+    assert val.ligne(LIGNE_COUT) is None
+    assert val.ligne(LIGNE_MARGE) is None
+    assert val.ligne(LIGNE_PRIX_NET) is None
+    assert val.ligne(LIGNE_PAYABLE).value == v.format_gross()
+
+
+def test_l_incoterm_affiche_est_celui_des_conditions_commerciales(rapport):
+    """
+    Un payable de 57,75 % EXW et un payable de 72 % CIF ne couvrent pas le
+    meme perimetre de frais : afficher la mauvaise base donnerait un
+    chiffre juste sous un intitule faux. L'Incoterm est donc REPRIS des
+    conditions commerciales, jamais ecrit en dur.
+    """
+    from klastos.report import LIGNE_PAYABLE, SECTION_VALORISATION
+
+    val = rapport.section(SECTION_VALORISATION)
+    assert rapport.meta["incoterm"] in val.ligne(LIGNE_PAYABLE).label
 
 
 def test_la_valorisation_declare_son_assise(rapport):

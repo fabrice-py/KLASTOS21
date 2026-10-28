@@ -82,6 +82,20 @@ SECTION_CONSEIL = "conseil"
 SECTION_VALORISATION = "valorisation"
 SECTION_SPECIFICATION = "specification"
 
+#: Identifiants stables des lignes nommees de la section valorisation. Ce
+#: sont les seules lignes qu'un rendu doit pouvoir retrouver : les autres
+#: sont une par element payable et se parcourent en bloc.
+LIGNE_COUT = "valorisation_cout"
+LIGNE_MARGE = "valorisation_marge"
+LIGNE_PAYABLE = "valorisation_payable"
+LIGNE_PAYABLE_HUMIDE = "valorisation_payable_humide"
+#: Bouclage apres conversion sur matiere seche. Il INFORME ; le verdict
+#: reste porte par le bouclage du bulletin tel que lu.
+LIGNE_BOUCLAGE_SEC = "diagnostic_bouclage_sec"
+#: N'apparait QUE si l'appelant a declare des couts. Le logiciel n'en
+#: invente aucun.
+LIGNE_PRIX_NET = "valorisation_prix_net"
+
 #: Statut -> cle i18n, par defaut : le statut repond alors a la question
 #: "cette grandeur est-elle determinee ?".
 STATUT_DEFAUT: dict[str, str] = {
@@ -187,6 +201,15 @@ class ReportRow:
     high: float | None = None      # borne haute
     point: float | None = None     # valeur centrale, si elle a un sens
 
+    # Identifiant stable, independant de la langue, sur le modele de
+    # `ReportSection.cle`. `label` est du TEXTE AFFICHE.
+    #
+    # Il existe parce que `render_html._verdict()` retrouvait la ligne du
+    # prix en cherchant la chaine « MAXIMAL » dans le libelle francais.
+    # Renommer ce libelle faisait disparaitre l'encadre de tete du rapport
+    # SANS RIEN LEVER, et le rapport anglais ne portait deja pas ce mot.
+    cle: str = ""
+
     # Gravite du diagnostic porte par la ligne : "" | "ok" | "alerte" |
     # "rejet". C'est une DONNEE, pas une mise en forme. Elle existe parce
     # qu'un rendu ne doit jamais deduire la gravite en cherchant un mot dans
@@ -211,6 +234,17 @@ class ReportSection:
     # AFFICHE : il change avec la langue du rapport, donc il ne peut pas
     # servir a reconnaitre une section. Les rendus s'appuient sur `cle`.
     cle: str = ""
+
+    def ligne(self, cle: str) -> ReportRow | None:
+        """
+        Rend une ligne par sa CLE, jamais par son libelle.
+
+        `render_html._verdict()` cherchait la ligne du prix avec
+        « "MAXIMAL" in r.label.upper() ». Le libelle etant traduit, le
+        rapport anglais ne portait deja pas ce mot, et le renommer faisait
+        disparaitre l'encadre de tete sans rien lever.
+        """
+        return next((r for r in self.rows if r.cle and r.cle == cle), None)
 
 
 @dataclass
@@ -453,6 +487,25 @@ def build_report(
             # message depend aussi du SENS de l'ecart, et trois modules
             # fabriquaient cette cle chacun de son cote.
             rapport.warnings.append(i18n.t(bouclage.cle_message, lg))
+
+    # DOUBLE BOUCLAGE, quand le bulletin a ete ramene sur matiere seche.
+    # Les deux chiffres figurent, et le rapport dit lequel porte le verdict.
+    # Les seuils s'appliquent au bouclage TEL QUE LU : une humidite declaree
+    # par le client, et non verifiee, ne doit pas pouvoir faire passer un
+    # lot d'« alerte » a « conforme ». Sans cette regle, il suffirait
+    # d'ajuster l'humidite jusqu'a ce que le voyant passe au vert.
+    converti = uncertainty.meta.get("closure_converti")
+    if converti is not None:
+        diag.rows.append(ReportRow(
+            cle=LIGNE_BOUCLAGE_SEC,
+            label=i18n.t("rapport.ligne.bouclage_sec", lg),
+            value=f"{converti.total * 100:.2f} %",
+            # NEUTRE, et surtout pas le statut du converti : cette ligne
+            # informe, elle ne conclut pas. Peinte en vert a cote d'un
+            # bouclage lu en ambre, elle se lisait comme le verdict.
+            severity="neutre",
+        ))
+        diag.notes.append(i18n.t("rapport.mention.bouclage_double", lg))
 
     # Predictions hors bande de plausibilite. Posees ici, a cote du
     # bouclage : les deux disent la meme chose sous deux angles - le modele
@@ -713,28 +766,67 @@ def build_report(
                 status="ferme",
                 note=c.reference_name,
             ))
+        # VALEUR PAYABLE, et non \u00ab prix maximal a payer \u00bb. Le chiffre est la
+        # valeur brute payable : teneur x pourcentage payable x cours du
+        # metal. AUCUN cout n'en est deduit, parce que le logiciel ne
+        # calcule que ce qui depend de la COMPOSITION du lot. Le transport,
+        # l'echantillonnage et la marge de l'acheteur dependent de chaque
+        # client et ne sont pas devinables. L'ancien libelle promettait une
+        # deduction qui n'avait pas lieu.
+        #
+        # Il porte `gross` et non `max_price` : les deux coincident tant
+        # qu'aucun cout n'est declare, mais appeler \u00ab valeur payable \u00bb un
+        # montant dont on a soustrait des frais refaisait exactement la
+        # faute qu'on corrige, dans l'autre sens.
         val.rows.append(ReportRow(
-            label="Valeur brute",
-            value=(f"{valuation.gross_low:,.0f} \u2013 "
-                   f"{valuation.gross_high:,.0f} {valuation.currency}/t"),
+            cle=LIGNE_PAYABLE,
+            label=i18n.t("rapport.ligne.valeur_payable", lg,
+                         incoterm=valuation.incoterm),
+            value=valuation.format_gross(),
             status="ferme",
         ))
+        # Les couts ne sont JAMAIS devines : ces lignes n'existent que si
+        # l'appelant les a declares. C'est le point d'ancrage de l'evolution
+        # \u00ab vos couts \u00bb, qui n'aura qu'a enrichir cet objet.
         if valuation.processing_cost:
             val.rows.append(ReportRow(
+                cle=LIGNE_COUT,
                 label=i18n.t("rapport.ligne.cout", lg),
                 value=f"{valuation.processing_cost:,.0f} {valuation.currency}/t",
             ))
         if valuation.margin_rate:
             val.rows.append(ReportRow(
-                label="Marge visee",
+                cle=LIGNE_MARGE,
+                label=i18n.t("rapport.ligne.marge", lg),
                 value=f"{valuation.margin_rate * 100:.1f} %",
             ))
-        val.rows.append(ReportRow(
-            label="PRIX MAXIMAL A PAYER",
-            value=valuation.format_max_price(),
-            status="ferme",
-        ))
+        # HUMIDITE. Les teneurs portent sur la matiere SECHE ; le lot se
+        # pese et se transporte humide. Payer la valeur seche au tonnage
+        # humide revient a payer l'eau au prix du nickel.
+        if valuation.humidite is not None:
+            val.rows.append(ReportRow(
+                cle=LIGNE_PAYABLE_HUMIDE,
+                label=i18n.t("rapport.ligne.valeur_payable_humide", lg,
+                             humidite=f"{valuation.humidite:g}"),
+                value=valuation.format_gross_humide(),
+                status="ferme",
+            ))
+        else:
+            # Aucune humidite inventee : on dit qu'elle manque.
+            val.notes.append(i18n.t("rapport.mention.humidite_absente", lg))
+
+        if valuation.couts_declares:
+            val.rows.append(ReportRow(
+                cle=LIGNE_PRIX_NET,
+                label=i18n.t("rapport.ligne.prix_net", lg),
+                value=valuation.format_max_price(),
+                status="ferme",
+            ))
+        val.notes.append(i18n.t("rapport.mention.pas_un_prix_max", lg))
         val.notes.append(i18n.t("rapport.mention.fourchette", lg))
+        # L'encadre de tete le reclame, et il ne doit pas le deduire du
+        # libelle : celui-ci est traduit.
+        rapport.meta["incoterm"] = valuation.incoterm
 
         # MENTION DE CONVERSION. Une valorisation convertie doit dire dans
         # quelle devise les prix ont ete fournis, quel taux a ete applique,
@@ -775,6 +867,17 @@ def build_report(
         rapport.traceability.extend(valuation.provenance)
 
     # --- 6. Tracabilite et limites ---------------------------------------
+    # L'HUMIDITE Y FIGURE TOUJOURS, mesuree ou non. Son absence est une
+    # information : elle dit que la valeur annoncee est par tonne seche et
+    # que le tonnage facture, lui, sera humide.
+    humidite = uncertainty.meta.get("humidite")
+    base = uncertainty.meta.get("base_teneurs", "sec")
+    rapport.traceability.append(i18n.t(
+        "rapport.trace.humidite", lg,
+        valeur=(f"{humidite:g} %" if humidite is not None
+                else i18n.t("rapport.trace.humidite_absente", lg)),
+        base=i18n.t(f"rapport.base.{base}", lg)))
+
     if provenance_journal:
         rapport.traceability = list(provenance_journal) + rapport.traceability
 

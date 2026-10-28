@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import datetime as _dt
 import pathlib
+
+import numpy as np
 from dataclasses import dataclass, field
 
 from . import i18n
@@ -43,7 +45,7 @@ from .plausibility import (FACTEUR_PLAUSIBILITE, ControlePlausibilite,
 from .provenance import ProvenanceDeclaration
 from .report import DESTINATAIRE_TIERS, LotReport, build_report
 from .solver import (CLOSURE_ALERT, CLOSURE_REJECT, CLOSURE_REJECT_OVER,
-                     SolverConfig)
+                     SolverConfig, check_closure)
 from .structural import (BASE_ABSOLUE, BASE_CRISTALLINE, StructuralData,
                          lire_fichier as _lire_drx)
 from .generator import DEFAULT_NOISE, NoiseModel
@@ -54,6 +56,38 @@ from .valuation import Valuation, value_lot
 #: Plafond de tirages de bornage. Au-dela, le cout grimpe sans que les
 #: domaines compatibles bougent de facon utile.
 MAX_BOUND_DRAWS = 40
+
+#: Bases de teneur admises. La black mass contient de l'eau : le lot est
+#: pese humide, mais les laboratoires expriment presque toujours leurs
+#: teneurs sur matiere SECHE. Confondre les deux fait payer l'eau au prix
+#: du nickel.
+BASE_SEC = "sec"
+BASE_HUMIDE = "humide"
+BASES_TENEURS = (BASE_SEC, BASE_HUMIDE)
+
+
+class HumiditeInvalide(ValueError):
+    """Humidite hors du domaine physique, ou base de teneurs inconnue."""
+
+
+def facteur_sec(humidite: float | None) -> float:
+    """
+    Facteur qui ramene une teneur HUMIDE sur base seche : 1 / (1 - h).
+
+    C'est un facteur d'echelle COMMUN a toutes les teneurs. L'eau ne touche
+    pas un element plutot qu'un autre : elle dilue tout le bulletin du meme
+    coefficient. Cette propriete est ce qui permet de deriver un bouclage
+    de l'autre exactement, sans resoudre deux fois.
+    """
+    if humidite is None:
+        return 1.0
+    if not 0.0 <= humidite < 100.0:
+        raise HumiditeInvalide(
+            f"Humidite de {humidite} % hors du domaine physique. "
+            "Elle doit etre comprise entre 0 et 100 %, bornes exclues pour "
+            "100 % : un lot entierement constitue d'eau n'a aucune teneur."
+        )
+    return 1.0 / (1.0 - humidite / 100.0)
 
 
 @dataclass(frozen=True)
@@ -120,6 +154,20 @@ class Demande:
     #: `NoiseModel.rel_sigma_par_element` - resserrer le bruit resserre le
     #: prix annonce, et c'est la direction dangereuse.
     bruit: NoiseModel = DEFAULT_NOISE
+
+    # --- humidite ----------------------------------------------------------
+    #: Humidite mesuree par le laboratoire, en POUR-CENT. Laissee a None,
+    #: aucune valeur n'est supposee : le rapport dira qu'elle n'a pas ete
+    #: mesuree plutot que d'inventer un chiffre.
+    humidite: float | None = None
+    #: Incertitude sur l'humidite, en points de pour-cent. Elle se propage
+    #: comme un facteur d'echelle COMMUN a toutes les teneurs, et non comme
+    #: une teneur de plus : l'eau deplace toutes les teneurs ENSEMBLE.
+    humidite_incertitude: float | None = None
+    #: Base sur laquelle le bulletin exprime ses teneurs : « sec » ou
+    #: « humide ». Le defaut est « sec », convention de la quasi-totalite
+    #: des laboratoires.
+    base_teneurs: str = BASE_SEC
 
     # --- valorisation -----------------------------------------------------
     prix: PriceSet | None = None
@@ -286,6 +334,19 @@ def analyser(demande: Demande) -> Analyse:
         n_draws=demande.tirages,
         n_bound_draws=min(demande.tirages, MAX_BOUND_DRAWS),
         noise=demande.bruit,
+        # Incertitude d'humidite, convertie en ecart-type RELATIF du
+        # facteur d'echelle commun. k(h) = 1/(1-h/100), donc
+        # (dk/k)/dh = k/100 : une incertitude de 2 points sur une humidite
+        # de 10 % vaut 2,2 % sur le facteur.
+        #
+        # Elle ne s'applique QUE sur un bulletin exprime sur humide : sur
+        # un bulletin deja sec, l'humidite ne touche aucune teneur, elle ne
+        # sert qu'a reexprimer la valeur par tonne pesee.
+        facteur_rel_sigma=(
+            facteur_sec(demande.humidite) * demande.humidite_incertitude / 100.0
+            if (demande.base_teneurs == BASE_HUMIDE
+                and demande.humidite_incertitude)
+            else 0.0),
         solver=SolverConfig(
             noise=demande.bruit,
             closure_alert=demande.seuil_alerte,
@@ -303,9 +364,54 @@ def analyser(demande: Demande) -> Analyse:
                                 phase_keys=cles)
         journal = journal + structurale.journal
 
-    incertitude = propagate(lecture.b, phase_keys=cles,
+    # --- humidite : conversion humide -> sec ------------------------------
+    # Les teneurs d'un bulletin exprime SUR HUMIDE sont diluees par l'eau.
+    # Toutes le sont du MEME facteur : l'eau ne touche pas un element
+    # plutot qu'un autre. La conversion est donc une homothetie du vecteur
+    # de bulletin, et elle a lieu AVANT la resolution, parce que le modele
+    # de phases suppose une composition qui somme vers 1.
+    if demande.base_teneurs not in BASES_TENEURS:
+        raise HumiditeInvalide(
+            f"Base de teneurs inconnue : {demande.base_teneurs!r}. "
+            f"Valeurs admises : {', '.join(BASES_TENEURS)}."
+        )
+    k_sec = 1.0
+    if demande.base_teneurs == BASE_HUMIDE:
+        if demande.humidite is None:
+            raise HumiditeInvalide(
+                "Bulletin declare sur matiere humide sans humidite mesuree. "
+                "Fournir l'humidite, ou declarer le bulletin sur matiere "
+                "seche si c'est le cas."
+            )
+        k_sec = facteur_sec(demande.humidite)
+    else:
+        facteur_sec(demande.humidite)        # valide la borne, sans convertir
+
+    b_sec = lecture.b * k_sec
+
+    incertitude = propagate(b_sec, phase_keys=cles,
                             elements=lecture.measured_elements, config=config,
                             structural=structurale)
+
+    # DOUBLE BOUCLAGE. Les seuils d'alerte et de rejet continuent de
+    # s'appliquer au bouclage TEL QUE LU : une humidite declaree par le
+    # client, et non verifiee, ne doit pas pouvoir liberer un verrou. Sans
+    # cette precaution, il suffirait d'ajuster l'humidite jusqu'a ce que le
+    # bouclage passe au vert.
+    #
+    # Le bouclage tel que lu se DERIVE exactement du converti : le systeme
+    # etant lineaire et la non-negativite stable par homothetie positive,
+    # la solution se met a l'echelle du meme facteur que le bulletin.
+    if k_sec != 1.0:
+        lu = check_closure(
+            np.array([incertitude.meta["closure"].total / k_sec]),
+            alert=demande.seuil_alerte, reject=demande.seuil_rejet,
+            reject_over=demande.seuil_rejet_sur)
+        incertitude.meta["closure_converti"] = incertitude.meta["closure"]
+        incertitude.meta["closure"] = lu
+        incertitude.meta["facteur_sec"] = k_sec
+    incertitude.meta["humidite"] = demande.humidite
+    incertitude.meta["base_teneurs"] = demande.base_teneurs
 
     A, _, _ = stoichiometry_matrix(phase_keys=cles,
                                    elements=lecture.measured_elements)
@@ -348,6 +454,7 @@ def analyser(demande: Demande) -> Analyse:
             spec=demande.specification,
             processing_cost=demande.cout_traitement,
             margin_rate=demande.marge,
+            moisture=demande.humidite,
             today=demande.emis_le,
             allow_stale=demande.autoriser_demo,
         )

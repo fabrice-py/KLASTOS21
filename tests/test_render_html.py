@@ -358,8 +358,38 @@ def test_l_echelle_d_une_section_de_largeurs_est_en_points(rapport, document):
 # 6. Ce que le document doit dire, et ne pas dire
 # ==========================================================================
 
-def test_le_prix_maximal_est_en_tete(document):
-    assert "Prix maximal à payer" in document
+def test_la_valeur_payable_est_en_tete(document):
+    """
+    L'encadre de tete porte desormais « Valeur payable », avec sa base
+    commerciale. Il ne promet plus une deduction de couts qui n'a pas lieu.
+    """
+    assert "Valeur payable" in document
+    assert "Prix maximal à payer" not in document
+
+
+def test_l_encadre_de_tete_survit_a_un_renommage_du_libelle():
+    """
+    LE PIEGE QUI A MOTIVE LA CLE DE LIGNE.
+
+    `_verdict` retrouvait la ligne du prix par « "MAXIMAL" in
+    r.label.upper() ». Le libelle etant traduit, le rapport ANGLAIS ne
+    portait deja pas ce mot : l'encadre y disparaissait silencieusement,
+    sans rien lever. La recherche se fait maintenant par cle, donc elle
+    survit a la langue comme au renommage.
+    """
+    import inspect
+
+    import klastos.render_html as rh
+
+    import re
+
+    source = inspect.getsource(rh._verdict)
+    # Les commentaires CITENT l'ancienne faute : on ne lit que le CODE.
+    code = re.sub(r"#.*", "", source)
+    assert "LIGNE_PAYABLE" in code, (
+        "la ligne du prix n'est plus retrouvee par sa cle")
+    assert ".label" not in code, (
+        "le rendu est revenu a une recherche dans le TEXTE AFFICHE")
 
 
 def test_sans_prix_le_document_le_dit_au_lieu_d_inventer_un_chiffre(rapport):
