@@ -35,6 +35,7 @@ if __name__ == "__main__" and __package__ is None:      # execution directe
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import charte                                           # noqa: E402
+import mouvement                                        # noqa: E402
 import contenu                                          # noqa: E402
 from contenu import PAGES, t                            # noqa: E402
 
@@ -139,13 +140,42 @@ def pied(langue: str) -> str:
 </footer>"""
 
 
+#: Sections deja porteuses d'un rythme de revelation propre. On ne les
+#: retouche pas : la console se revele d'un bloc, et le hero doit etre
+#: lisible a l'instant ou la page s'ouvre.
+_SANS_REVELATION = ('class="hero"', 'id="console"')
+
+
+def rythmer(corps: str) -> str:
+    """
+    Donne a chaque section un rang de revelation.
+
+    Pose a la main sur la seule page d'accueil, l'attribut aurait manque
+    partout ailleurs et le site serait reste immobile sur cinq pages sur
+    six. Il est donc ajoute ICI, une fois, pour toutes les sections qui
+    n'en declarent pas deja un.
+    """
+    rang = 0
+    sorties: list[str] = []
+    for morceau in re.split(r"(<section[^>]*>)", corps):
+        if (morceau.startswith("<section")
+                and "data-reveler" not in morceau
+                and not any(m in morceau for m in _SANS_REVELATION)):
+            rang += 1
+            morceau = morceau[:-1] + f' data-reveler="{rang % 3}">'
+        sorties.append(morceau)
+    return "".join(sorties)
+
+
 def page_complete(page: str, langue: str, corps: str) -> str:
     """Enveloppe une page : en-tete, navigation, corps, pied."""
+    corps = rythmer(corps)
     return f"""<!doctype html>
 <html lang="{langue}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.className+=" js";</script>
 <title>{escape(t(f"{page}.titre_onglet", langue))}</title>
 <meta name="description" content="{escape(t(f"{page}.description", langue))}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -162,6 +192,7 @@ def page_complete(page: str, langue: str, corps: str) -> str:
 {corps}
 </main>
 {pied(langue)}
+<script>{mouvement.script()}</script>
 </body>
 </html>
 """
@@ -227,6 +258,130 @@ def ligne_regle(nom_cle: str, langue: str, bas: float, haut: float,
 # Les six pages
 # ==========================================================================
 
+def preuves(langue: str) -> str:
+    """
+    Trois chiffres sous le hero. Ils ne sont PAS decoratifs : ils viennent
+    du lot XRF reel analyse pendant la mise au point, et du depot. Un
+    chiffre invente ici contredirait tout ce que la page affirme.
+    """
+    lignes = [
+        ("1", 0, "", "index.preuve.phases.cle"),
+        ("5", 0, "", "index.preuve.degen.cle"),
+        ("1333", 0, "", "index.preuve.tests.cle"),
+    ]
+    cartes = []
+    for valeur, dec, suffixe, cle in lignes:
+        cartes.append(
+            f'<div class="preuve">'
+            # La valeur FINALE est le contenu initial. Mise a zero, elle
+            # restait a zero sans JavaScript : trois chiffres faux en tete
+            # de page, sur un site qui vend l'exactitude. Le script part
+            # de zero de lui-meme pour animer.
+            f'<div class="preuve-val" data-compteur="{valeur}"'
+            f' data-decimales="{dec}" data-suffixe="{suffixe}">'
+            f'{valeur}{suffixe}</div>'
+            f'<div class="preuve-cle">{escape(t(cle, langue))}</div></div>')
+    return f'<div class="preuves" data-reveler="0">{"".join(cartes)}</div>'
+
+
+def console(langue: str) -> str:
+    """
+    La console d'identifiabilite : le coeur de la page d'accueil.
+
+    Le visiteur coche les elements que son bulletin dose et lit, en direct,
+    ce que ce bulletin determinerait. Les reponses viennent de `demo.json`,
+    produit a la construction par `klastos.identifiability` : voir
+    site/demo.py. Rien n'est approxime en JavaScript.
+
+    Le balisage est COMPLET sans le script. Sans JavaScript, le visiteur
+    voit les douze phases et la selection de depart ; il perd
+    l'interaction, pas l'information.
+    """
+    from demo import DEPART, ELEMENTS_DEMO, _phases_retenues
+    from klastos.phases import PHASES
+
+    boutons = "".join(
+        f'<button type="button" class="el" data-element="{e}"'
+        f' aria-pressed="{"true" if e in DEPART else "false"}">{e}</button>'
+        for e in ELEMENTS_DEMO)
+
+    cartes = []
+    for cle in _phases_retenues():
+        fiche = PHASES.get(cle, {})
+        formule = escape(fiche.get("formula", ""))
+        cartes.append(
+            f'<div class="phase" data-phase="{escape(cle)}">'
+            f'<div class="phase-nom">{escape(fiche.get("label", cle))}</div>'
+            + (f'<div class="phase-formule">{formule}</div>' if formule else "")
+            + f'<div class="phase-etat"'
+              f' data-ferme="{escape(t("console.etat.ferme", langue))}"'
+              f' data-ouvert="{escape(t("console.etat.ouvert", langue))}">'
+              f'</div></div>')
+
+    mesures = "".join(
+        f'<div class="console-mesure"><div class="console-mesure-val"'
+        f' data-sortie="{sortie}">0</div>'
+        f'<div class="console-mesure-cle">{escape(t(cle, langue))}</div></div>'
+        for sortie, cle in (("dosees", "console.mesure.dosees"),
+                            ("rang", "console.mesure.rang"),
+                            ("deg", "console.mesure.deg"),
+                            ("fermes", "console.mesure.fermes")))
+
+    import json
+
+    from demo import balayage
+
+    donnees = json.dumps(balayage(), ensure_ascii=False,
+                         separators=(",", ":"))
+    # Une chaine « </ » dans le JSON fermerait le <script> qui le
+    # porte. On la neutralise, comme le veut la specification.
+    donnees = donnees.replace("</", r"<\/")
+
+    return f"""<section class="bande bande-nuit section" id="console">
+  <script type="application/json" id="demo-donnees">{donnees}</script>
+  <div class="enveloppe">
+    <p class="surtitre" data-reveler="0">\
+{escape(t("console.surtitre", langue))}</p>
+    <h2 style="max-width:22ch" data-reveler="1">\
+{escape(t("console.h2", langue))}</h2>
+    <p class="chapeau" data-reveler="2">\
+{escape(t("console.chapeau", langue))}</p>
+
+    <div class="console" data-console data-reveler="3">
+      <p class="console-secours">\
+{escape(t("console.indisponible", langue))}</p>
+      <div class="console-corps">
+        <p class="el-note">{escape(t("console.elements", langue))}</p>
+        <div class="console-elements">{boutons}</div>
+        <div class="console-actions">
+          <button type="button" data-raz>\
+{escape(t("console.raz", langue))}</button>
+          <button type="button" data-tout>\
+{escape(t("console.tout", langue))}</button>
+        </div>
+        <div class="console-mesures">{mesures}</div>
+        <div class="jauge-piste"><div class="jauge-part" data-jauge></div></div>
+        <p class="el-note">{escape(t("console.phases", langue))}</p>
+        <div class="phases">{"".join(cartes)}</div>
+        <p class="verdict-console" data-verdict
+           data-rien="{escape(t("console.verdict.rien", langue))}"
+           data-partiel="{escape(t("console.verdict.partiel", langue))}"
+           data-large="{escape(t("console.verdict.large", langue))}"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="bande section">
+  <div class="enveloppe mesure">
+    <h2 data-reveler="0" style="max-width:20ch">\
+{escape(t("console.lecon.titre", langue))}</h2>
+    <p class="chapeau" data-reveler="1">\
+{escape(t("console.lecon.texte", langue))}</p>
+  </div>
+</section>"""
+
+
 def page_index(langue: str) -> str:
     boutons = f"""<div class="boutons">
       <a class="bouton" href="methode.html">\
@@ -267,14 +422,17 @@ def page_index(langue: str) -> str:
     </div>""",
     ])
 
-    return f"""<section class="bande section">
+    return f"""<section class="hero">
   <div class="enveloppe">
     <p class="surtitre">{escape(t("index.surtitre", langue))}</p>
-    <h1 style="max-width:19ch">{escape(t("index.h1", langue))}</h1>
+    <h1>{escape(t("index.h1", langue))}</h1>
     <p class="chapeau">{escape(t("index.chapeau", langue))}</p>
-    {boutons}
+    {boutons.replace('bouton-creux', 'bouton-creux bouton-nuit')}
+    {preuves(langue)}
   </div>
 </section>
+
+{console(langue)}
 
 <section class="bande bande-lavee section">
   <div class="enveloppe">
@@ -567,6 +725,11 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
     # construction neuve doit porter ses favicons, sinon le site n'en a que
     # sur la machine ou quelqu'un les a poses un jour. Un test de liens
     # morts l'a attrape.
+    # La table de la demonstration n'est PAS ecrite a cote des pages :
+    # elle est inseree dans la page d'accueil elle-meme. Un fichier
+    # separe serait une copie que personne ne lit et qui derive.
+    # Voir `console()`.
+
     if MARQUE_SOURCE.is_dir():
         cible = sortie / "marque"
         cible.mkdir(exist_ok=True)

@@ -50,6 +50,26 @@ JETONS: dict[str, str] = {
     "rust-soft": theme.ROUILLE_PALE,
     "green": theme.VERT,
     "green-soft": theme.VERT_PALE,
+    # Fonds SOMBRES. Le site alternait pages blanches et pages blanches
+    # lavees : tout y avait le meme poids. L'encre sert desormais aux
+    # sections qui MONTRENT - la console, le hero - et le blanc a celles
+    # qui expliquent. Repris de la barre laterale de l'interface, pour que
+    # les deux surfaces du produit se ressemblent.
+    "nuit": theme.NUIT,
+    "nuit-claire": theme.NUIT_CLAIRE,
+    "bord-nuit": theme.BORD_NUIT,
+    # Textes posés sur les surfaces sombres. Ils sont nommés par leur
+    # rôle, comme le reste de la palette : un hex écrit dans le corps de
+    # la feuille serait une source de vérité de plus.
+    "nuit-texte": "#E4EAF4",
+    "nuit-muet": "#97A6C4",
+    "nuit-faible": "#73839F",
+    "nuit-filet": "#39496E",
+    "nuit-fort": "#FFFFFF",
+    "cobalt-clair": "#8FA8FF",
+    "cobalt-fonce": "#16214A",
+    "voile": "rgba(255, 255, 255, .92)",
+    "voile-survol": "rgba(255, 255, 255, .06)",
 }
 
 #: Les trois polices. Archivo n'existait qu'a l'impression ; le site la fait
@@ -125,7 +145,14 @@ code, .mono {
 .section-serree { padding: 46px 0; }
 
 /* ---------- Navigation ---------- */
-.nav { border-bottom: 1px solid var(--line); background: var(--bg); }
+.nav {
+  border-bottom: 1px solid var(--line);
+  background: var(--voile);
+  position: sticky; top: 0; z-index: 40;
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+  transition: border-color .25s;
+}
 .nav-interieur {
   display: flex; align-items: center; gap: 30px;
   min-height: 66px; flex-wrap: wrap;
@@ -334,6 +361,270 @@ code, .mono {
   .regle-ligne { grid-template-columns: 112px 1fr; }
   .regle-valeur { grid-column: 1 / -1; text-align: left; }
   .nav-liens { gap: 16px; }
+}
+
+
+/* ======================================================================
+   SECTIONS SOMBRES
+   ----------------------------------------------------------------------
+   Le site n'avait que du blanc et du blanc lave : tout y pesait pareil.
+   L'encre sert aux sections qui MONTRENT - le hero, la console - et le
+   blanc a celles qui expliquent. Les jetons sont repris de la barre
+   laterale de l'interface, pour que les deux surfaces se ressemblent.
+   ====================================================================== */
+.bande-nuit {
+  background: var(--nuit); color: var(--nuit-texte);
+  border-top: 1px solid var(--bord-nuit);
+  border-bottom: 1px solid var(--bord-nuit);
+}
+.bande-nuit h1, .bande-nuit h2, .bande-nuit h3 { color: var(--nuit-fort); }
+.bande-nuit .chapeau { color: var(--nuit-muet); }
+.bande-nuit .surtitre { color: var(--nuit-faible); }
+.bande-nuit a { color: var(--cobalt-clair); }
+
+/* ======================================================================
+   HERO
+   ----------------------------------------------------------------------
+   Pas de photographie. Les banques d'images libres n'ont rien d'utilisable
+   sur la black mass, et une photo de batterie generique est ce que tous
+   les concurrents affichent : elle ne dit rien d'une competence.
+   Le fond est donc une TRAME calculee - la grille d'un instrument - et la
+   seule image de la page est la figure, qui sort du moteur.
+   ====================================================================== */
+.hero {
+  position: relative; overflow: hidden;
+  background: var(--nuit); color: var(--nuit-texte);
+  padding: 92px 0 84px;
+}
+/* Pas de trame en fond. Elle reposait sur deux degrades, interdits par
+   la charte, et le hero ne perd rien a l'austerite : une encre pleine et
+   un titre de 78 pixels suffisent amplement. */
+.hero > * { position: relative; }
+.hero h1 {
+  color: var(--nuit-fort); font-size: clamp(38px, 6.2vw, 78px); line-height: 1.02;
+  letter-spacing: -0.03em; max-width: 17ch;
+}
+.hero .chapeau { color: var(--nuit-muet); max-width: 54ch; }
+.hero .surtitre { color: var(--marque); }
+
+/* Le bandeau de preuve, sous le hero : trois chiffres du lot reel. */
+.preuves {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1px; background: var(--bord-nuit);
+  border: 1px solid var(--bord-nuit); border-radius: 10px;
+  overflow: hidden; margin-top: 46px;
+}
+.preuve { background: var(--nuit-claire); padding: 20px 22px; }
+.preuve-val {
+  font-family: var(--f-mono); font-size: 30px; font-weight: 500;
+  color: var(--nuit-fort); font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.preuve-cle {
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--nuit-faible); margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* Le bouton creux est dessine pour le blanc : pose sur l'encre du hero,
+   il disparaissait purement et simplement. */
+.bouton-nuit {
+  color: var(--nuit-texte); border-color: var(--nuit-filet);
+  background: transparent;
+}
+.bouton-nuit:hover {
+  color: var(--nuit-fort); border-color: var(--cobalt-clair);
+  background: var(--voile-survol);
+}
+
+/* ======================================================================
+   MOUVEMENT
+   ----------------------------------------------------------------------
+   Trois usages, et rien d'autre : reveler, compter, repondre. Tout est
+   suspendu sous prefers-reduced-motion - la page s'affiche alors
+   complete et immediate, et la console reste utilisable.
+   ====================================================================== */
+/* Le masquage est conditionne a `.js`, pose par un script en tete de
+   document. Sans cette precaution, une erreur de script, un navigateur
+   sans JavaScript ou un bloqueur laissaient une page VIDE : le contenu
+   etait a opacite nulle et plus rien ne venait le reveler. Un site qui
+   vend la prudence ne peut pas disparaitre en silence. */
+.js [data-reveler] {
+  opacity: 0; transform: translateY(16px);
+  transition: opacity .62s cubic-bezier(.16,.84,.44,1),
+              transform .62s cubic-bezier(.16,.84,.44,1);
+  will-change: opacity, transform;
+}
+.js [data-reveler].vu { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveler] { opacity: 1; transform: none; transition: none; }
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ======================================================================
+   CONSOLE D'IDENTIFIABILITE
+   ----------------------------------------------------------------------
+   Le visiteur coche les elements que son bulletin dose et lit, en direct,
+   ce que ce bulletin determinerait. Les reponses sortent du moteur,
+   pre-calculees a la construction : voir site/demo.py.
+   ====================================================================== */
+.console { margin-top: 38px; }
+/* Le corps de la console ne disparait que si le script a DECLARE qu'il
+   ne pouvait pas l'alimenter. Sans script du tout, le visiteur voit les
+   douze phases et la selection de depart : il perd l'interaction, pas
+   l'information. */
+.console-indisponible .console-corps { display: none; }
+.console-secours {
+  display: none; color: var(--nuit-muet); font-size: 15px;
+}
+.console-indisponible .console-secours { display: block; }
+
+/* Les COMMANDES et les MESURES n'ont aucun sens sans le script : les
+   boutons ne repondraient pas, et les compteurs afficheraient quatre
+   zeros, c'est-a-dire quatre chiffres faux. Elles n'apparaissent donc
+   que si le script a annonce sa presence. La liste des douze phases,
+   elle, reste : c'est de l'information, pas de l'interaction. */
+.console-elements, .console-actions,
+.console-mesures, .jauge-piste { display: none; }
+.js .console-elements, .js .console-actions { display: flex; }
+.js .console-mesures { display: grid; }
+.js .jauge-piste { display: block; }
+
+.console-elements {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px;
+}
+.el {
+  font-family: var(--f-mono); font-size: 15px; font-weight: 500;
+  padding: 9px 15px; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--nuit-muet);
+  border: 1px solid var(--bord-nuit);
+  transition: background .18s, color .18s, border-color .18s;
+}
+.el:hover { color: var(--nuit-fort); border-color: var(--nuit-filet); }
+.el[aria-pressed="true"] {
+  background: var(--cobalt); border-color: var(--cobalt);
+  color: var(--nuit-fort);
+}
+.el:focus-visible { outline: 2px solid var(--marque); outline-offset: 3px; }
+.el-note {
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--nuit-faible);
+  margin-bottom: 10px;
+}
+
+.console-actions { display: flex; gap: 10px; margin-bottom: 30px; }
+.console-actions button {
+  font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em;
+  text-transform: uppercase; cursor: pointer; padding: 8px 14px;
+  background: transparent; color: var(--nuit-muet);
+  border: 1px solid var(--bord-nuit); border-radius: 7px;
+  transition: color .18s, border-color .18s;
+}
+.console-actions button:hover {
+  color: var(--nuit-fort); border-color: var(--nuit-filet);
+}
+.console-actions button:focus-visible {
+  outline: 2px solid var(--marque); outline-offset: 3px;
+}
+
+.console-mesures {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 1px; background: var(--bord-nuit);
+  border: 1px solid var(--bord-nuit); border-radius: 10px;
+  overflow: hidden; margin-bottom: 26px;
+}
+/* NOMMEES `console-*`. Appelees `.mesure`, elles ecrasaient l'utilitaire
+   de largeur de ligne du meme nom, deja present dans la charte : tous les
+   titres qui s'en servaient sortaient en rectangle sombre illisible. Une
+   classe ajoutee ne doit jamais s'appeler comme une classe existante. */
+.console-mesure { background: var(--nuit-claire); padding: 16px 18px; }
+.console-mesure-val {
+  font-family: var(--f-mono); font-size: 27px; font-weight: 500;
+  color: var(--nuit-fort);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.console-mesure-cle {
+  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--nuit-faible);
+  margin-top: 9px; line-height: 1.5;
+}
+
+.jauge-piste {
+  height: 5px; border-radius: 3px; background: var(--bord-nuit);
+  overflow: hidden; margin-bottom: 26px;
+}
+.jauge-part {
+  height: 100%; background: var(--cobalt); border-radius: 3px;
+  transition: width .45s cubic-bezier(.16,.84,.44,1);
+}
+
+.phases {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 8px;
+}
+.phase {
+  border: 1px solid var(--bord-nuit); border-radius: 9px;
+  padding: 12px 13px; background: var(--nuit-claire);
+  transition: border-color .25s, background .25s;
+}
+/* Une phase DETERMINEE passe au cobalt - la couleur qui, dans tout le
+   produit, veut dire exactement cela. La console ne cree pas son propre
+   vocabulaire de couleur. */
+/* Un FILET epais a gauche, pas une ombre portee : la charte les
+   interdit, et un filet dit la meme chose plus sechement. */
+.phase-ferme {
+  border-color: var(--cobalt); background: var(--cobalt-fonce);
+  border-left-width: 3px;
+}
+.phase-nom {
+  font-size: 13.5px; font-weight: 600; color: var(--nuit-texte);
+  line-height: 1.25;
+}
+.phase-ferme .phase-nom { color: var(--nuit-fort); }
+.phase-formule {
+  font-family: var(--f-mono); font-size: 10px;
+  color: var(--nuit-faible); margin-top: 5px; word-break: break-all;
+}
+.phase-etat {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .11em;
+  text-transform: uppercase; margin-top: 9px;
+  color: var(--nuit-faible);
+}
+.phase-ferme .phase-etat { color: var(--cobalt-clair); }
+.phase-etat::after { content: attr(data-ouvert); }
+.phase-ferme .phase-etat::after { content: attr(data-ferme); }
+
+.verdict-console {
+  margin-top: 26px; padding: 16px 20px; border-radius: 9px;
+  border-left: 3px solid var(--marque); background: var(--nuit-claire);
+  font-size: 15.5px; line-height: 1.55; color: var(--nuit-texte);
+}
+.verdict-console[data-etat="large"] { border-left-color: var(--cobalt); }
+
+/* ======================================================================
+   CARTES, AU SURVOL
+   ====================================================================== */
+/* Au survol, la carte se leve d'un cheveu et son filet se fonce. Pas
+   d'ombre portee : la charte l'interdit. */
+.carte { transition: transform .22s, border-color .22s; }
+.carte:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+
+/* ======================================================================
+   NAVIGATION COLLANTE
+   ----------------------------------------------------------------------
+   Les proprietes collantes sont posees sur la regle `.nav` D'ORIGINE, plus
+   haut, et non dans une seconde regle du meme nom : deux declarations de
+   fond sur un meme selecteur simple sont le debut d'une derive, et un
+   test les interdit desormais.
+   ====================================================================== */
+.nav-compacte { border-bottom-color: var(--line-strong); }
+.nav-compacte .nav-interieur { min-height: 54px; }
+.nav-interieur { transition: min-height .25s; }
+
+@media (max-width: 640px) {
+  .hero { padding: 62px 0 56px; }
+  .phases { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
 """
 

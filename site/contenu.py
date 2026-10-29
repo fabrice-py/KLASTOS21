@@ -96,6 +96,111 @@ TEXTES: dict[str, dict[str, str]] = {
         "en": "KLASTOS21 reads a black mass assay bulletin and separates "
               "what the data determines from what it does not."},
 
+
+    # ================================================================
+    # Bandeau de preuve du hero. Les trois chiffres viennent du lot XRF
+    # reel analyse pendant la mise au point, et du depot lui-meme.
+    # ================================================================
+    "index.preuve.phases.cle": {
+        "fr": "phase déterminée sur douze, sur un lot réel",
+        "en": "phase determined out of twelve, on a real lot"},
+    "index.preuve.degen.cle": {
+        "fr": "directions de composition que les mesures ne séparent pas",
+        "en": "composition directions the measurements do not separate"},
+    "index.preuve.tests.cle": {
+        "fr": "tests tiennent les engagements du protocole",
+        "en": "tests hold the protocol's commitments"},
+
+    # ================================================================
+    # Console d'identifiabilite. Le visiteur coche les elements doses et
+    # lit ce que son bulletin determinerait. Les reponses sortent du
+    # moteur, pre-calculees a la construction.
+    # ================================================================
+    "console.surtitre": {
+        "fr": "Essayez vous-même",
+        "en": "Try it yourself"},
+    "console.h2": {
+        "fr": "Cochez ce que votre laboratoire dose. Lisez ce qui reste indéterminé.",
+        "en": "Tick what your laboratory assays. Read what stays undetermined."},
+    "console.chapeau": {
+        "fr": "Les réponses ci-dessous ne sont pas une maquette : elles "
+              "sortent du moteur qui produit les rapports clients, calculées "
+              "pour les 2 047 combinaisons possibles. Provenance déclarée "
+              "véhicule électrique, douze phases admissibles.",
+        "en": "The answers below are not a mock-up: they come from the "
+              "engine that produces client reports, computed for all 2,047 "
+              "possible combinations. Declared provenance electric vehicle, "
+              "twelve admissible phases."},
+    "console.elements": {
+        "fr": "Éléments dosés par le bulletin",
+        "en": "Elements assayed by the bulletin"},
+    "console.raz": {
+        "fr": "Bulletin courant", "en": "Typical bulletin"},
+    "console.tout": {
+        "fr": "Tout doser", "en": "Assay everything"},
+    "console.mesure.dosees": {
+        "fr": "éléments dosés", "en": "elements assayed"},
+    "console.mesure.rang": {
+        "fr": "rang du système", "en": "system rank"},
+    "console.mesure.deg": {
+        "fr": "degrés de liberté", "en": "degrees of freedom"},
+    "console.mesure.fermes": {
+        "fr": "phases déterminées", "en": "phases determined"},
+    "console.phases": {
+        "fr": "Les douze phases admissibles",
+        "en": "The twelve admissible phases"},
+    "console.etat.ferme": {
+        "fr": "déterminée", "en": "determined"},
+    "console.etat.ouvert": {
+        "fr": "domaine compatible", "en": "compatible range"},
+    "console.indisponible": {
+        "fr": "La démonstration interactive n'a pas pu se charger. Le "
+              "raisonnement de la page reste valide sans elle.",
+        "en": "The interactive demonstration could not load. The page's "
+              "reasoning stands without it."},
+    # Les trois verdicts. Ils ne commentent pas, ils CONCLUENT : c'est ce
+    # que le rapport ferait.
+    "console.verdict.rien": {
+        "fr": "Aucune phase n'est déterminée. Toute ventilation par grade "
+              "annoncée sur ce bulletin serait un choix arbitraire parmi "
+              "une infinité de compositions également compatibles.",
+        "en": "No phase is determined. Any breakdown by grade announced on "
+              "this bulletin would be an arbitrary pick among infinitely "
+              "many equally compatible compositions."},
+    "console.verdict.partiel": {
+        "fr": "Quelques phases sont déterminées, les autres restent des "
+              "domaines compatibles. Le rapport les sépare, et ne valorise "
+              "que les premières.",
+        "en": "A few phases are determined, the rest stay compatible "
+              "ranges. The report separates them, and values only the "
+              "former."},
+    "console.verdict.large": {
+        "fr": "La plupart des phases sont déterminées. Remarquez le moment "
+              "où cela bascule : le rang monte d'un cran à chaque dosage, "
+              "mais la détermination, elle, arrive d'un coup.",
+        "en": "Most phases are determined. Notice when it tips: rank rises "
+              "by exactly one per assay, but determination arrives all at "
+              "once."},
+    "console.lecon.titre": {
+        "fr": "Ce que la console vous a montré",
+        "en": "What the console just showed you"},
+    "console.lecon.texte": {
+        "fr": "Chaque dosage ajouté achète exactement un rang : la "
+              "progression est parfaitement régulière, et c'est ce qui "
+              "trompe. La détermination, elle, ne l'est pas du tout. Elle "
+              "reste à zéro pendant les six premiers dosages, puis arrive "
+              "par sauts. Un acheteur qui commande une analyse de plus "
+              "sans savoir laquelle paie souvent sans rien obtenir. C'est "
+              "précisément ce que KLASTOS21 calcule : quelle mesure, et "
+              "dans quel ordre.",
+        "en": "Each added assay buys exactly one rank: the progression is "
+              "perfectly regular, and that is what misleads. Determination "
+              "is not regular at all. It stays at zero through the first "
+              "six assays, then arrives in jumps. A buyer who orders one "
+              "more analysis without knowing which one often pays and gets "
+              "nothing. That is precisely what KLASTOS21 computes: which "
+              "measurement, and in what order."},
+
     "index.surtitre": {
         "fr": "Analyse prédictive des matières premières secondaires",
         "en": "Predictive analysis of secondary raw materials"},
