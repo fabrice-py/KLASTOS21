@@ -116,6 +116,10 @@ TEXTES: dict[str, dict[str, str]] = {
     # lit ce que son bulletin determinerait. Les reponses sortent du
     # moteur, pre-calculees a la construction.
     # ================================================================
+    "index.vers_console": {
+        "fr": "Essayer la console d'identifiabilité",
+        "en": "Try the identifiability console"},
+
     "console.surtitre": {
         "fr": "Essayez vous-même",
         "en": "Try it yourself"},

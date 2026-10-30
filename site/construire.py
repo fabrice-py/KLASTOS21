@@ -267,7 +267,7 @@ def preuves(langue: str) -> str:
     lignes = [
         ("1", 0, "", "index.preuve.phases.cle"),
         ("5", 0, "", "index.preuve.degen.cle"),
-        ("1333", 0, "", "index.preuve.tests.cle"),
+        ("1356", 0, "", "index.preuve.tests.cle"),
     ]
     cartes = []
     for valeur, dec, suffixe, cle in lignes:
@@ -281,7 +281,12 @@ def preuves(langue: str) -> str:
             f' data-decimales="{dec}" data-suffixe="{suffixe}">'
             f'{valeur}{suffixe}</div>'
             f'<div class="preuve-cle">{escape(t(cle, langue))}</div></div>')
-    return f'<div class="preuves" data-reveler="0">{"".join(cartes)}</div>'
+    # PAS de `data-reveler` ici. Le bandeau est dans le hero, dont
+    # l'entree est deja animee au chargement. Porter les deux mecanismes
+    # les faisait se contredire : l'entree finissait a l'opacite 1, puis
+    # la regle de revelation la ramenait a 0 faute de classe `.vu`, et le
+    # bandeau disparaissait.
+    return f'<div class="preuves">{"".join(cartes)}</div>'
 
 
 def console(langue: str) -> str:
@@ -429,6 +434,7 @@ def page_index(langue: str) -> str:
     <p class="chapeau">{escape(t("index.chapeau", langue))}</p>
     {boutons.replace('bouton-creux', 'bouton-creux bouton-nuit')}
     {preuves(langue)}
+    <a class="vers-console" href="#console">{escape(t("index.vers_console", langue))}</a>
   </div>
 </section>
 

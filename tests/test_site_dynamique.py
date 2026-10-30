@@ -164,6 +164,44 @@ def test_le_masquage_est_conditionne_a_la_presence_du_script():
                 f"« {selecteur} » masque du contenu sans attendre le script")
 
 
+def test_l_entree_du_hero_ne_repose_pas_sur_un_etat_invisible():
+    """
+    LA MEME FAUTE, SOUS UNE AUTRE FORME.
+
+    L'entree du hero posait `opacity: 0` au repos et comptait sur une
+    animation en `forwards` pour la lever. L'animation n'est pas partie, et
+    le premier ecran du site est reste NOIR - titre, chapeau, boutons et
+    chiffres compris.
+
+    L'etat de repos doit etre le contenu VISIBLE. L'animation part de
+    l'invisible et n'y revient que pendant son propre delai, par
+    `backwards`. Si elle ne tourne pas, on voit la page.
+    """
+    f = charte.feuille()
+    for selecteur, corps in re.findall(r"([^{}]+)\{([^{}]*)\}", f):
+        selecteur = selecteur.strip().splitlines()[-1].strip()
+        if ".hero" not in selecteur:
+            continue
+        assert not re.search(r"opacity:\s*0\s*[;}]", corps), (
+            f"« {selecteur} » rend le hero invisible au repos : si "
+            f"l'animation ne part pas, le premier ecran reste noir")
+    assert "backwards" in f, (
+        "l'entree du hero n'utilise plus `backwards` : elle va soit "
+        "clignoter, soit laisser le contenu invisible")
+
+
+def test_le_bandeau_de_preuve_ne_porte_pas_deux_mecanismes(site):
+    """
+    Il cumulait la revelation au defilement et l'entree du hero. L'entree
+    finissait a l'opacite 1, puis la regle de revelation la ramenait a 0
+    faute de classe `.vu` : le bandeau disparaissait.
+    """
+    html = _page(site)
+    i = html.index('class="preuves"')
+    assert "data-reveler" not in html[i:i + 60], (
+        "le bandeau de preuve est de nouveau soumis aux deux mecanismes")
+
+
 def test_le_drapeau_js_est_pose_avant_tout_rendu(site):
     html = _page(site)
     i_drapeau = html.index('className+=" js"')

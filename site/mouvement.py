@@ -74,9 +74,17 @@ SCRIPT = r"""
       n.textContent = cible.toFixed(dec).replace('.', ',') + suffixe;
       return;
     }
-    // Le contenu initial porte deja la valeur finale, pour le cas sans
-    // JavaScript. On repart de zero puisqu'on sait animer.
-    n.textContent = '0';
+    // LA VALEUR JUSTE N'EST JAMAIS DETRUITE AVANT D'ETRE REMPLACEE.
+    //
+    // La remise a zero se faisait ici, avant le premier appel. Si
+    // `requestAnimationFrame` ne rendait jamais la main - onglet en
+    // arriere-plan, economie d'energie, moteur sans tete - le compteur
+    // restait fige sur « 0 ». Trois chiffres FAUX en tete d'un site qui
+    // vend l'exactitude, et sans la moindre erreur pour le signaler.
+    //
+    // Le zero est donc pose DANS la premiere image, c'est-a-dire une fois
+    // qu'on sait que l'animation tourne. Si elle ne tourne pas, le
+    // contenu initial - la valeur finale - reste affiche.
     var debut = null, duree = 900;
     var pas = function (t) {
       if (debut === null) debut = t;

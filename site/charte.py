@@ -437,6 +437,30 @@ code, .mono {
   background: var(--voile-survol);
 }
 
+/* L'appel vers la console. Elle est sous la ligne de flottaison : un
+   visiteur qui ne defile pas ignorait purement et simplement qu'elle
+   existe, alors que c'est la seule chose de la page qui DEMONTRE le
+   produit. Le chevron descend doucement pour dire ou aller. */
+.vers-console {
+  display: inline-flex; align-items: center; gap: 9px;
+  margin-top: 30px; text-decoration: none;
+  font-family: var(--f-mono); font-size: 12px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--nuit-muet);
+  transition: color .2s;
+}
+.vers-console:hover { color: var(--nuit-fort); }
+.vers-console::after {
+  content: ""; width: 7px; height: 7px; flex: none;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-1px, -1px);
+  animation: descend 1.9s ease-in-out infinite;
+}
+@keyframes descend {
+  0%, 100% { transform: rotate(45deg) translate(-1px, -1px); }
+  50%      { transform: rotate(45deg) translate(2px, 2px); }
+}
+
 /* ======================================================================
    MOUVEMENT
    ----------------------------------------------------------------------
@@ -449,6 +473,48 @@ code, .mono {
    sans JavaScript ou un bloqueur laissaient une page VIDE : le contenu
    etait a opacite nulle et plus rien ne venait le reveler. Un site qui
    vend la prudence ne peut pas disparaitre en silence. */
+.js /* ======================================================================
+   L'ENTREE DU HERO
+   ----------------------------------------------------------------------
+   La revelation au defilement ne suffisait pas, et la mesure le disait :
+   sur sept sections a reveler, CINQ sont deja dans la fenetre a
+   l'ouverture. Elles se revelent donc avant que l'oeil arrive, et le
+   premier ecran - le seul que beaucoup de visiteurs verront - ne bougeait
+   pas d'un pixel.
+   L'entree se declenche donc au CHARGEMENT, pas au defilement, et elle
+   est echelonnee : le surtitre, le titre, le chapeau, les boutons, puis
+   le bandeau de preuve.
+   ====================================================================== */
+   AUCUN `opacity: 0` AU REPOS. C'est la faute deja commise une fois sur
+   les revelations, refaite ici sous une autre forme : poser l'invisible
+   comme etat de repos et compter sur une animation pour le lever, c'est
+   accepter que le hero reste vide si l'animation ne part pas. Elle n'est
+   pas partie, et le premier ecran du site etait noir.
+
+   L'etat de repos est donc le CONTENU VISIBLE. L'animation part de
+   l'invisible et y revient par `backwards` pendant son seul delai. Si
+   elle ne tourne pas, on voit la page ; c'est tout.
+   ====================================================================== */
+@keyframes monte {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+.js .hero .surtitre,
+.js .hero h1,
+.js .hero .chapeau,
+.js .hero .boutons,
+.js .hero .preuves {
+  animation: monte .72s cubic-bezier(.16, .84, .44, 1) backwards;
+}
+.js .hero .surtitre { animation-delay: .04s; }
+.js .hero h1        { animation-delay: .12s; }
+.js .hero .chapeau  { animation-delay: .26s; }
+.js .hero .boutons  { animation-delay: .38s; }
+.js .hero .preuves  { animation-delay: .48s; }
+
+/* Le `.js` n'est PAS decoratif : sans lui, le contenu reste a opacite
+   nulle quand le script ne tourne pas, et la page est vide. Il a deja
+   saute une fois, en inserant le bloc ci-dessus. */
 .js [data-reveler] {
   opacity: 0; transform: translateY(16px);
   transition: opacity .62s cubic-bezier(.16,.84,.44,1),
@@ -459,6 +525,10 @@ code, .mono {
 
 @media (prefers-reduced-motion: reduce) {
   .js [data-reveler] { opacity: 1; transform: none; transition: none; }
+  /* L'entree du hero est une ANIMATION, pas une transition : la couper
+     sans rendre l'opacite laisserait le premier ecran vide. */
+  .js .hero .surtitre, .js .hero h1, .js .hero .chapeau,
+  .js .hero .boutons, .js .hero .preuves { opacity: 1; }
   * { animation: none !important; transition: none !important; }
 }
 
