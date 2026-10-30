@@ -50,6 +50,13 @@ AXE_MAX = 50.0
 #: un endroit ou deposer des sources.
 MARQUE_SOURCE = pathlib.Path(__file__).resolve().parent / "marque"
 
+#: Domaine servi. GitHub Pages lit ce nom dans un fichier `CNAME` a la
+#: racine du site publie, et le reclame a CHAQUE deploiement : pose a la
+#: main dans les reglages, il saute au deploiement suivant et le site
+#: repart sur l'adresse en github.io. Il est donc ECRIT PAR LA
+#: CONSTRUCTION, comme le reste.
+DOMAINE = "klastos21.fr"
+
 
 # ==========================================================================
 # Briques
@@ -725,6 +732,18 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
     racine = sortie / "index.html"
     racine.write_text(redirection(), encoding="utf-8")
     ecrits.append(racine)
+
+    # Le domaine servi. Voir la constante DOMAINE : GitHub Pages le
+    # reclame a chaque deploiement, donc il appartient a la construction.
+    cname = sortie / "CNAME"
+    cname.write_text(DOMAINE + "\n", encoding="utf-8")
+    ecrits.append(cname)
+
+    # Pas de traitement Jekyll : le site est deja construit, et Jekyll
+    # ignorerait tout dossier commencant par un tiret bas.
+    nojekyll = sortie / ".nojekyll"
+    nojekyll.write_text("", encoding="utf-8")
+    ecrits.append(nojekyll)
 
     # Declinaisons de la marque. Elles sont COPIEES depuis `site/marque`,
     # qui est leur source, et non deposees a la main dans la sortie : une

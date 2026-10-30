@@ -1,0 +1,90 @@
+# Publication du site vitrine KLASTOS21 sur GitHub Pages.
+#
+# POURQUOI LE SITE EST CONSTRUIT ICI, ET NON DEPOSE TOUT FAIT
+# ------------------------------------------------------------
+# Les pages ne sont pas ecrites a la main : `site/construire.py` les
+# genere, et la console d'identifiabilite de la page d'accueil est
+# calculee par `klastos.identifiability` lui-meme - le moteur qui produit
+# les rapports clients.
+#
+# Deposer un dossier deja construit reviendrait a publier une COPIE, qui
+# derive des le premier changement du modele de phases. Le site est donc
+# reconstruit a chaque deploiement, a partir du code. S'il ne peut pas
+# etre construit, il n'est pas publie.
+
+name: Site
+
+on:
+  push:
+    branches: [main]
+    # Un commit qui ne touche ni le site ni le moteur ne redeploie rien.
+    paths:
+      - "site/**"
+      - "klastos/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+# Les droits sont donnes au job, pas au depot : le minimum pour publier.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul deploiement a la fois. `cancel-in-progress: false` parce qu'un
+# deploiement interrompu laisse le site a moitie en ligne.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Seulement ce dont la CONSTRUCTION a besoin. `requirements.txt`
+      # porte aussi Streamlit, Altair et pandas, qui font tourner
+      # l'interface et n'ont rien a faire ici : les installer allongerait
+      # le deploiement de plusieurs minutes pour rien.
+      - name: Dependances de calcul
+        run: python -m pip install --quiet numpy scipy
+
+      - name: Construire le site
+        run: python site/construire.py
+
+      # Garde-fou. Le site est publie sur un domaine qui porte le nom de
+      # la maison : il vaut mieux ne rien publier qu'une page vide ou un
+      # domaine perdu.
+      - name: Verifier la sortie
+        run: |
+          set -e
+          test -s site/public/fr/index.html
+          test -s site/public/en/index.html
+          test -s site/public/klastos.css
+          test -s site/public/CNAME
+          grep -q "demo-donnees" site/public/fr/index.html
+          grep -q "klastos21.fr" site/public/CNAME
+          echo "pages construites :"
+          find site/public -name '*.html' | wc -l
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/public
+
+  publier:
+    needs: construire
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4

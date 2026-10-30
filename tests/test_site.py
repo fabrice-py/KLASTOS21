@@ -306,6 +306,8 @@ def test_la_generation_ecrit_les_quatorze_pages(site):
     comptees a part, par le test suivant : melanger les deux rendrait ce
     test illisible a chaque ajout de favicon.
     """
+    # `CNAME` et `.nojekyll` sont des fichiers de DEPLOIEMENT, pas des
+    # pages : ils ont leur propre test, juste en dessous.
     attendus = {"klastos.css", "index.html"}
     attendus |= {f"{lg}/{p}.html"
                  for lg in contenu.LANGUES for p in contenu.PAGES}
@@ -313,10 +315,30 @@ def test_la_generation_ecrit_les_quatorze_pages(site):
         str(c.relative_to(site)).replace("\\", "/")
         for c in site.rglob("*")
         if c.is_file() and c.parent.name != "marque"
+        and c.name not in ("CNAME", ".nojekyll")
     }
     assert presents == attendus, (
         f"manquants : {sorted(attendus - presents)} / "
         f"en trop : {sorted(presents - attendus)}")
+
+
+def test_la_generation_ecrit_le_domaine_servi(site):
+    """
+    GitHub Pages lit le domaine dans un fichier `CNAME` a la racine du
+    site publie, et il le RECLAME A CHAQUE DEPLOIEMENT. Pose a la main
+    dans les reglages du depot, il saute au deploiement suivant et le site
+    repart sur l'adresse en github.io - sans rien signaler.
+
+    Il appartient donc a la construction, comme le reste.
+    """
+    from construire import DOMAINE
+
+    cname = site / "CNAME"
+    assert cname.exists(), "le domaine servi n'est plus ecrit"
+    assert cname.read_text(encoding="utf-8").strip() == DOMAINE
+    assert (site / ".nojekyll").exists(), (
+        "sans ce fichier, Jekyll retraite le site et ignore tout dossier "
+        "commencant par un tiret bas")
 
 
 def test_la_generation_copie_les_declinaisons_de_la_marque(site):
