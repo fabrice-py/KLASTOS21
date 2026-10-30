@@ -1,0 +1,9 @@
+# Construction du site vitrine sur Netlify.
+# Ce fichier fixe la commande explicitement : sans lui, Netlify voit
+# `config.toml` a la racine (la config Streamlit) et croit a un site Hugo.
+[build]
+  command = "python -m pip install --quiet numpy scipy && python site/construire.py"
+  publish = "site/public"
+
+[build.environment]
+  PYTHON_VERSION = "3.12"

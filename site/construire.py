@@ -24,8 +24,6 @@ from __future__ import annotations
 import argparse
 import pathlib
 import re
-
-from klastos import marque
 import sys
 from html import escape
 
@@ -33,6 +31,8 @@ if __name__ == "__main__" and __package__ is None:      # execution directe
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from klastos import marque                              # noqa: E402
 
 import charte                                           # noqa: E402
 import mouvement                                        # noqa: E402
