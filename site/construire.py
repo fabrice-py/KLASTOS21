@@ -739,6 +739,22 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
     cname.write_text(DOMAINE + "\n", encoding="utf-8")
     ecrits.append(cname)
 
+    # Redirections de bord, lues par Netlify. La racine du site est
+    # aujourd'hui une page de `meta refresh` : elle fonctionne partout,
+    # y compris depuis un disque, mais elle coute un aller-retour complet
+    # et ne choisit pas la langue.
+    #
+    # Ici, la redirection se fait AVANT d'envoyer la page, et sur
+    # l'en-tete `Accept-Language` du visiteur. Un negociant allemand
+    # arrive donc en anglais, un francais en francais. La page de
+    # `meta refresh` reste en place pour tous les autres hebergements.
+    redirections = sortie / "_redirects"
+    redirections.write_text(
+        "# Racine : on sert la langue du visiteur, sinon l'anglais.\n"
+        "/    /fr/    302    Language=fr\n"
+        "/    /en/    302\n", encoding="utf-8")
+    ecrits.append(redirections)
+
     # Pas de traitement Jekyll : le site est deja construit, et Jekyll
     # ignorerait tout dossier commencant par un tiret bas.
     nojekyll = sortie / ".nojekyll"

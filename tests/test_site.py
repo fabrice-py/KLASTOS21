@@ -315,7 +315,7 @@ def test_la_generation_ecrit_les_quatorze_pages(site):
         str(c.relative_to(site)).replace("\\", "/")
         for c in site.rglob("*")
         if c.is_file() and c.parent.name != "marque"
-        and c.name not in ("CNAME", ".nojekyll")
+        and c.name not in ("CNAME", ".nojekyll", "_redirects")
     }
     assert presents == attendus, (
         f"manquants : {sorted(attendus - presents)} / "
@@ -339,6 +339,31 @@ def test_la_generation_ecrit_le_domaine_servi(site):
     assert (site / ".nojekyll").exists(), (
         "sans ce fichier, Jekyll retraite le site et ignore tout dossier "
         "commencant par un tiret bas")
+
+
+def test_la_racine_redirige_vers_la_langue_du_visiteur(site):
+    """
+    La racine du site est servie de deux facons, et les deux comptent.
+
+    `_redirects` est lu par Netlify et redirige AVANT d'envoyer la page,
+    sur l'en-tete Accept-Language : un negociant allemand arrive en
+    anglais, un francais en francais.
+
+    La page de `meta refresh` reste en place pour tous les autres
+    hebergements, et pour une ouverture depuis un disque.
+    """
+    red = site / "_redirects"
+    assert red.exists(), "les redirections de bord ont disparu"
+    texte = red.read_text(encoding="utf-8")
+    assert "Language=fr" in texte
+    assert "/en/" in texte, "aucune langue de repli"
+    # La regle de repli vient APRES la regle conditionnelle, sans quoi
+    # elle capterait tout le monde.
+    assert texte.index("Language=fr") < texte.index("/    /en/")
+
+    racine = (site / "index.html").read_text(encoding="utf-8")
+    assert "http-equiv=\"refresh\"" in racine, (
+        "la racine ne redirige plus hors de Netlify")
 
 
 def test_la_generation_copie_les_declinaisons_de_la_marque(site):
