@@ -97,9 +97,26 @@ def logotype(langue: str) -> str:
 
 
 def nav(page: str, langue: str) -> str:
-    """La barre de navigation, avec la page courante marquee."""
+    """
+    La barre de navigation, avec la page courante marquee.
+
+    « Contact » n'y est PAS un lien de page : il ouvre directement la
+    messagerie du visiteur, objet et corps pre-remplis. Un onglet qui
+    menait a une page expliquant comment ecrire ajoutait une etape a qui
+    voulait simplement ecrire.
+
+    La page de contact reste publiee et reste atteignable par le pied :
+    elle detaille ce qu'un bulletin doit contenir, et le plan du site la
+    declare.
+    """
     liens = []
     for p in PAGES:
+        if p == "contact":
+            liens.append(
+                f'<a class="nav-contact"'
+                f' href="{escape(lien_courriel(langue))}">'
+                f'{escape(t(f"nav.{p}", langue))}</a>')
+            continue
         courant = ' aria-current="page"' if p == page else ""
         liens.append(
             f'<a href="{_lien_page(p, langue)}"{courant}>'
@@ -682,6 +699,22 @@ def page_missions(langue: str) -> str:
 </section>"""
 
 
+def lien_courriel(langue: str) -> str:
+    """
+    Le lien `mailto:` complet : destinataire, objet et corps pre-remplis.
+
+    L'encodage se fait par `urllib.parse.quote`, et non par un
+    remplacement des espaces : un corps de message contient des retours a
+    la ligne, des apostrophes et des accents, qui casseraient l'URL s'ils
+    partaient tels quels.
+    """
+    from urllib.parse import quote
+
+    objet = quote(t("contact.courriel.objet", langue))
+    corps = quote(t("contact.courriel.corps", langue))
+    return f"mailto:{COURRIEL}?subject={objet}&body={corps}"
+
+
 def adresse(langue: str, classe: str = "adresse") -> str:
     """
     L'adresse de contact, ECRITE EN CLAIR et cliquable.
@@ -695,9 +728,8 @@ def adresse(langue: str, classe: str = "adresse") -> str:
     se traite plus vite - et que le sujet rappelle au visiteur ce qu'il
     doit joindre.
     """
-    objet = escape(t("contact.courriel.objet", langue).replace(" ", "%20"))
     return (f'<p class="{classe}">'
-            f'<a href="mailto:{COURRIEL}?subject={objet}">'
+            f'<a href="{escape(lien_courriel(langue))}">'
             f'{escape(COURRIEL)}</a></p>')
 
 
@@ -721,6 +753,9 @@ def page_contact(langue: str) -> str:
         <p class="carte-titre-mono">\
 {escape(t("contact.courriel.titre", langue))}</p>
         <p>{escape(t("contact.courriel.texte", langue))}</p>
+        <p style="margin-top:22px">
+          <a class="bouton" href="{escape(lien_courriel(langue))}">{escape(t("contact.courriel.bouton", langue))}</a>
+        </p>
         {adresse(langue)}
       </div>
       <div class="carte">

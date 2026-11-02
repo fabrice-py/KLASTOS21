@@ -204,6 +204,18 @@ code, .mono {
   padding: 4px 0; border-bottom: 1px solid transparent;
 }
 .nav-liens a:hover { color: var(--ink); }
+/* L'onglet Contact n'ouvre pas une page : il ouvre une messagerie. Le
+   dire visuellement evite la surprise - un onglet de navigation qui
+   lance un logiciel exterieur merite d'etre signale. */
+.nav-liens a.nav-contact { color: var(--ink); }
+.nav-liens a.nav-contact::after {
+  content: ""; display: inline-block; width: 5px; height: 5px;
+  margin-left: 7px; vertical-align: 2px;
+  border-top: 1.5px solid var(--marque);
+  border-right: 1.5px solid var(--marque);
+  transform: rotate(45deg);
+}
+.nav-liens a.nav-contact:hover { border-bottom-color: var(--marque); }
 .nav-liens a[aria-current="page"] {
   color: var(--ink); border-bottom-color: var(--ink);
 }

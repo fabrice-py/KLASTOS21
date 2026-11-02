@@ -864,6 +864,27 @@ TEXTES: dict[str, dict[str, str]] = {
         "fr": "Bulletin de black mass a analyser",
         "en": "Black mass bulletin for analysis"},
 
+    # Corps pre-rempli du lien. Il rappelle les trois choses que la page
+    # de contact enumere, au moment ou le visiteur ecrit - et non trois
+    # ecrans plus tot. Un bulletin arrive ainsi avec son unite et sa
+    # provenance, ce qui evite un aller-retour.
+    "contact.courriel.corps": {
+        "fr": "Bonjour,\n\n"
+              "Je vous joins le bulletin d'analyse du lot.\n\n"
+              "Unite des dosages : \n"
+              "Provenance du lot : \n"
+              "Quantification DRX jointe : oui / non\n\n"
+              "Cordialement,\n",
+        "en": "Hello,\n\n"
+              "Please find the lot's assay bulletin attached.\n\n"
+              "Assay unit: \n"
+              "Lot provenance: \n"
+              "XRD quantification attached: yes / no\n\n"
+              "Best regards,\n"},
+
+    "contact.courriel.bouton": {
+        "fr": "Ouvrir un message", "en": "Compose a message"},
+
     "contact.modele.titre": {
         "fr": "Un modèle de bulletin",
         "en": "A bulletin template"},

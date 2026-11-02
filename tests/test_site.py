@@ -388,6 +388,53 @@ def test_le_lien_de_courriel_porte_un_objet(site):
     assert "%20" in html, "l'objet n'est pas encode pour une URL"
 
 
+def test_l_onglet_contact_ouvre_la_messagerie(site):
+    """
+    « Contact » n'est plus un lien de page : il ouvre directement la
+    messagerie du visiteur. Un onglet qui menait a une page expliquant
+    comment ecrire ajoutait une etape a qui voulait simplement ecrire.
+    """
+    from construire import COURRIEL
+
+    for langue, page, html in _pages(site):
+        i = html.index('class="nav-liens"')
+        barre = html[i:html.index("</div>", i)]
+        assert f'href="mailto:{COURRIEL}' in barre, (
+            f"{langue}/{page} : l'onglet Contact ne mene plus a la "
+            f"messagerie")
+        assert 'href="contact.html"' not in barre, (
+            f"{langue}/{page} : l'onglet Contact est redevenu un lien de "
+            f"page")
+
+
+def test_le_lien_de_courriel_porte_un_corps_pre_rempli(site):
+    """
+    Le corps rappelle les trois choses que la page de contact enumere -
+    unite, provenance, DRX - au moment ou le visiteur ecrit, et non trois
+    ecrans plus tot. Un bulletin arrive ainsi deja qualifie.
+    """
+    html = _page_texte(site, "contact", "fr")
+    assert "&amp;body=" in html or "&body=" in html, "aucun corps pre-rempli"
+    assert "%0A" in html, "le corps ne contient aucun retour a la ligne"
+
+
+def test_la_page_de_contact_reste_atteignable(site):
+    """
+    Elle detaille ce qu'un bulletin doit contenir. La sortir de la
+    navigation ne doit pas la rendre introuvable : le pied y mene, et le
+    plan du site la declare.
+    """
+    import xml.etree.ElementTree as ET
+
+    for langue, page, html in _pages(site):
+        i = html.index('<footer')
+        assert 'href="contact.html"' in html[i:], (
+            f"{langue}/{page} : le pied ne mene plus a la page de contact")
+
+    plan = (site / "sitemap.xml").read_text(encoding="utf-8")
+    assert "contact.html" in plan, "le plan du site a perdu la page"
+
+
 def _page_texte(site, page, langue):
     return (site / langue / f"{page}.html").read_text(encoding="utf-8")
 
@@ -606,6 +653,15 @@ def test_la_page_courante_est_marquee_une_fois_et_une_seule(site):
     """
     for langue, page, html in _pages(site):
         n = html.count('aria-current="page"')
+        if page == "contact":
+            # « Contact » n'est plus un onglet de page : il ouvre la
+            # messagerie. La page de contact existe toujours - le pied y
+            # mene et le plan du site la declare - mais aucun onglet ne
+            # peut s'y marquer courant, puisqu'aucun onglet n'y mene.
+            assert n == 0, (
+                f"{langue}/{page} : un onglet se dit courant alors que la "
+                f"navigation ne mene plus a cette page")
+            continue
         assert n == 1, f"{langue}/{page} : {n} marques de page courante"
 
 
