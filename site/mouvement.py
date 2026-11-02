@@ -109,6 +109,48 @@ SCRIPT = r"""
     compteurs.forEach(function (n) { oeilC.observe(n); });
   }
 
+  // --------------------------------------------------------- copie
+  // POURQUOI CE BOUTON EXISTE.
+  //
+  // Un lien `mailto:` ne mene nulle part chez une grande partie des
+  // visiteurs. Sur Windows 11, le gestionnaire pointe souvent sur
+  // l'application Courrier, retiree du systeme : la commande associee est
+  // VIDE, et le clic n'ouvre rien - sans message d'erreur. Meme chose
+  // pour qui lit son courrier dans un navigateur sans avoir declare de
+  // gestionnaire.
+  //
+  // Copier l'adresse ne suppose aucun logiciel. C'est le seul geste qui
+  // marche partout.
+  document.querySelectorAll('[data-copier]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var adresse = b.getAttribute('data-copier');
+      var confirme = function () {
+        var avant = b.textContent;
+        b.textContent = b.getAttribute('data-copie') || avant;
+        b.classList.add('bouton-copie-faite');
+        setTimeout(function () {
+          b.textContent = avant;
+          b.classList.remove('bouton-copie-faite');
+        }, 2200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(adresse).then(confirme, function () {});
+        return;
+      }
+      // Repli pour les navigateurs sans presse-papiers moderne, et pour
+      // les pages servies sans HTTPS, ou l'API est refusee.
+      var z = document.createElement('textarea');
+      z.value = adresse;
+      z.setAttribute('readonly', '');
+      z.style.position = 'absolute';
+      z.style.left = '-9999px';
+      document.body.appendChild(z);
+      z.select();
+      try { document.execCommand('copy'); confirme(); } catch (e) {}
+      document.body.removeChild(z);
+    });
+  });
+
   // ------------------------------------------------------------- console
   // Le coeur de la page. Les reponses viennent de demo.json, lui-meme
   // produit par klastos.identifiability a la construction : ce que le
@@ -210,6 +252,29 @@ SCRIPT = r"""
 """
 
 
+def _sans_commentaires(code: str) -> str:
+    """
+    Retire les lignes de commentaire avant livraison.
+
+    Le script est insere DANS LES DOUZE PAGES, anglaises comprises. Mes
+    commentaires sont en francais : ils partaient donc dans les pages
+    anglaises, et le test de fuite de langue les a attrapes sur le mot
+    « Copier l'adresse », present a la fois au catalogue et dans un
+    commentaire.
+
+    Seules les lignes ENTIEREMENT commentees sont retirees. Couper a
+    partir d'un `//` trouve en milieu de ligne casserait toute URL - et,
+    plus insidieux, toute division suivie d'une expression reguliere.
+    """
+    gardees = [l for l in code.splitlines() if not l.lstrip().startswith("//")]
+    return "\n".join(gardees)
+
+
+#: Version livree : sans commentaires, donc sans francais dans les pages
+#: anglaises, et douze fois plus legere a l'echelle du site.
+SCRIPT_LIVRE = _sans_commentaires(SCRIPT)
+
+
 def script() -> str:
     """Le script du site, pret a inserer en fin de document."""
-    return SCRIPT
+    return SCRIPT_LIVRE

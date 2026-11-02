@@ -180,6 +180,12 @@ code, .mono {
    Le soulignement reste, pour qu'on voie qu'elle est cliquable - mais
    elle doit aussi pouvoir etre SELECTIONNEE, parce que beaucoup de gens
    lisent leur courrier dans un navigateur ou le `mailto:` n'ouvre rien. */
+/* Le bouton de copie n'existe que si le script tourne : sans lui, il ne
+   ferait rien, et un bouton inerte est pire qu'un bouton absent. */
+.bouton-copie { display: none; }
+.js .bouton-copie { display: inline-block; }
+.bouton-copie-faite { border-color: var(--green); color: var(--green); }
+
 .adresse { margin-top: 16px; }
 .adresse a {
   font-family: var(--f-mono); font-size: 15px;

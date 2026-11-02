@@ -314,3 +314,54 @@ def test_la_signature_du_logo_n_est_pas_traduite_dans_la_console(site):
 
     for langue in ("fr", "en"):
         assert marque.SIGNATURE in _page(site, "index", langue)
+
+
+def test_le_script_livre_ne_fait_pas_voyager_de_francais(site):
+    """
+    Le script est insere DANS LES DOUZE PAGES, anglaises comprises. Ses
+    commentaires sont en francais : ils partaient donc dans les pages
+    anglaises. Le test de fuite de langue les a attrapes sur le mot
+    « Copier l'adresse », present a la fois au catalogue et dans un
+    commentaire du script.
+    """
+    assert "//" not in mouvement.SCRIPT_LIVRE, (
+        "des commentaires sont revenus dans le script livre")
+    assert len(mouvement.SCRIPT_LIVRE) < len(mouvement.SCRIPT), (
+        "le script livre n'est plus allege")
+    # Et le script reste fonctionnel : ses trois points d'entree.
+    for ancre in ("IntersectionObserver", "data-copier", "data-console"):
+        assert ancre in mouvement.SCRIPT_LIVRE, ancre
+
+
+def test_le_bouton_de_copie_ne_parait_que_si_le_script_tourne(site):
+    """
+    Sans script il ne ferait rien, et un bouton inerte est pire qu'un
+    bouton absent : le visiteur clique, rien ne se passe, il conclut que
+    le site est casse.
+    """
+    f = charte.feuille()
+    bloc = f[f.index(".bouton-copie {"):]
+    bloc = bloc[:bloc.index("}")]
+    assert "display: none" in bloc
+    assert ".js .bouton-copie" in f, "rien ne le fait reapparaitre"
+
+
+def test_la_page_de_contact_offre_une_issue_sans_logiciel_de_messagerie(site):
+    """
+    LE DEFAUT QUI A MOTIVE CE BOUTON.
+
+    Un lien `mailto:` ne mene nulle part chez une grande partie des
+    visiteurs. Sur Windows 11, le gestionnaire pointe souvent sur
+    l'application Courrier, retiree du systeme : la commande associee est
+    VIDE et le clic n'ouvre rien, sans le moindre message d'erreur.
+
+    La page doit donc offrir au moins une issue qui ne suppose aucun
+    logiciel.
+    """
+    from construire import COURRIEL
+
+    html = _page(site, "contact")
+    assert f'data-copier="{COURRIEL}"' in html, (
+        "aucun moyen de recuperer l'adresse sans client de messagerie")
+    assert COURRIEL in html.replace(f'data-copier="{COURRIEL}"', ""), (
+        "l'adresse n'est plus lisible en dehors du bouton de copie")

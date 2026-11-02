@@ -882,6 +882,11 @@ TEXTES: dict[str, dict[str, str]] = {
               "XRD quantification attached: yes / no\n\n"
               "Best regards,\n"},
 
+    "contact.courriel.copier": {
+        "fr": "Copier l'adresse", "en": "Copy the address"},
+    "contact.courriel.copie": {
+        "fr": "Adresse copiee", "en": "Address copied"},
+
     "contact.courriel.bouton": {
         "fr": "Ouvrir un message", "en": "Compose a message"},
 

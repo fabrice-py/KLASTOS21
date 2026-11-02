@@ -753,8 +753,9 @@ def page_contact(langue: str) -> str:
         <p class="carte-titre-mono">\
 {escape(t("contact.courriel.titre", langue))}</p>
         <p>{escape(t("contact.courriel.texte", langue))}</p>
-        <p style="margin-top:22px">
+        <p class="boutons" style="margin-top:22px">
           <a class="bouton" href="{escape(lien_courriel(langue))}">{escape(t("contact.courriel.bouton", langue))}</a>
+          <button type="button" class="bouton bouton-creux bouton-copie" data-copier="{escape(COURRIEL)}" data-copie="{escape(t("contact.courriel.copie", langue))}">{escape(t("contact.courriel.copier", langue))}</button>
         </p>
         {adresse(langue)}
       </div>
