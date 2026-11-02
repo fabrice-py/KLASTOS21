@@ -422,6 +422,17 @@ def test_la_racine_redirige_vers_la_langue_du_visiteur(site):
     # elle capterait tout le monde.
     assert texte.index("Language=fr") < texte.index("/    /en/")
 
+    # LE POINT D'EXCLAMATION. Netlify sert un fichier statique avant
+    # d'appliquer une redirection, et la racine en porte un : index.html.
+    # Sans le `!`, la regle ne s'appliquait jamais - mesure faite en
+    # production, les trois langues rendaient 200 au lieu de 302.
+    for ligne in texte.splitlines():
+        if ligne.startswith("/ ") or ligne.startswith("/\t") or \
+                (ligne.startswith("/") and not ligne.startswith("#")
+                 and ligne.split()[0] == "/"):
+            assert "!" in ligne, (
+                f"regle sans « ! » : index.html la masquera. {ligne!r}")
+
     racine = (site / "index.html").read_text(encoding="utf-8")
     assert "http-equiv=\"refresh\"" in racine, (
         "la racine ne redirige plus hors de Netlify")

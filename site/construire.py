@@ -771,11 +771,23 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
     # l'en-tete `Accept-Language` du visiteur. Un negociant allemand
     # arrive donc en anglais, un francais en francais. La page de
     # `meta refresh` reste en place pour tous les autres hebergements.
+    # LE POINT D'EXCLAMATION N'EST PAS DECORATIF.
+    #
+    # Netlify sert un FICHIER STATIQUE avant d'appliquer une regle de
+    # redirection. Or la racine en porte un : `index.html`, la page de
+    # `meta refresh` gardee pour les autres hebergements. Sans le `!`, le
+    # fichier gagnait et la regle ne s'appliquait jamais - mesure faite en
+    # production, les trois langues rendaient 200 au lieu de 302.
+    #
+    # Le `!` force la regle malgre le fichier. Celui-ci reste en place et
+    # sert partout ailleurs : sur un disque, sur un autre hebergeur.
     redirections = sortie / "_redirects"
     redirections.write_text(
         "# Racine : on sert la langue du visiteur, sinon l'anglais.\n"
-        "/    /fr/    302    Language=fr\n"
-        "/    /en/    302\n", encoding="utf-8")
+        "# Le « ! » force la regle par-dessus index.html, que Netlify\n"
+        "# servirait sinon en priorite.\n"
+        "/    /fr/    302!    Language=fr\n"
+        "/    /en/    302!\n", encoding="utf-8")
     ecrits.append(redirections)
 
     # ROBOTS ET PLAN DU SITE. Ils manquaient, et leur absence a eu une
