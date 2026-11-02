@@ -858,6 +858,12 @@ TEXTES: dict[str, dict[str, str]] = {
         "en": "Write to us with the bulletin attached. We reply with the "
               "report and, where relevant, the list of assays that would "
               "lift the indeterminacy."},
+    # Objet pre-rempli du lien mailto. Il rappelle au visiteur ce qu'il
+    # doit joindre, et fait arriver le courriel deja qualifie.
+    "contact.courriel.objet": {
+        "fr": "Bulletin de black mass a analyser",
+        "en": "Black mass bulletin for analysis"},
+
     "contact.modele.titre": {
         "fr": "Un modèle de bulletin",
         "en": "A bulletin template"},

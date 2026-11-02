@@ -57,6 +57,12 @@ MARQUE_SOURCE = pathlib.Path(__file__).resolve().parent / "marque"
 #: CONSTRUCTION, comme le reste.
 DOMAINE = "klastos21.fr"
 
+#: Adresse publiee sur le site. Elle est ECRITE EN CLAIR autant que posee
+#: en lien : beaucoup de visiteurs lisent leur courrier dans un navigateur,
+#: ou un `mailto:` n'ouvre rien du tout. Une adresse qu'on ne peut que
+#: cliquer est une adresse perdue pour eux.
+COURRIEL = f"contact@{DOMAINE}"
+
 
 # ==========================================================================
 # Briques
@@ -132,6 +138,7 @@ def pied(langue: str) -> str:
         <h4>{escape(t("marque.nom", langue))}</h4>
         <p class="pied-signature">{escape(marque.SIGNATURE)}</p>
         <p>{escape(t("marque.sous", langue))}</p>
+        {adresse(langue, "adresse adresse-pied")}
       </div>
       <div class="pied-bloc">
         <h4>{escape(t("pied.produit", langue))}</h4>
@@ -675,6 +682,25 @@ def page_missions(langue: str) -> str:
 </section>"""
 
 
+def adresse(langue: str, classe: str = "adresse") -> str:
+    """
+    L'adresse de contact, ECRITE EN CLAIR et cliquable.
+
+    Les deux, et pas seulement le lien. Beaucoup de visiteurs lisent leur
+    courrier dans un navigateur : chez eux, un `mailto:` n'ouvre rien du
+    tout. Une adresse qu'on ne peut que cliquer leur est inaccessible,
+    alors qu'une adresse ecrite se copie toujours.
+
+    L'objet est pre-rempli, parce qu'un courriel qui arrive avec son sujet
+    se traite plus vite - et que le sujet rappelle au visiteur ce qu'il
+    doit joindre.
+    """
+    objet = escape(t("contact.courriel.objet", langue).replace(" ", "%20"))
+    return (f'<p class="{classe}">'
+            f'<a href="mailto:{COURRIEL}?subject={objet}">'
+            f'{escape(COURRIEL)}</a></p>')
+
+
 def page_contact(langue: str) -> str:
     return f"""{entete("contact", langue)}
 
@@ -695,6 +721,7 @@ def page_contact(langue: str) -> str:
         <p class="carte-titre-mono">\
 {escape(t("contact.courriel.titre", langue))}</p>
         <p>{escape(t("contact.courriel.texte", langue))}</p>
+        {adresse(langue)}
       </div>
       <div class="carte">
         <p class="carte-titre-mono">\

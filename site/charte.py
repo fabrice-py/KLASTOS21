@@ -175,6 +175,23 @@ code, .mono {
   font-family: var(--f-mono); font-size: 7px; font-weight: 400;
   letter-spacing: .2em; color: var(--muted); line-height: 1;
 }
+/* L'ADRESSE DE CONTACT. Ecrite en chasse fixe, comme les donnees du
+   produit : c'est une chaine qu'on recopie, pas une phrase qu'on lit.
+   Le soulignement reste, pour qu'on voie qu'elle est cliquable - mais
+   elle doit aussi pouvoir etre SELECTIONNEE, parce que beaucoup de gens
+   lisent leur courrier dans un navigateur ou le `mailto:` n'ouvre rien. */
+.adresse { margin-top: 16px; }
+.adresse a {
+  font-family: var(--f-mono); font-size: 15px;
+  color: var(--ink); text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-thickness: 1px;
+  word-break: break-all;
+}
+.adresse a:hover { text-decoration-color: var(--marque); }
+.adresse-pied { margin-top: 12px; }
+.adresse-pied a { font-size: 13px; color: var(--muted); }
+.adresse-pied a:hover { color: var(--ink); }
+
 /* Dans le pied, la signature precede le descriptif : l'une est la
    marque, l'autre dit le metier. */
 .pied-signature {

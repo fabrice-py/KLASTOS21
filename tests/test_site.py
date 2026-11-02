@@ -342,6 +342,56 @@ def test_la_generation_ecrit_le_domaine_servi(site):
         "commencant par un tiret bas")
 
 
+def test_l_adresse_de_contact_figure_sur_toutes_les_pages(site):
+    """
+    La page de contact disait « ecrivez-nous » sans donner la moindre
+    adresse, et aucune autre page n'en portait. Le site invitait a ecrire
+    sans dire ou.
+
+    Elle est desormais au pied de chaque page : un visiteur qui vient de
+    lire la methode ne doit pas avoir a chercher l'onglet contact.
+    """
+    from construire import COURRIEL
+
+    for langue, page, html in _pages(site):
+        assert COURRIEL in html, f"{langue}/{page} : aucune adresse"
+        assert f"mailto:{COURRIEL}" in html, f"{langue}/{page} : non cliquable"
+
+
+def test_l_adresse_est_lisible_autant_que_cliquable(site):
+    """
+    LE POINT QUI COMPTE. Beaucoup de visiteurs lisent leur courrier dans
+    un navigateur : chez eux, un `mailto:` n'ouvre rien du tout. Une
+    adresse posee UNIQUEMENT en lien leur est inaccessible, alors qu'une
+    adresse ecrite se copie toujours.
+
+    Le texte du lien doit donc etre l'adresse elle-meme, et non un
+    libelle du genre « nous contacter ».
+    """
+    import re as _re
+
+    from construire import COURRIEL
+
+    html = _page_texte(site, "contact", "fr")
+    liens = _re.findall(r'<a href="mailto:[^"]*">([^<]*)</a>', html)
+    assert liens, "aucun lien de courriel"
+    assert COURRIEL in liens, (
+        f"l'adresse n'est pas ecrite en clair, seulement masquee derriere "
+        f"un libelle : {liens}")
+
+
+def test_le_lien_de_courriel_porte_un_objet(site):
+    """Un courriel qui arrive avec son sujet se traite plus vite, et le
+    sujet rappelle au visiteur ce qu'il doit joindre."""
+    html = _page_texte(site, "contact", "fr")
+    assert "?subject=" in html
+    assert "%20" in html, "l'objet n'est pas encode pour une URL"
+
+
+def _page_texte(site, page, langue):
+    return (site / langue / f"{page}.html").read_text(encoding="utf-8")
+
+
 def test_le_site_autorise_explicitement_son_indexation(site):
     """
     Google affichait « nous voudrions effectuer une description ici mais
