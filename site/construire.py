@@ -174,6 +174,28 @@ def rythmer(corps: str) -> str:
     return "".join(sorties)
 
 
+def alternatives(page: str, langue: str) -> str:
+    """
+    Adresse canonique de la page, et ses versions dans l'autre langue.
+
+    Le site publie chaque page DEUX FOIS, une par langue. Sans ces liens,
+    un moteur les traite comme deux pages concurrentes sur le meme sujet,
+    n'en retient qu'une au hasard, et le visiteur allemand tombe sur la
+    version francaise.
+
+    `x-default` designe la version servie a qui ne demande aucune des deux
+    langues : l'anglais, comme dans `_redirects`.
+    """
+    liens = [f'<link rel="canonical"'
+             f' href="https://{DOMAINE}/{langue}/{page}.html">']
+    for autre in contenu.LANGUES:
+        liens.append(f'<link rel="alternate" hreflang="{autre}"'
+                     f' href="https://{DOMAINE}/{autre}/{page}.html">')
+    liens.append(f'<link rel="alternate" hreflang="x-default"'
+                 f' href="https://{DOMAINE}/en/{page}.html">')
+    return "\n".join(liens)
+
+
 def page_complete(page: str, langue: str, corps: str) -> str:
     """Enveloppe une page : en-tete, navigation, corps, pied."""
     corps = rythmer(corps)
@@ -192,6 +214,7 @@ def page_complete(page: str, langue: str, corps: str) -> str:
 <link rel="icon" type="image/png" sizes="32x32"
       href="../marque/favicon-32.png">
 <link rel="apple-touch-icon" href="../marque/favicon-180.png">
+{alternatives(page, langue)}
 </head>
 <body>
 {nav(page, langue)}
@@ -754,6 +777,45 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
         "/    /fr/    302    Language=fr\n"
         "/    /en/    302\n", encoding="utf-8")
     ecrits.append(redirections)
+
+    # ROBOTS ET PLAN DU SITE. Ils manquaient, et leur absence a eu une
+    # consequence visible : Google affichait « nous voudrions effectuer
+    # une description ici mais le site ne nous en laisse pas la
+    # possibilite ».
+    #
+    # La cause n'etait pas chez nous - le domaine servait encore la page
+    # d'attente du registrar, qui porte un `noindex` et un robots.txt
+    # fermant. Mais un site sans robots.txt ni plan laisse le moteur
+    # redecouvrir les douze pages a tatons, langue par langue. Les ecrire
+    # abrege l'attente et dit explicitement ce qui est public.
+    robots = sortie / "robots.txt"
+    robots.write_text(
+        "# KLASTOS21 - site vitrine. Tout est public.\n"
+        "User-agent: *\n"
+        "Allow: /\n"
+        f"\nSitemap: https://{DOMAINE}/sitemap.xml\n", encoding="utf-8")
+    ecrits.append(robots)
+
+    # Le plan declare les DEUX langues de chaque page comme alternatives
+    # l'une de l'autre. Sans cela, le moteur traite les versions
+    # francaise et anglaise comme deux pages concurrentes sur le meme
+    # sujet, et n'en montre qu'une au hasard.
+    lignes = ['<?xml version="1.0" encoding="UTF-8"?>',
+              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+              ' xmlns:xhtml="http://www.w3.org/1999/xhtml">']
+    for langue in contenu.LANGUES:
+        for page in PAGES:
+            lignes.append("  <url>")
+            lignes.append(f"    <loc>https://{DOMAINE}/{langue}/{page}.html</loc>")
+            for autre in contenu.LANGUES:
+                lignes.append(
+                    f'    <xhtml:link rel="alternate" hreflang="{autre}"'
+                    f' href="https://{DOMAINE}/{autre}/{page}.html"/>')
+            lignes.append("  </url>")
+    lignes.append("</urlset>")
+    plan = sortie / "sitemap.xml"
+    plan.write_text("\n".join(lignes) + "\n", encoding="utf-8")
+    ecrits.append(plan)
 
     # Pas de traitement Jekyll : le site est deja construit, et Jekyll
     # ignorerait tout dossier commencant par un tiret bas.

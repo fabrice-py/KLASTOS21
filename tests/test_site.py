@@ -315,7 +315,8 @@ def test_la_generation_ecrit_les_quatorze_pages(site):
         str(c.relative_to(site)).replace("\\", "/")
         for c in site.rglob("*")
         if c.is_file() and c.parent.name != "marque"
-        and c.name not in ("CNAME", ".nojekyll", "_redirects")
+        and c.name not in ("CNAME", ".nojekyll", "_redirects",
+                           "robots.txt", "sitemap.xml")
     }
     assert presents == attendus, (
         f"manquants : {sorted(attendus - presents)} / "
@@ -339,6 +340,66 @@ def test_la_generation_ecrit_le_domaine_servi(site):
     assert (site / ".nojekyll").exists(), (
         "sans ce fichier, Jekyll retraite le site et ignore tout dossier "
         "commencant par un tiret bas")
+
+
+def test_le_site_autorise_explicitement_son_indexation(site):
+    """
+    Google affichait « nous voudrions effectuer une description ici mais
+    le site ne nous en laisse pas la possibilite ». La cause etait en
+    amont - le domaine servait encore la page d'attente du registrar, qui
+    porte un `noindex` - mais le site n'avait ni robots.txt ni plan, et
+    rien ne disait au moteur quoi lire.
+    """
+    from construire import DOMAINE
+
+    robots = site / "robots.txt"
+    assert robots.exists(), "aucun robots.txt : le moteur avance a tatons"
+    texte = robots.read_text(encoding="utf-8")
+    assert "Allow: /" in texte
+    assert "Disallow: /" not in texte, (
+        "le site s'interdit a lui-meme d'etre lu")
+    assert f"https://{DOMAINE}/sitemap.xml" in texte
+
+    # Et aucune page ne doit porter de `noindex`.
+    for langue, page, html in _pages(site):
+        assert "noindex" not in html, f"{langue}/{page}"
+
+
+def test_le_plan_du_site_declare_les_douze_pages(site):
+    import xml.etree.ElementTree as ET
+
+    from construire import DOMAINE
+
+    plan = site / "sitemap.xml"
+    assert plan.exists(), "aucun plan du site"
+    racine = ET.fromstring(plan.read_text(encoding="utf-8"))
+    ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    adresses = [u.findtext("s:loc", namespaces=ns) for u in racine]
+    assert len(adresses) == len(contenu.LANGUES) * len(contenu.PAGES)
+    for a in adresses:
+        assert a.startswith(f"https://{DOMAINE}/")
+
+
+@pytest.mark.parametrize("langue", ["fr", "en"])
+def test_chaque_page_declare_sa_version_dans_l_autre_langue(site, langue):
+    """
+    Le site publie chaque page DEUX FOIS, une par langue. Sans liens
+    `hreflang`, un moteur les traite comme deux pages concurrentes sur le
+    meme sujet, n'en retient qu'une au hasard, et le visiteur allemand
+    tombe sur la version francaise.
+    """
+    from construire import DOMAINE
+
+    for page in contenu.PAGES:
+        html = (site / langue / f"{page}.html").read_text(encoding="utf-8")
+        attendu = (f'<link rel="canonical"'
+                   f' href="https://{DOMAINE}/{langue}/{page}.html">')
+        assert attendu in html, f"{langue}/{page} : pas d'adresse canonique"
+        for autre in contenu.LANGUES:
+            assert (f'hreflang="{autre}"'
+                    f' href="https://{DOMAINE}/{autre}/{page}.html"') in html
+        assert 'hreflang="x-default"' in html, (
+            f"{langue}/{page} : aucune langue par defaut declaree")
 
 
 def test_la_racine_redirige_vers_la_langue_du_visiteur(site):
