@@ -1431,6 +1431,65 @@ CATALOGUE: dict[str, dict[str, str]] = {
               "ARBITRATED, resting on a single certificate. Assaying "
               "{element} would lift the ambiguity.",
     },
+    # ------------------------------------------------------------------
+    # Adequation du modele. A cote du bouclage, et pour une question
+    # differente : le bouclage demande si la masse est retrouvee, le
+    # residu demande si ce sont les BONNES phases qui la retrouvent.
+    #
+    # Le texte du statut conforme est deliberement prudent. Ce controle
+    # attrape les ecarts qui coutent cher et manque les petits : un lot
+    # qui passe n'est pas un lot valide, c'est un lot sur lequel on n'a
+    # rien vu. La formulation doit dire cela, et non l'inverse.
+    # ------------------------------------------------------------------
+    "rapport.note.dosage_vs_modele": {
+        "fr": "Dosé au laboratoire : {dose:.2f} %. Reconstruit par le modèle : {reconstruit:.2f} %. La valorisation retient le dosage.",
+        "en": "Assayed by the laboratory: {dose:.2f} %. Reconstructed by the model: {reconstruit:.2f} %. The valuation uses the assay.",
+    },
+    "rapport.ligne.residu": {
+        "fr": "Adéquation du modèle",
+        "en": "Model fit",
+    },
+    "journal.residu.valeur": {
+        "fr": "Adéquation du modèle : {valeur:.2f} ({message})",
+        "en": "Model fit: {valeur:.2f} ({message})",
+    },
+    "journal.residu.ok": {
+        "fr": "aucun écart détectable entre le bulletin et les phases "
+              "retenues",
+        "en": "no detectable gap between the assay and the phases retained",
+    },
+    "journal.residu.alerte": {
+        "fr": "les phases retenues expliquent mal le bulletin : une phase "
+              "absente du modèle est probable",
+        "en": "the phases retained explain the assay poorly: a phase "
+              "missing from the model is likely",
+    },
+    "journal.residu.rejet": {
+        "fr": "les phases retenues n'expliquent pas le bulletin",
+        "en": "the phases retained do not explain the assay",
+    },
+    "rapport.refus.residu": {
+        "fr": "Le modèle n'explique pas le bulletin (écart normalisé "
+              "{valeur:.2f}, seuil {seuil:.2f}). Le lot contient "
+              "vraisemblablement une phase absente du modèle. Transmettre "
+              "une quantification DRX, ou déclarer la provenance du lot, "
+              "lèverait l'ambiguïté.",
+        "en": "The model does not explain the assay (normalised gap "
+              "{valeur:.2f}, threshold {seuil:.2f}). The lot most likely "
+              "contains a phase absent from the model. An XRD "
+              "quantification, or a declared lot provenance, would lift "
+              "the ambiguity.",
+    },
+    "rapport.mention.residu_alerte": {
+        "fr": "Écart entre le bulletin et les phases retenues ({valeur:.2f}, "
+              "seuil d'alerte {seuil:.2f}). Les teneurs restent publiées, "
+              "mais une phase absente du modèle est probable : les lire "
+              "comme un minorant.",
+        "en": "Gap between the assay and the phases retained ({valeur:.2f}, "
+              "alert threshold {seuil:.2f}). Grades are still published, "
+              "but a phase missing from the model is likely: read them as "
+              "a lower bound.",
+    },
     "journal.bouclage.somme": {
         "fr": "Somme du bulletin : {total:.2f} % ({message})",
         "en": "Assay total: {total:.2f} % ({message})",

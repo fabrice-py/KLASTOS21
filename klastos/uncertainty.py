@@ -185,6 +185,18 @@ class UncertaintyResult:
     open_lower: float | None = None
     open_upper: float | None = None
 
+    # LE DOSAGE, tel que le laboratoire l'a rendu, avec sa seule
+    # incertitude analytique. Renseigne pour les teneurs elementaires et
+    # pour elles seules : ce sont les seules grandeurs dont le bulletin
+    # porte une mesure DIRECTE.
+    #
+    # Il sert deux fois. Ici, a elargir l'intervalle publie (voir
+    # `propagate`). Dans le rapport, a montrer les deux colonnes cote a
+    # cote - car un contrat de raffinage paie sur le dosage, pas sur la
+    # reconstruction d'un modele.
+    assay_lower: float | None = None
+    assay_upper: float | None = None
+
     note: str = ""
     warning: str = ""
 
@@ -472,6 +484,11 @@ def propagate(
     centres: dict[str, list[float]] = {f.key: [] for f in functionals}
     env_lo: dict[str, float] = {f.key: float("inf") for f in functionals}
     env_hi: dict[str, float] = {f.key: float("-inf") for f in functionals}
+    # Le DOSAGE tire, element par element. Collecte a cote des valeurs
+    # reconstruites, et sur les memes tirages : les deux distributions
+    # doivent subir exactement le meme bruit, sans quoi leur comparaison
+    # melangerait deux sources.
+    dosages: dict[str, list[float]] = {el: [] for el in els}
     echecs = 0
     conflits = 0
 
@@ -510,6 +527,9 @@ def propagate(
             except UnboundedCompatibleSet:
                 conflits += 1
                 extra_i = None
+
+        for j, el in enumerate(els):
+            dosages[el].append(float(tirage[j]))
 
         borne_ce_tirage = i < n_bounds
         for f in functionals:
@@ -570,6 +590,43 @@ def propagate(
             t_lo = float(env_lo[f.key])
             t_hi = float(env_hi[f.key])
 
+        # ------------------------------------------------------------------
+        # TROISIEME SOURCE D'INCERTITUDE : L'ERREUR DE MODELE
+        # ------------------------------------------------------------------
+        # Les deux termes ci-dessus - dispersion analytique, domaine
+        # compatible - sont tous deux CONDITIONNELS a une hypothese que
+        # rien ne verifiait : que les phases du modele sont les bonnes.
+        #
+        # Elles ne le sont pas toujours. Mesure sur bulletins parfaits
+        # contenant une phase absente du modele, l'intervalle publie
+        # EXCLUAIT la valeur vraie :
+        #
+        #     8 % de NiO hors modele    Ni vrai 21,73 %   publie 15,47-17,69
+        #     10 % de Li2CO3            Li vrai  4,16 %   publie  2,29-2,58
+        #
+        # Pour une teneur elementaire, l'erreur de modele n'a pas besoin
+        # d'etre postulee : elle SE MESURE. La grandeur publiee est la
+        # teneur RECONSTRUITE, (A @ x), tandis que le laboratoire a rendu
+        # un dosage. L'ecart entre les deux EST le residu sur cet element.
+        #
+        # L'intervalle publie reunit donc les deux : celui de la
+        # reconstruction et celui du dosage. Quand le modele est juste,
+        # les deux coincident et la reunion ne coute rien - verifie. Quand
+        # il ne l'est pas, l'intervalle s'ouvre jusqu'a contenir ce que le
+        # laboratoire a reellement mesure.
+        #
+        # AUCUN PARAMETRE LIBRE. C'est ce qui distingue ce terme d'un
+        # facteur d'elargissement arbitraire, qu'il aurait fallu arbitrer
+        # et qui aurait derive.
+        d_lo = d_hi = None
+        if f.key.startswith("el_") and f.key[3:] in dosages:
+            tires = np.asarray(dosages[f.key[3:]], dtype=float)
+            if tires.size:
+                d_lo = float(np.percentile(tires, config.lower_pct))
+                d_hi = float(np.percentile(tires, config.upper_pct))
+                t_lo = min(t_lo, d_lo)
+                t_hi = max(t_hi, d_hi)
+
         note = f.note
         if not ferme and not note:
             # Meme phrase que `identifiability.NOTE_NON_IDENTIFIABLE`,
@@ -595,6 +652,8 @@ def propagate(
             total_upper=t_hi,
             open_lower=o_lo,
             open_upper=o_hi,
+            assay_lower=d_lo,
+            assay_upper=d_hi,
             note=note,
         )
         if res.apparent_uniqueness_risk:
@@ -610,6 +669,10 @@ def propagate(
         config=config,
         meta={
             "closure": centrale.closure,
+            # L'adequation du modele voyage a cote du bouclage, et
+            # pour la meme raison : le rapport doit pouvoir refuser
+            # sans avoir a refaire le calcul.
+            "residu": centrale.residu,
             "central": centrale,
             "scenarios": _scenarios_elements_non_doses(
                 centrale.x, N, functionals, keys, els, extra

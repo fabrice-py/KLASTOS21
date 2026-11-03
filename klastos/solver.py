@@ -46,6 +46,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import math
 import numpy as np
 from scipy.optimize import nnls
 
@@ -104,6 +105,100 @@ CLOSURE_REJECT = 0.20    # ecart au-dela duquel le bulletin est juge inexploitab
 CLOSURE_REJECT_OVER = 0.12
 
 CLOSURE_THRESHOLDS_VALIDATED = True
+
+# ==========================================================================
+# Seuils de residu normalise
+# ==========================================================================
+# ARBITRES, et mesures. Ils pilotent un REFUS, donc ils ont ete calibres
+# avant d'etre poses, pas l'inverse.
+#
+# CE QUE CE GARDE-FOU ATTRAPE, ET POURQUOI IL EXISTE
+# --------------------------------------------------
+# Le bouclage verifie que la somme des phases approche 100 %. Il ne verifie
+# PAS que les phases retenues sont les bonnes. Un lot contenant une phase
+# absente du modele - carbonate de lithium, oxyde de nickel, cathode
+# delithiee - boucle normalement pendant que le prix se trompe de plusieurs
+# centaines d'euros la tonne. Mesure sur bulletins synthetiques parfaits :
+#
+#     10 % de Li2CO3 hors modele   bouclage 95,47 %  -> OK   -493 EUR/t
+#      8 % de NiO    hors modele   bouclage 95,92 %  -> OK   -462 EUR/t
+#     cathode delithiee a 0,75 Li  bouclage 97,60 %  -> OK   -166 EUR/t
+#
+# Dans les trois cas le bouclage ne bronche pas. Ce qui bronche, c'est
+# l'ecart entre le bulletin et ce que les phases retenues peuvent
+# expliquer : le RESIDU PAR ELEMENT.
+#
+# POURQUOI LE RESIDU BRUT NE MARCHE PAS
+# -------------------------------------
+# Premiere tentative : seuiller `max_element_residual`, l'ecart maximal en
+# points massiques. Elle a ete ABANDONNEE sur mesure. Ce residu est domine
+# par les elements majeurs - le carbone a 33 %, le nickel a 19 % - dont
+# 6 % de bruit font deja plus ou moins deux points. Une phase manquante qui
+# perturbe le lithium, present a 3 %, ne pese rien devant. Sur 300 lots
+# bruites, modele JUSTE :
+#
+#     residu brut, modele juste        mediane 0,574 pt   99e centile 2,331
+#     residu brut, 10 % de Li2CO3      mediane 1,778 pt   99e centile 2,433
+#
+# Les deux distributions se recouvrent presque entierement. Aucun seuil ne
+# les separe : a 1,5 pt on signale 9 % des lots sains pour n'attraper que
+# 8 % des lots a 3 % de Li2CO3. Le detecteur etait inutilisable.
+#
+# CE QUI MARCHE : LE RESIDU NORMALISE PAR LE BRUIT ATTENDU
+# --------------------------------------------------------
+# `residual_weighted` est la norme des ecarts DIVISES par l'incertitude
+# attendue sur chaque element. Un ecart d'un point sur le carbone et un
+# ecart d'un dixieme sur le lithium y pesent alors ce qu'ils valent
+# vraiment. Memes lots, meme bruit :
+#
+#     normalise, modele juste          mediane 1,027   99e centile 2,773
+#     normalise, 10 % de Li2CO3        mediane 6,830   99e centile 8,301
+#
+# Cette fois les distributions sont disjointes.
+#
+# POURQUOI LA STATISTIQUE EST REDUITE
+# -----------------------------------
+# `residual_weighted` est une NORME : elle croit avec le nombre d'elements
+# doses. Un seuil brut vaudrait donc deux choses differentes sur un
+# bulletin a dix elements et sur un bulletin a douze. On divise par la
+# racine du nombre d'elements, et le 99e centile de l'hypothese nulle passe
+# de l'intervalle [1,85 ; 3,51] a l'intervalle [0,59 ; 1,01] sur six
+# chimies et deux jeux de dosage. C'est cette grandeur-la qui est
+# seuillable.
+#
+# CALIBRATION, SUR SIX CHIMIES REALISTES
+# --------------------------------------
+# NMC811 dominante, NMC111 ancienne generation, LFP pure, LCO portable,
+# melange NMC + LFP, cathode pauvre a carbone riche. 250 lots bruites par
+# chimie, bruit LNE-LiB01 a 6 %, modele JUSTE :
+#
+#     99e centile, dix elements    de 0,586 a 0,894 selon la chimie
+#     99e centile, douze elements  de 0,828 a 1,012 selon la chimie
+#
+# Alerte a 0,9 : au-dessus du 99e centile de toute chimie a dix elements,
+# au niveau du 99e a douze. Rejet a 1,5 : aucun lot sain mesure ne
+# l'atteint.
+#
+# CE QUE CE GARDE-FOU N'ATTRAPE PAS, ET IL FAUT LE DIRE
+# -----------------------------------------------------
+# Pouvoir de detection a l'alerte, par cas, sur 300 lots bruites :
+#
+#     10 % de Li2CO3                  100 %
+#      8 % de NiO                      92 %
+#      5 % de Li2CO3                   83 %
+#     cathode delithiee                55 %
+#      4 % de NiO                      24 %
+#      3 % de Li2CO3                   35 %
+#
+# Il attrape les ecarts qui coutent cher et manque les petits. Ce n'est
+# donc PAS une preuve que le modele est juste : c'est un plancher. Un lot
+# qui passe n'est pas un lot valide, c'est un lot sur lequel on n'a rien vu.
+# Le rapport doit le formuler ainsi, et non l'inverse.
+RESIDU_ALERTE = 0.9
+RESIDU_REJET = 1.5
+
+RESIDU_THRESHOLDS_VALIDATED = True
+
 
 STATUT_OK = "ok"
 STATUT_ALERTE = "alerte"
@@ -258,6 +353,90 @@ class ClosureCheck:
 
 
 @dataclass
+class ResidualCheck:
+    """
+    Diagnostic d'ADEQUATION DU MODELE, a cote du bouclage.
+
+    Les deux repondent a des questions differentes, et c'est pour cela
+    qu'ils coexistent :
+
+      - le bouclage demande « la masse est-elle retrouvee ? » ;
+      - le residu demande « les phases retenues expliquent-elles le
+        bulletin, element par element ? ».
+
+    Un lot peut boucler parfaitement avec les mauvaises phases. C'est le
+    cas le plus couteux, et c'etait l'angle mort de l'outil : le bouclage
+    disait OK pendant que le prix se trompait de 493 EUR la tonne.
+
+    Comme `ClosureCheck`, le STATUT est la donnee et le message n'en est
+    qu'un rendu, demande dans la langue de l'appelant.
+    """
+
+    reduced: float
+    """Residu pondere, divise par la racine du nombre d'elements doses.
+    Sans unite. C'est la grandeur seuillable ; `residual_weighted` ne
+    l'est pas, parce qu'elle croit avec le nombre d'elements."""
+
+    n_elements: int
+    status: str
+
+    @property
+    def is_exploitable(self) -> bool:
+        return self.status != STATUT_REJET
+
+    @property
+    def cle_message(self) -> str:
+        """La cle du catalogue, calculee ICI et nulle part ailleurs."""
+        return f"journal.residu.{self.status}"
+
+    @property
+    def message(self) -> str:
+        """Le message en francais. Vue, pas donnee."""
+        return self.message_dans("fr")
+
+    def message_dans(self, langue: str) -> str:
+        return i18n.t(self.cle_message, langue)
+
+    def format(self, langue: str = "fr") -> str:
+        return i18n.t("journal.residu.valeur", langue,
+                      valeur=self.reduced,
+                      message=self.message_dans(langue))
+
+
+def check_residual(
+    residual_weighted: float,
+    n_elements: int,
+    alert: float = RESIDU_ALERTE,
+    reject: float = RESIDU_REJET,
+) -> ResidualCheck:
+    """
+    Le modele explique-t-il le bulletin, element par element ?
+
+    `residual_weighted` est la norme des ecarts divises par l'incertitude
+    attendue. On la reduit par la racine du nombre d'elements pour qu'un
+    bulletin a dix elements et un bulletin a douze se comparent au meme
+    seuil - sans quoi le garde-fou serait deux fois plus severe sur le
+    second, pour une raison qui n'a rien a voir avec la qualite du lot.
+
+    Le seuil est SYMETRIQUE, contrairement a celui du bouclage : un residu
+    n'a pas de direction. Il mesure un desaccord, pas un exces ni un
+    manque.
+    """
+    if n_elements <= 0:
+        raise ValueError(
+            "Un residu ne se normalise pas sur zero element dose.")
+    reduced = float(residual_weighted) / math.sqrt(n_elements)
+    if reduced >= reject:
+        status = STATUT_REJET
+    elif reduced >= alert:
+        status = STATUT_ALERTE
+    else:
+        status = STATUT_OK
+    return ResidualCheck(reduced=reduced, n_elements=int(n_elements),
+                         status=status)
+
+
+@dataclass
 class SolveResult:
     """Solution retenue et diagnostics associes."""
 
@@ -277,6 +456,29 @@ class SolveResult:
     @property
     def max_element_residual(self) -> float:
         return float(np.max(np.abs(self.residual_absolute)))
+
+    @property
+    def residual_reduced(self) -> float:
+        """
+        Le residu pondere, ramene au nombre d'elements doses.
+
+        C'est la grandeur que l'on seuille. `max_element_residual` ne
+        convient pas : exprimee en points massiques, elle est dominee par
+        les elements majeurs, et une phase manquante qui perturbe un
+        element mineur y disparait. Voir le commentaire des seuils.
+        """
+        return float(self.residual_weighted) / math.sqrt(len(self.elements))
+
+    @property
+    def residu(self) -> ResidualCheck:
+        """
+        Le diagnostic d'adequation du modele, en pendant du bouclage.
+
+        Derive, jamais stocke : deux champs pour une meme grandeur
+        finissent par se desynchroniser, et c'est exactement ce qui est
+        arrive au signe du bouclage.
+        """
+        return check_residual(self.residual_weighted, len(self.elements))
 
     @property
     def explained_mass(self) -> float:

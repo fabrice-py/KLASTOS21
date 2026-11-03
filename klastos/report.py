@@ -29,9 +29,10 @@ from dataclasses import dataclass, field
 
 from . import i18n
 from .identifiability import NOTE_CARBONE, NOTE_NON_IDENTIFIABLE
+from .solver import RESIDU_ALERTE, RESIDU_REJET
 from .uncertainty import (SOURCE_STRUCTURELLE, WELL_DETERMINED_WIDTH,
                           UncertaintyReport)
-from .valuation import Valuation
+from .valuation import ECART_DOSAGE_MODELE, Valuation
 
 # Mentions reprises telles quelles du protocole. Vue francaise du catalogue.
 MENTION_DETECTION = i18n.t("rapport.mention.detection", "fr")
@@ -92,6 +93,11 @@ LIGNE_PAYABLE_HUMIDE = "valorisation_payable_humide"
 #: Bouclage apres conversion sur matiere seche. Il INFORME ; le verdict
 #: reste porte par le bouclage du bulletin tel que lu.
 LIGNE_BOUCLAGE_SEC = "diagnostic_bouclage_sec"
+
+#: Adequation du modele. Portee par une CLE et non par son libelle :
+#: le rendu la cherche pour la peindre, et un libelle traduit ne se
+#: retrouve pas en anglais.
+LIGNE_RESIDU = "diagnostic_residu"
 #: N'apparait QUE si l'appelant a declare des couts. Le logiciel n'en
 #: invente aucun.
 LIGNE_PRIX_NET = "valorisation_prix_net"
@@ -370,6 +376,36 @@ def _remonter_les_notes(section: "ReportSection") -> None:
         section.notes.append(f"{labels[0]} : {note}" if len(labels) == 1
                              else note)
 
+def _note_dosage(r, lg: str) -> str:
+    """
+    Le dosage et la reconstruction, cote a cote, quand ils divergent.
+
+    POURQUOI CETTE NOTE EXISTE. La valeur affichee pour une teneur
+    elementaire est celle que le MODELE reconstruit apres deconvolution.
+    Le laboratoire, lui, a rendu un dosage. Tant que l'ajustement est bon
+    les deux coincident et il n'y a rien a dire ; des qu'une phase manque
+    au modele, ils divergent - nickel reconstruit a 15,3 % quand le
+    bulletin en dit 17,6 %.
+
+    Le client ne pouvait pas voir cet ecart. Il paie dessus.
+
+    La note ne parait QUE lorsque l'ecart depasse le seuil. Posee
+    systematiquement, elle serait du bruit sur tous les lots sains, et
+    plus personne ne la lirait le jour ou elle compte.
+    """
+    if r.assay_lower is None or r.assay_upper is None:
+        return ""
+    milieu_dose = 0.5 * (r.assay_lower + r.assay_upper)
+    milieu_recons = 0.5 * ((r.total_lower or 0.0) + (r.total_upper or 0.0))
+    if milieu_dose <= 0:
+        return ""
+    if abs(milieu_recons - milieu_dose) / milieu_dose < ECART_DOSAGE_MODELE:
+        return ""
+    return i18n.t("rapport.note.dosage_vs_modele", lg,
+                  dose=milieu_dose * 100.0,
+                  reconstruit=milieu_recons * 100.0)
+
+
 def build_report(
     lot_id: str,
     client: str,
@@ -445,6 +481,18 @@ def build_report(
             i18n.t("rapport.refus.bouclage", lg,
                    ecart=bouclage.total * 100))
 
+    # ADEQUATION DU MODELE. Le bouclage ci-dessus verifie que la masse est
+    # retrouvee ; il ne verifie pas que ce sont les BONNES phases qui la
+    # retrouvent. Un lot contenant une phase absente du modele boucle
+    # normalement pendant que le prix se trompe de plusieurs centaines
+    # d'euros la tonne - c'etait l'angle mort de l'outil. Le refus nomme
+    # son remede, comme tous les autres refus de ce module.
+    residu = uncertainty.meta.get("residu")
+    if residu is not None and not residu.is_exploitable and not allow_demo:
+        raise ReportRefused(
+            i18n.t("rapport.refus.residu", lg,
+                   valeur=residu.reduced, seuil=RESIDU_REJET))
+
     rapport = LotReport(
         lot_id=lot_id, client=client, issued_on=issued_on, is_demo=demo,
         langue=lg,
@@ -487,6 +535,22 @@ def build_report(
             # message depend aussi du SENS de l'ecart, et trois modules
             # fabriquaient cette cle chacun de son cote.
             rapport.warnings.append(i18n.t(bouclage.cle_message, lg))
+
+    # ADEQUATION DU MODELE, juste sous le bouclage : les deux lignes se
+    # lisent ensemble. Un lot peut boucler a 99 % avec les mauvaises
+    # phases, et c'est le cas le plus couteux - il ne se voit que sur
+    # cette ligne-la.
+    if residu is not None:
+        diag.rows.append(ReportRow(
+            cle=LIGNE_RESIDU,
+            label=i18n.t("rapport.ligne.residu", lg),
+            value=f"{residu.reduced:.2f}",
+            severity=residu.status,
+        ))
+        if residu.status != "ok":
+            rapport.warnings.append(i18n.t(
+                "rapport.mention.residu_alerte", lg,
+                valeur=residu.reduced, seuil=RESIDU_ALERTE))
 
     # DOUBLE BOUCLAGE, quand le bulletin a ete ramene sur matiere seche.
     # Les deux chiffres figurent, et le rapport dit lequel porte le verdict.
@@ -552,6 +616,7 @@ def build_report(
         fermes.rows.append(ReportRow(
             label=r.label, value=r.format_value(), status=_statut(r),
             low=r.total_lower, high=r.total_upper, point=r.median,
+            note=_note_dosage(r, lg),
         ))
     for r in sorted(par_bloc.get("phase", []), key=lambda x: x.key):
         if not r.identifiable:

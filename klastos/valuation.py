@@ -32,6 +32,18 @@ from __future__ import annotations
 import datetime as _dt
 from dataclasses import dataclass, field
 
+#: Ecart relatif entre le dosage et la reconstruction a partir duquel le
+#: rapport le signale. ARBITRE, et il ne pilote qu'un AVERTISSEMENT : la
+#: valorisation retient le dosage dans tous les cas, ce seuil ne change
+#: aucun chiffre.
+#:
+#: Cale sur le garde-fou d'adequation du modele, qui alerte a partir d'une
+#: phase manquante de l'ordre de 5 % : les ecarts de teneur mesures sur
+#: ces lots-la vont de 6 a 23 %. Un seuil a 5 % les attrape tous sans
+#: bavarder sur le bruit, dont l'effet sur le MILIEU de fourchette reste
+#: bien en dessous.
+ECART_DOSAGE_MODELE = 0.05
+
 from .market import (LI_FRACTION_IN_LI2CO3, MAX_PRICE_AGE_DAYS,
                      NotAProductionSourceError, PayableTerms, PriceSet,
                      Specification, StalePriceError)
@@ -256,8 +268,45 @@ def value_lot(
                 f"Teneur en {el} non identifiable : exclue de la valorisation."
             )
             continue
-        teneurs_basses[el] = max(0.0, r.total_lower)
-        teneurs_hautes[el] = max(0.0, r.total_upper)
+        # ON VALORISE LE DOSAGE, PAS LA RECONSTRUCTION.
+        #
+        # `total_*` porte la teneur que le modele RECONSTRUIT apres
+        # deconvolution, (A @ x). Tant que l'ajustement est bon, elle
+        # coincide avec le dosage au millieme pres et le choix est sans
+        # effet. Des qu'une phase manque au modele, les deux divergent :
+        # nickel reconstruit a 15,3 % quand le bulletin en dit 17,6 %.
+        #
+        # Or un contrat de raffinage paie sur le DOSAGE. Valoriser la
+        # reconstruction revient a facturer le lot sur un nombre que le
+        # laboratoire n'a jamais mesure, et qu'aucune contrepartie
+        # n'acceptera d'opposer.
+        #
+        # `assay_*` est renseigne pour les teneurs elementaires et pour
+        # elles seules. Le repli sur `total_*` couvre le cas ou il ne
+        # l'est pas - un rapport ancien, ou une grandeur sans dosage.
+        if r.assay_lower is not None and r.assay_upper is not None:
+            teneurs_basses[el] = max(0.0, r.assay_lower)
+            teneurs_hautes[el] = max(0.0, r.assay_upper)
+            # L'ECART EST RAPPORTE, jamais tu. C'est le seul endroit ou
+            # le client peut voir que le modele et le bulletin ne disent
+            # pas la meme chose sur un element qu'il paie.
+            milieu_dose = 0.5 * (r.assay_lower + r.assay_upper)
+            milieu_recons = 0.5 * ((r.total_lower or 0.0)
+                                   + (r.total_upper or 0.0))
+            if milieu_dose > 0:
+                ecart = abs(milieu_recons - milieu_dose) / milieu_dose
+                if ecart >= ECART_DOSAGE_MODELE:
+                    avertissements.append(
+                        f"{el} : le modele reconstruit "
+                        f"{milieu_recons * 100:.2f} % la ou le bulletin "
+                        f"dose {milieu_dose * 100:.2f} %, soit "
+                        f"{ecart * 100:.0f} % d'ecart. La valorisation "
+                        f"retient le dosage. Un ecart de cette ampleur "
+                        f"signale une phase absente du modele."
+                    )
+        else:
+            teneurs_basses[el] = max(0.0, r.total_lower)
+            teneurs_hautes[el] = max(0.0, r.total_upper)
         teneurs_med[el] = max(0.0, r.median or 0.0)
 
     # --- contributions -----------------------------------------------------

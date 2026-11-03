@@ -134,13 +134,39 @@ def test_l_intervalle_affiche_est_celui_qui_sert_au_classement():
     Coherence du rapport : afficher [2,93 - 3,57] puis qualifier la grandeur
     de mal determinee sur la base d'un intervalle plus large et invisible
     serait trompeur.
+
+    CE TEST A ETE REFORMULE, et la reformulation est le correctif.
+
+    Il affirmait `total == analytic` pour toute grandeur ferme. Ce n'est
+    plus vrai des TENEURS ELEMENTAIRES : leur intervalle publie reunit
+    desormais celui de la reconstruction et celui du dosage, pour que
+    l'erreur de modele y figure. L'invariant d'origine - rien de plus
+    large ne se cache derriere ce qui s'affiche - tient toujours, et
+    c'est lui qu'on garde.
     """
     lot = make_lot(rng=1, profile="mixed_ev", noise=BRUIT)
     rep = propagate(lot.b_measured, phase_keys=lot.phase_keys, config=CFG)
+    vus = 0
     for r in rep.results:
-        if r.identifiable:
+        if not r.identifiable:
+            continue
+        if r.assay_lower is None:
+            # Agregats et phases : aucun dosage ne leur repond, l'egalite
+            # d'origine tient mot pour mot.
             assert r.total_lower == pytest.approx(r.analytic_lower), r.key
             assert r.total_upper == pytest.approx(r.analytic_upper), r.key
+        else:
+            # Teneurs elementaires : la reunion ne peut qu'ELARGIR. Un
+            # intervalle publie plus etroit que la dispersion analytique
+            # serait une precision inventee.
+            vus += 1
+            assert r.total_lower <= r.analytic_lower + 1e-12, r.key
+            assert r.total_upper >= r.analytic_upper - 1e-12, r.key
+            assert r.total_lower <= r.assay_lower + 1e-12, r.key
+            assert r.total_upper >= r.assay_upper - 1e-12, r.key
+    assert vus > 0, (
+        "aucune teneur elementaire dans le rapport : le second volet du "
+        "test ne garde rien")
 
 
 def test_l_enveloppe_contient_toujours_le_domaine_local(rapport):

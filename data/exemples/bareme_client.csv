@@ -1,0 +1,6 @@
+metal,value,unit,currency,as_of,source,reference_name,basis,note
+Ni,16811.13,USD/t,USD,2026-11-03,Barème interne acheteur,LME Nickel cash official,,Cotation retenue par l'acheteur pour ce lot
+Co,52359.78,USD/t,USD,2026-11-03,Barème interne acheteur,Cobalt standard grade Rotterdam,,
+Li,19750.00,USD/t,USD,2026-11-03,Barème interne acheteur,Carbonate de lithium battery grade CIF Asie,Li2CO3,Prix coté EN CARBONATE : la colonne basis le déclare
+Cu,9841.84,USD/t,USD,2026-11-03,Barème interne acheteur,LME Copper Grade A cash,,
+Mn,1820.00,USD/t,USD,2026-11-03,Barème interne acheteur,Manganese 99.7% electrolytic,,Rarement payable en black mass

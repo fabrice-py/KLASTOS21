@@ -307,9 +307,33 @@ def test_un_instantane_json_conserve_sa_licence(tmp_path):
 # 7. Le bulletin incoherent reste detecte par cette route
 # ==========================================================================
 
-def test_le_bulletin_physiquement_impossible_est_signale():
+def test_le_bulletin_physiquement_impossible_est_refuse():
+    """
+    CE TEST A CHANGE DE SENS, et le changement est le correctif.
+
+    Avant le garde-fou d'adequation du modele, ce bulletin incoherent
+    traversait toute la chaine et ressortait en rapport publie : seul le
+    residu, calcule mais inerte, en portait la trace. Il est desormais
+    refuse, et le refus nomme son remede.
+    """
     if not INCOHERENT.exists():
         pytest.skip("bulletin incoherent absent")
-    a = analyser(_demande(bulletin=INCOHERENT, tirages=20))
+    with pytest.raises(ReportRefused) as capture:
+        analyser(_demande(bulletin=INCOHERENT, tirages=20))
+    assert "DRX" in str(capture.value)
+
+
+def test_le_bulletin_impossible_reste_analysable_en_demonstration():
+    """
+    Le refus ne doit pas rendre le lot inexaminable : on doit pouvoir
+    regarder POURQUOI il est refuse. C'est a cela que sert le mode
+    demonstration, et c'est aussi la seule facon de garder l'assertion
+    d'origine sur le residu.
+    """
+    if not INCOHERENT.exists():
+        pytest.skip("bulletin incoherent absent")
+    a = analyser(_demande(bulletin=INCOHERENT, tirages=20,
+                          autoriser_demo=True))
     central = a.incertitude.meta["central"]
     assert central.max_element_residual > 0.01
+    assert not a.incertitude.meta["residu"].is_exploitable
