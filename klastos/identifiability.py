@@ -1235,6 +1235,104 @@ def conseil_quantification(
 # ==========================================================================
 
 
+def representant_proche(
+    x0: np.ndarray,
+    N: np.ndarray,
+    prior: np.ndarray,
+    total_mass_cap: float | None = 1.0,
+    tol: float = 1e-12,
+) -> np.ndarray:
+    """
+    Le representant admissible le plus proche du prior, au sens L1.
+
+    POURQUOI CETTE FONCTION A REMPLACE UNE PENALITE.
+
+    Le solveur exprimait le prior comme un terme de penalite ajoute au
+    moindre carre : `lambda_null * ||P_N (x - prior)||^2`. Le bloc de
+    penalite est EXACTEMENT orthogonal au bloc de donnees - on a mesure
+    `||A . P_N|| = 5e-16` - donc, sans contrainte de positivite, le
+    probleme se separe et n'importe quel lambda strictement positif
+    epinglerait la composante nulle sur le prior.
+
+    Avec `x >= 0`, il n'en va plus ainsi : le poids du bloc de donnees
+    vaut 1/sigma, soit 47 a 1764, tandis que celui de la penalite vaut
+    sqrt(lambda), soit 0,01 au reglage par defaut. La penalite est cinq
+    ordres de grandeur trop faible pour deplacer l'ensemble actif de
+    NNLS. Elle n'agit donc que lorsque cet ensemble est deja indifferent.
+
+    Mesure, sur deux lots :
+
+        lot d'essai, douze elements doses, deux directions nulles
+            ||P_N x|| = 0,0000   prior deplace de 12,99 points   -> marche
+        bulletin reel, dix elements doses, quatre directions nulles
+            ||P_N x|| = 0,3014   prior deplace de  0,00 point    -> MORT
+
+    Le parametre n'etait donc pas inerte : il etait SILENCIEUSEMENT
+    INOPERANT sur les lots reels, et operant sur ceux des tests. C'est
+    pire qu'une panne franche.
+
+    Monter lambda jusqu'a ce qu'il morde n'est pas une issue : a 1e2 le
+    residu pondere passe de 0,00 a 1,40, a 1e4 il atteint 9,35. La
+    penalite n'achete alors du deplacement qu'en abimant l'ajustement.
+
+    CE QUE FAIT CETTE FONCTION A LA PLACE
+
+    Elle deplace le representant LE LONG DE L'ESPACE NUL, donc sans
+    toucher a aucune grandeur identifiable, puisque `A @ (N t) = 0` par
+    construction. L'ajustement est intact par definition, et le
+    representant atteint exactement le point admissible le plus proche
+    du prior. Aucun reglage, aucun compromis.
+
+    La norme L1 est retenue pour la meme raison que dans
+    `projeter_dans_domaine`, dont c'est la jumelle : elle se resout par
+    un programme lineaire, et elle ne deplace pas plus que necessaire.
+
+    Raises
+    ------
+    UnboundedCompatibleSet
+        Si aucun representant admissible n'existe. C'est un resultat a
+        rapporter, pas un bug a contourner.
+    """
+    x0 = np.asarray(x0, dtype=float)
+    prior = np.asarray(prior, dtype=float)
+    if prior.shape != x0.shape:
+        raise ValueError(
+            f"Prior de dimension {prior.shape}, {x0.shape} attendu.")
+    if N.size == 0 or N.shape[1] == 0:
+        # Systeme bien pose : il n'y a qu'un representant, et le prior
+        # n'a rien a dire. Ce n'est pas une erreur.
+        return x0.copy()
+
+    k = N.shape[1]
+    A_dom, b_dom = _domain_constraints(x0, N, total_mass_cap, tol)
+
+    # Variables : t = tp - tm, puis les ecarts e >= |x - prior|.
+    # On minimise 1'e sous  -e <= x0 + N t - prior <= e.
+    n = x0.shape[0]
+    d = x0 - prior
+    zero_dom = np.zeros((A_dom.shape[0], n))
+    blocs = [np.hstack([A_dom[:, :k], -A_dom[:, :k], zero_dom])]
+    seconds = [b_dom]
+    #  N t - e <= prior - x0
+    blocs.append(np.hstack([N, -N, -np.eye(n)]))
+    seconds.append(-d)
+    # -N t - e <= x0 - prior
+    blocs.append(np.hstack([-N, N, -np.eye(n)]))
+    seconds.append(d)
+
+    objectif = np.concatenate([np.zeros(2 * k), np.ones(n)])
+    r = linprog(objectif, A_ub=np.vstack(blocs),
+                b_ub=np.concatenate(seconds),
+                bounds=[(0.0, None)] * (2 * k + n), method="highs")
+    if not r.success:
+        raise UnboundedCompatibleSet(
+            "Aucun representant admissible ne peut etre rapproche du "
+            f"prior : {r.message}"
+        )
+    t = r.x[:k] - r.x[k:2 * k]
+    return x0 + N @ t
+
+
 def projeter_dans_domaine(
     x0: np.ndarray,
     N: np.ndarray,

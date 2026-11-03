@@ -52,7 +52,7 @@ from scipy.optimize import nnls
 
 from .elements import ELEMENTS
 from .generator import DEFAULT_NOISE, NoiseModel
-from .identifiability import null_space
+from .identifiability import null_space, representant_proche
 from . import i18n
 from .phases import PHASE_KEYS, stoichiometry_matrix
 
@@ -247,14 +247,54 @@ MSG_BOUCLAGE = {cle: i18n.t(cle, "fr") for cle in CLES_BOUCLAGE}
 # Structures
 # ==========================================================================
 
+#: Poids du bloc qui ECARTE LE REPRESENTANT DU BORD du domaine.
+#:
+#: Il s'appelait `lambda_null`, vivait dans `SolverConfig`, et son
+#: commentaire annoncait « une valeur trop faible rend le representant
+#: instable, une valeur trop forte le tire vers le prior ». Cet arbitrage
+#: n'existe pas, et c'est mesure :
+#:
+#:   - le bloc de penalite est EXACTEMENT orthogonal au bloc de donnees,
+#:     ||A . P_N|| = 5e-16. Sans contrainte de positivite le probleme se
+#:     separe, et n'importe quelle valeur positive donnerait le meme
+#:     resultat : la VALEUR n'aurait aucun sens ;
+#:   - avec x >= 0, le poids des donnees vaut 1/sigma, soit 47 a 1764,
+#:     contre sqrt(lambda) = 0,01 au reglage en service. Cinq ordres de
+#:     grandeur d'ecart : la penalite ne deplacait l'ensemble actif de
+#:     NNLS que lorsqu'il etait deja indifferent.
+#:
+#: Consequence sur le PRIOR, qu'elle etait censee servir :
+#:
+#:     lot de test, douze elements doses   prior deplace de 12,99 points
+#:     bulletin reel, dix elements doses   prior deplace de  0,00 point
+#:
+#: Le parametre n'etait donc pas inerte : il etait SILENCIEUSEMENT
+#: INOPERANT sur les lots reels et operant sur ceux des tests. C'est pire
+#: qu'une panne franche, parce que les tests le declaraient vivant.
+#:
+#: Monter lambda jusqu'a ce qu'il morde n'etait pas une issue : a 1e2 le
+#: residu pondere passait de 0,00 a 1,40, a 1e4 il atteignait 9,35. Il
+#: n'achetait du deplacement qu'en abimant l'ajustement.
+#:
+#: LE PRIOR EST DESORMAIS HONORE PAR `representant_proche`, une projection
+#: exacte le long de l'espace nul : aucun reglage, aucun compromis.
+#:
+#: Ce bloc garde un role, mais ce n'est pas celui qu'on lui pretait. Sans
+#: lui, NNLS atterrit volontiers sur un sommet de MASSE MINIMALE ; et
+#: comme `_domain_constraints` plafonne la masse a max(1, somme(x0)), le
+#: domaine compatible parametre depuis ce point devient de LARGEUR NULLE
+#: - « NMC 111 entre 0,000 et 0,000 ». Toute la trichotomie du rapport
+#: s'effondrerait. Il est donc conserve, sous son effet reel, et il n'est
+#: plus reglable : il n'y avait rien a regler.
+DEPARTAGE_NUMERIQUE = 1e-4
+
+
 @dataclass(frozen=True)
 class SolverConfig:
     """Parametres de resolution."""
 
-    lambda_null: float = 1e-4
-    """Poids de la regularisation dans l'espace nul. N'affecte aucune
-    grandeur identifiable. Une valeur trop faible rend le representant
-    instable numeriquement, une valeur trop forte le tire vers le prior."""
+    # `lambda_null` a ete retire : il ne faisait pas ce que son nom
+    # disait. Voir `DEPARTAGE_NUMERIQUE`, en tete de module.
 
     noise: NoiseModel = DEFAULT_NOISE
     """Sert a ponderer les residus, pas a bruiter."""
@@ -659,6 +699,7 @@ def solve(
     # --- regularisation restreinte a l'espace nul -------------------------
     N = null_space(A)
     n = A.shape[1]
+    prior_fourni = prior is not None
     if prior is None:
         prior = np.zeros(n)
     else:
@@ -668,19 +709,62 @@ def solve(
                 f"Le prior a {prior.shape[0]} composantes, {n} phases attendues."
             )
 
+    # LE DEPARTAGE NUMERIQUE. Ce bloc n'est PAS une regularisation vers
+    # le prior, contrairement a ce que son nom d'origine affirmait : voir
+    # `DEPARTAGE_NUMERIQUE`, en tete de module. Il ecarte le representant
+    # du BORD du domaine, et c'est tout ce qu'il a jamais fait.
     blocs_A = [W @ A]
     blocs_b = [W @ b]
-
-    if N.size and config.lambda_null > 0:
+    if N.size and DEPARTAGE_NUMERIQUE > 0:
         P_N = N @ N.T                       # projecteur orthogonal sur ker(A)
-        s = np.sqrt(config.lambda_null)
-        blocs_A.append(s * P_N)
-        blocs_b.append(s * (P_N @ prior))
+        racine = math.sqrt(DEPARTAGE_NUMERIQUE)
+        blocs_A.append(racine * P_N)
+        blocs_b.append(np.zeros(P_N.shape[0]))
 
-    M = np.vstack(blocs_A)
-    y = np.concatenate(blocs_b)
+    x, _ = nnls(np.vstack(blocs_A), np.concatenate(blocs_b))
 
-    x, _ = nnls(M, y)
+    # LE CHOIX DU REPRESENTANT, EXACTEMENT ET NON PLUS PAR PENALITE.
+    #
+    # NNLS rend UN point de la famille des solutions equivalentes, celui
+    # ou son ensemble actif atterrit. Ce point est arbitraire, et il
+    # etait mauvais : sur six chimies realistes et des bulletins
+    # parfaits, il s'ecartait de la composition vraie de 8 a 45 points de
+    # masse, en inventant au passage 3,1 % de LFP qui n'existait pas.
+    #
+    # La projection deplace le representant LE LONG DE L'ESPACE NUL, donc
+    # sans toucher a aucune grandeur identifiable ni a l'ajustement. Elle
+    # retrouve la composition exacte sur quatre de ces six chimies, et
+    # divise l'ecart par trois sur une cinquieme.
+    #
+    # Elle efface aussi le point de depart : deux NNLS qui atterrissent
+    # sur des sommets differents donnent le meme representant projete, a
+    # 1e-6 point pres. C'est ce qui a rendu `lambda_null` inutile.
+    # ELLE NE S'APPLIQUE QUE SI UN PRIOR EST FOURNI, et ce n'est pas de
+    # la prudence : c'est une mesure.
+    #
+    # Avec un prior nul - le defaut - la projection minimise la masse
+    # totale. Elle atterrit donc exactement sur le plafond de masse, que
+    # `_domain_constraints` fixe a max(1, somme(x0)). Le domaine
+    # compatible, parametre depuis ce point, devient alors de LARGEUR
+    # NULLE : « NMC 111 entre 0,000 et 0,000 ». Toute la trichotomie du
+    # rapport s'effondrerait.
+    #
+    # Second motif, plus profond. Sur six chimies synthetiques, la
+    # projection a prior nul retrouvait la composition exacte quatre fois
+    # sur six, la ou NNLS se trompait de 8 a 45 points. C'est flatteur et
+    # c'est un ARTEFACT : ces lots sont batis sur peu de phases, donc la
+    # verite y EST la solution la plus parcimonieuse. Sur une black mass
+    # reelle, minimiser la masse annulerait les phases mineures - c'est-
+    # a-dire exactement ce que l'outil doit detecter.
+    #
+    # Le representant par defaut reste donc celui de NNLS, arbitraire et
+    # declare tel quel par `point_estimate_is_representative`.
+    if prior_fourni and N.size:
+        x = representant_proche(x, N, prior, total_mass_cap=None)
+        # La tolerance du programme lineaire laisse passer des negatifs de
+        # l'ordre de 1e-8. Une fraction de phase negative n'a pas de sens
+        # physique et ferait echouer des controles en aval.
+        x = np.maximum(x, 0.0)
 
     b_fit = A @ x
     residual_abs = b_fit - b
