@@ -175,17 +175,17 @@ code, .mono {
   font-family: var(--f-mono); font-size: 7px; font-weight: 400;
   letter-spacing: .2em; color: var(--muted); line-height: 1;
 }
-/* L'ADRESSE DE CONTACT. Ecrite en chasse fixe, comme les donnees du
-   produit : c'est une chaine qu'on recopie, pas une phrase qu'on lit.
-   Le soulignement reste, pour qu'on voie qu'elle est cliquable - mais
-   elle doit aussi pouvoir etre SELECTIONNEE, parce que beaucoup de gens
-   lisent leur courrier dans un navigateur ou le `mailto:` n'ouvre rien. */
 /* Le bouton de copie n'existe que si le script tourne : sans lui, il ne
    ferait rien, et un bouton inerte est pire qu'un bouton absent. */
 .bouton-copie { display: none; }
 .js .bouton-copie { display: inline-block; }
 .bouton-copie-faite { border-color: var(--green); color: var(--green); }
 
+/* L'ADRESSE DE CONTACT. Ecrite en chasse fixe, comme les donnees du
+   produit : c'est une chaine qu'on recopie, pas une phrase qu'on lit.
+   Le soulignement reste, pour qu'on voie qu'elle est cliquable - mais
+   elle doit aussi pouvoir etre SELECTIONNEE, parce que beaucoup de gens
+   lisent leur courrier dans un navigateur ou le `mailto:` n'ouvre rien. */
 .adresse { margin-top: 16px; }
 .adresse a {
   font-family: var(--f-mono); font-size: 15px;
@@ -197,6 +197,51 @@ code, .mono {
 .adresse-pied { margin-top: 12px; }
 .adresse-pied a { font-size: 13px; color: var(--muted); }
 .adresse-pied a:hover { color: var(--ink); }
+
+/* ======================================================================
+   FORMULAIRE
+   ----------------------------------------------------------------------
+   Il existe parce qu'un lien `mailto:` ne mene nulle part chez une part
+   notable des visiteurs. Les champs sont larges et les etiquettes
+   au-dessus : sur un formulaire technique, on relit ce qu'on a saisi.
+   ====================================================================== */
+.formulaire { max-width: 620px; }
+.champ { margin-bottom: 22px; }
+.champ label {
+  display: block; font-weight: 600; font-size: 15px; margin-bottom: 4px;
+}
+.champ-oblig {
+  font-family: var(--f-mono); font-size: 11px; font-weight: 400;
+  letter-spacing: .06em; color: var(--muted);
+}
+.champ-indice {
+  display: block; font-size: 14px; color: var(--muted); margin-bottom: 9px;
+  line-height: 1.45;
+}
+.champ input, .champ textarea {
+  width: 100%; font-family: var(--f-body); font-size: 16px;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line-strong); border-radius: 5px;
+  padding: 11px 13px; transition: border-color .18s;
+}
+.champ textarea { resize: vertical; line-height: 1.5; }
+.champ input:focus, .champ textarea:focus {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink); outline-offset: 2px;
+}
+.champ input[type="file"] {
+  padding: 10px; font-family: var(--f-mono); font-size: 14px;
+  background: var(--paper);
+}
+
+/* PIEGE A ROBOTS. Invisible a l'oeil et retire du parcours au clavier :
+   un visiteur ne peut ni le voir ni l'atteindre, un automate le remplit,
+   et l'envoi est jete. Pas `display:none`, que certains robots
+   reconnaissent. */
+.piege {
+  position: absolute; left: -9999px; width: 1px; height: 1px;
+  overflow: hidden;
+}
 
 /* Dans le pied, la signature precede le descriptif : l'une est la
    marque, l'autre dit le metier. */

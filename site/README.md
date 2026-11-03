@@ -10,7 +10,10 @@ génère le rapport.
 python site/construire.py
 ```
 
-Écrit quatorze fichiers dans `site/public/`. Pour voir le résultat, ouvrir
+Écrit les pages dans `site/public/` : les six pages dans chacune des deux
+langues, l'accusé de réception du formulaire, la feuille de style, la
+redirection de racine, et les fichiers de déploiement (`CNAME`,
+`_redirects`, `robots.txt`, `sitemap.xml`). Pour voir le résultat, ouvrir
 `site/public/index.html`. La racine redirige vers la langue par défaut.
 
 Un autre dossier de sortie :

@@ -871,7 +871,7 @@ TEXTES: dict[str, dict[str, str]] = {
     "contact.courriel.corps": {
         "fr": "Bonjour,\n\n"
               "Je vous joins le bulletin d'analyse du lot.\n\n"
-              "Unite des dosages : \n"
+              "Unité des dosages : \n"
               "Provenance du lot : \n"
               "Quantification DRX jointe : oui / non\n\n"
               "Cordialement,\n",
@@ -889,6 +889,66 @@ TEXTES: dict[str, dict[str, str]] = {
 
     "contact.courriel.bouton": {
         "fr": "Ouvrir un message", "en": "Compose a message"},
+
+# ================================================================
+    # Formulaire. Il existe parce qu'un lien `mailto:` ne mene nulle part
+    # chez une part notable des visiteurs : sur Windows 11, le
+    # gestionnaire pointe souvent sur l'application Courrier, retiree du
+    # systeme, et le clic n'ouvre rien.
+    # ================================================================
+    "form.titre": {
+        "fr": "Ou envoyez-le depuis cette page",
+        "en": "Or send it from this page"},
+    "form.chapeau": {
+        "fr": "Si vous n'avez pas de logiciel de messagerie sous la main. "
+              "Le bulletin se joint directement, en CSV ou en Excel.",
+        "en": "If you have no mail application at hand. The bulletin "
+              "attaches directly, as CSV or Excel."},
+    "form.nom": {"fr": "Votre nom", "en": "Your name"},
+    "form.organisation": {"fr": "Organisation", "en": "Organisation"},
+    "form.courriel": {"fr": "Votre adresse de courriel",
+                      "en": "Your email address"},
+    "form.message": {"fr": "Message", "en": "Message"},
+    "form.message.indice": {
+        "fr": "Unité des dosages, provenance du lot, et tout ce qui vous "
+              "paraît utile.",
+        "en": "Assay unit, lot provenance, and anything else you find "
+              "relevant."},
+    "form.fichier": {"fr": "Le bulletin d'analyse", "en": "The assay bulletin"},
+    "form.fichier.indice": {
+        "fr": "CSV ou Excel, 10 Mo au plus. Facultatif : vous pouvez aussi "
+              "l'envoyer ensuite par courriel.",
+        "en": "CSV or Excel, 10 MB maximum. Optional: you may also send it "
+              "afterwards by email."},
+    "form.envoyer": {"fr": "Envoyer", "en": "Send"},
+    "form.obligatoire": {"fr": "obligatoire", "en": "required"},
+
+    # Accuse de reception. Il ne promet pas de delai que nous ne tenons
+    # pas, et il rappelle ce qui manque le plus souvent.
+    "merci.titre_onglet": {
+        "fr": "Message reçu | KLASTOS21",
+        "en": "Message received | KLASTOS21"},
+    "merci.description": {
+        "fr": "Votre message a bien été transmis à KLASTOS21.",
+        "en": "Your message has reached KLASTOS21."},
+    "merci.surtitre": {"fr": "Message reçu", "en": "Message received"},
+    "merci.h1": {
+        "fr": "C'est bien arrivé.",
+        "en": "It got through."},
+    "merci.chapeau": {
+        "fr": "Nous revenons vers vous avec le rapport, et le cas échéant "
+              "avec la liste des dosages qui lèveraient l'indétermination.",
+        "en": "We will come back with the report and, where relevant, the "
+              "list of assays that would lift the indeterminacy."},
+    "merci.oubli.titre": {
+        "fr": "Si vous avez oublié le bulletin",
+        "en": "If you forgot the bulletin"},
+    "merci.oubli.texte": {
+        "fr": "Envoyez-le à cette adresse en répondant simplement. Sans "
+              "lui, nous ne pouvons rien conclure.",
+        "en": "Send it to this address, simply by replying. Without it we "
+              "can conclude nothing."},
+    "merci.retour": {"fr": "Revenir à l'accueil", "en": "Back to home"},
 
     "contact.modele.titre": {
         "fr": "Un modèle de bulletin",

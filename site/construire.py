@@ -188,7 +188,7 @@ def rythmer(corps: str) -> str:
     """
     rang = 0
     sorties: list[str] = []
-    for morceau in re.split(r"(<section[^>]*>)", corps):
+    for morceau in re.split(r"(<section\b[^>]*>)", corps):
         if (morceau.startswith("<section")
                 and "data-reveler" not in morceau
                 and not any(m in morceau for m in _SANS_REVELATION)):
@@ -220,9 +220,19 @@ def alternatives(page: str, langue: str) -> str:
     return "\n".join(liens)
 
 
+#: Pages tenues HORS des moteurs. Elles ne repondent a aucune recherche :
+#: on n'y arrive que par un envoi de formulaire, et une page de
+#: remerciement dans les resultats n'aide personne - ni celui qui cherche
+#: KLASTOS21, ni nous. Les tenir hors du plan du site ne suffit pas :
+#: Google indexe ce qu'il trouve, pas seulement ce qu'on lui declare.
+_HORS_MOTEURS = ("merci",)
+
+
 def page_complete(page: str, langue: str, corps: str) -> str:
     """Enveloppe une page : en-tete, navigation, corps, pied."""
     corps = rythmer(corps)
+    robots = ('\n<meta name="robots" content="noindex, follow">'
+              if page in _HORS_MOTEURS else "")
     return f"""<!doctype html>
 <html lang="{langue}">
 <head>
@@ -230,7 +240,7 @@ def page_complete(page: str, langue: str, corps: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>document.documentElement.className+=" js";</script>
 <title>{escape(t(f"{page}.titre_onglet", langue))}</title>
-<meta name="description" content="{escape(t(f"{page}.description", langue))}">
+<meta name="description" content="{escape(t(f"{page}.description", langue))}">{robots}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="{charte.LIEN_POLICES}">
@@ -733,6 +743,103 @@ def adresse(langue: str, classe: str = "adresse") -> str:
             f'{escape(COURRIEL)}</a></p>')
 
 
+def formulaire(langue: str) -> str:
+    """
+    Le formulaire, traite par Netlify.
+
+    IL EXISTE POUR UNE RAISON MESUREE. Un lien `mailto:` ne mene nulle
+    part chez une part notable des visiteurs : sur Windows 11, le
+    gestionnaire pointe souvent sur l'application Courrier, retiree du
+    systeme, et sa commande est vide. Le clic n'ouvre rien, et rien ne le
+    signale. Le formulaire ne suppose aucun logiciel.
+
+    Trois details qui le font fonctionner, et qu'on oublie facilement :
+
+    - `data-netlify` declenche la detection a la construction. Netlify lit
+      le HTML livre ; le formulaire doit donc etre dans la page, pas monte
+      par script ;
+    - `enctype` en `multipart/form-data`, sans quoi la piece jointe
+      n'arrive pas ;
+    - `form-name` en champ cache, qui nomme le formulaire dans le tableau
+      de bord. Netlify l'ajoute lui-meme sur un formulaire statique, mais
+      l'ecrire coute une ligne et evite d'en dependre.
+
+    Le champ `bot-field` est un piege a robots : hors de l'ecran par la
+    CSS, hors du parcours au clavier par `tabindex`, et hors de la lecture
+    d'ecran par `aria-hidden`. Un visiteur ne peut donc ni le voir, ni
+    l'atteindre, ni l'entendre ; un automate le remplit, et Netlify jette
+    l'envoi.
+    """
+    oblig = escape(t("form.obligatoire", langue))
+
+    def champ(nom, cle, type_="text", requis=False, indice=None):
+        marque = f' <span class="champ-oblig">({oblig})</span>' if requis else ""
+        aide = (f'<span class="champ-indice">{escape(t(indice, langue))}</span>'
+                if indice else "")
+        if type_ == "textarea":
+            saisie = (f'<textarea id="{nom}" name="{nom}" rows="6"'
+                      f'{" required" if requis else ""}></textarea>')
+        else:
+            saisie = (f'<input id="{nom}" name="{nom}" type="{type_}"'
+                      f'{" required" if requis else ""}>')
+        return (f'<p class="champ"><label for="{nom}">'
+                f'{escape(t(cle, langue))}{marque}</label>{aide}{saisie}</p>')
+
+    return f"""<section class="bande bande-lavee section" id="formulaire">
+  <div class="enveloppe mesure">
+    <h2>{escape(t("form.titre", langue))}</h2>
+    <p class="chapeau" style="margin-bottom:30px">\
+{escape(t("form.chapeau", langue))}</p>
+
+    <form name="contact" method="POST" data-netlify="true"
+          netlify-honeypot="bot-field" enctype="multipart/form-data"
+          action="merci.html" class="formulaire">
+      <input type="hidden" name="form-name" value="contact">
+      <p class="piege" aria-hidden="true">
+        <label>{escape(t("form.nom", langue))}
+          <input name="bot-field" tabindex="-1" autocomplete="off"></label>
+      </p>
+      {champ("nom", "form.nom", requis=True)}
+      {champ("organisation", "form.organisation")}
+      {champ("courriel", "form.courriel", type_="email", requis=True)}
+      {champ("message", "form.message", type_="textarea", requis=True,
+             indice="form.message.indice")}
+      {champ("bulletin", "form.fichier", type_="file",
+             indice="form.fichier.indice")}
+      <p style="margin-top:26px">
+        <button type="submit" class="bouton">\
+{escape(t("form.envoyer", langue))}</button>
+      </p>
+    </form>
+  </div>
+</section>"""
+
+
+def page_merci(langue: str) -> str:
+    """L'accuse de reception, ou Netlify renvoie apres l'envoi."""
+    return f"""<section class="bande section">
+  <div class="enveloppe mesure">
+    <p class="surtitre">{escape(t("merci.surtitre", langue))}</p>
+    <h1>{escape(t("merci.h1", langue))}</h1>
+    <p class="chapeau">{escape(t("merci.chapeau", langue))}</p>
+  </div>
+</section>
+
+<section class="bande bande-lavee section">
+  <div class="enveloppe mesure">
+    <div class="carte">
+      <p class="carte-titre-mono">{escape(t("merci.oubli.titre", langue))}</p>
+      <p>{escape(t("merci.oubli.texte", langue))}</p>
+      {adresse(langue)}
+    </div>
+    <p class="boutons" style="margin-top:34px">
+      <a class="bouton" href="index.html">\
+{escape(t("merci.retour", langue))}</a>
+    </p>
+  </div>
+</section>"""
+
+
 def page_contact(langue: str) -> str:
     return f"""{entete("contact", langue)}
 
@@ -766,7 +873,9 @@ def page_contact(langue: str) -> str:
       </div>
     </div>
   </div>
-</section>"""
+</section>
+
+{formulaire(langue)}"""
 
 
 #: Une fonction par page. La table sert aussi de garde : si `PAGES` gagne
@@ -925,6 +1034,16 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
             chemin.write_text(page_complete(page, langue, corps),
                               encoding="utf-8")
             ecrits.append(chemin)
+
+        # L'accuse de reception vit HORS de `PAGES` : il ne doit paraitre
+        # ni dans la navigation, ni dans le pied, ni au plan du site. On
+        # n'y arrive que par un envoi de formulaire, et une page de
+        # remerciement trouvee par un moteur ne vaut rien a personne.
+        merci = dossier / "merci.html"
+        merci.write_text(
+            page_complete("merci", langue, page_merci(langue)),
+            encoding="utf-8")
+        ecrits.append(merci)
     return ecrits
 
 

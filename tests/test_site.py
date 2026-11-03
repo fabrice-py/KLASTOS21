@@ -45,6 +45,10 @@ IDENTIQUES_ADMISES = {
     "prix.licence.col_source",
     "contact.titre_onglet",
     "contact.surtitre",
+    # Deux etiquettes de formulaire qui s'ecrivent de la meme facon dans
+    # les deux langues. Verifie mot a mot, pas suppose.
+    "form.message",
+    "form.organisation",
 }
 
 
@@ -300,7 +304,7 @@ def test_chaque_couple_de_couleurs_est_lisible(nom, texte, fond):
 # 3. Les pages generees
 # ==========================================================================
 
-def test_la_generation_ecrit_les_quatorze_pages(site):
+def test_la_generation_ecrit_exactement_les_fichiers_attendus(site):
     """
     Les pages et la feuille de style. Les declinaisons de la marque sont
     comptees a part, par le test suivant : melanger les deux rendrait ce
@@ -311,6 +315,10 @@ def test_la_generation_ecrit_les_quatorze_pages(site):
     attendus = {"klastos.css", "index.html"}
     attendus |= {f"{lg}/{p}.html"
                  for lg in contenu.LANGUES for p in contenu.PAGES}
+    # L'accuse de reception du formulaire. Il vit HORS de `PAGES` : on n'y
+    # arrive que par un envoi, et il n'a sa place ni dans la navigation,
+    # ni au plan du site.
+    attendus |= {f"{lg}/merci.html" for lg in contenu.LANGUES}
     presents = {
         str(c.relative_to(site)).replace("\\", "/")
         for c in site.rglob("*")
@@ -747,3 +755,182 @@ def test_chaque_page_contient_bien_les_textes_de_sa_langue(site):
                 f"{langue}/{page} : le titre h1 de la page est absent")
             assert len(html) > 3000, (
                 f"{langue}/{page} : page suspecte de {len(html)} octets")
+
+
+# ======================================================================
+# LE FORMULAIRE
+# ----------------------------------------------------------------------
+# Trois attributs le font fonctionner, et aucun ne se voit a l'oeil sur
+# la page livree : si l'un disparait dans un remaniement, les messages
+# cessent d'arriver SANS AUCUN SIGNAL. C'est exactement le genre de panne
+# qu'un test doit porter a notre place.
+# ======================================================================
+
+def _formulaire(site, langue: str) -> str:
+    """Le seul formulaire de la page contact, balises comprises."""
+    html = (site / langue / "contact.html").read_text(encoding="utf-8")
+    assert html.count("<form") == 1, (
+        f"{langue}/contact : {html.count('<form')} formulaires, un attendu")
+    return html[html.index("<form"):html.index("</form>") + 7]
+
+
+@pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
+def test_le_formulaire_porte_les_attributs_que_netlify_exige(site, langue):
+    """
+    `data-netlify` declenche la detection a la construction, `method=POST`
+    et `enctype` multipart acheminent la piece jointe. Sans le dernier,
+    le message arrive et le bulletin se perd en route, ce qui est le pire
+    des cas : un envoi mutile qu'on croit complet.
+    """
+    f = _formulaire(site, langue)
+    for attendu in ('data-netlify="true"',
+                    'method="POST"',
+                    'enctype="multipart/form-data"',
+                    'name="contact"'):
+        assert attendu in f, f"{langue}/contact : {attendu} absent du formulaire"
+
+
+@pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
+def test_le_piege_a_robots_est_declare_et_inatteignable(site, langue):
+    """
+    Le piege ne vaut que si Netlify sait lequel il est, et s'il reste
+    hors de portee d'un visiteur. `display:none` est exclu : plusieurs
+    automates le reconnaissent et laissent le champ vide, ce qui rend le
+    piege inoperant.
+    """
+    f = _formulaire(site, langue)
+    assert 'netlify-honeypot="bot-field"' in f, (
+        f"{langue}/contact : le piege n'est pas declare a Netlify")
+    assert 'name="bot-field"' in f, f"{langue}/contact : le piege est absent"
+
+    piege = f[f.index('class="piege"'):f.index('name="bot-field"') + 60]
+    assert 'tabindex="-1"' in piege, (
+        f"{langue}/contact : le piege est atteignable au clavier")
+    assert 'aria-hidden="true"' in piege, (
+        f"{langue}/contact : le piege est lu par les lecteurs d'ecran")
+
+    css = (site / "klastos.css").read_text(encoding="utf-8")
+    regle = css[css.index(".piege {"):css.index("}", css.index(".piege {"))]
+    assert "display: none" not in regle and "display:none" not in regle, (
+        "le piege est masque par display:none, que les robots reconnaissent")
+    assert "-9999px" in regle, "le piege n'est pas sorti de l'ecran"
+
+
+@pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
+def test_chaque_champ_visible_porte_une_etiquette_liee(site, langue):
+    """
+    Un champ sans `label for` n'est pas annonce par un lecteur d'ecran et
+    ne se clique pas par son intitule. Le piege est exclu du compte : il
+    est deliberement cache.
+    """
+    f = _formulaire(site, langue)
+    visible = f[f.index("</p>", f.index('class="piege"')):]
+    noms = re.findall(r'<(?:input|textarea) id="([a-z]+)"', visible)
+    assert noms, f"{langue}/contact : aucun champ visible trouve"
+    for nom in noms:
+        assert f'<label for="{nom}">' in visible, (
+            f"{langue}/contact : le champ « {nom} » n'a pas d'etiquette liee")
+
+
+@pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
+def test_l_accuse_de_reception_est_atteignable_mais_hors_du_plan(site, langue):
+    """
+    La page de remerciement doit exister, sinon l'envoi finit sur une 404
+    qui laisse croire a un echec. Elle ne doit pas pour autant figurer au
+    plan du site : on n'y arrive que par un envoi, et une page de
+    remerciement indexee est du bruit pour qui cherche KLASTOS21.
+    """
+    merci = site / langue / "merci.html"
+    assert merci.exists(), f"{langue}/merci.html : absent, l'envoi finira en 404"
+
+    f = _formulaire(site, langue)
+    assert 'action="merci.html"' in f, (
+        f"{langue}/contact : le formulaire ne renvoie pas vers l'accuse")
+
+    plan = (site / "sitemap.xml").read_text(encoding="utf-8")
+    assert "merci" not in plan, "l'accuse de reception figure au plan du site"
+
+    # L'absence du plan ne suffit pas : un moteur indexe ce qu'il trouve,
+    # pas seulement ce qu'on lui declare. Le `follow` est volontaire -
+    # la page ne doit pas paraitre dans les resultats, mais les liens
+    # qu'elle porte vers le site restent suivis.
+    html_tete = merci.read_text(encoding="utf-8")[:1500]
+    assert 'content="noindex, follow"' in html_tete, (
+        f"{langue}/merci.html : rien n'empeche son indexation")
+
+    html = merci.read_text(encoding="utf-8")
+    assert contenu.t("merci.h1", langue) in _lisible(html), (
+        f"{langue}/merci.html : son propre titre est absent")
+
+
+# ======================================================================
+# LES ACCENTS DU CATALOGUE FRANCAIS
+# ----------------------------------------------------------------------
+# Le code de ce projet est ecrit sans accents : commentaires, docstrings,
+# noms de fonctions. C'est une convention utile, et c'est aussi un piege,
+# parce que la main prend le pli et continue dans les TEXTES AFFICHES,
+# ou l'accent n'est pas optionnel. La faute est passee une fois : les
+# dix-neuf textes du formulaire sont arrives sans un seul accent, au
+# milieu d'un catalogue entierement accentue, et rien ne l'a signale.
+#
+# Le test ne sait pas lire le francais. Il connait une LISTE DE FORMES
+# QUI N'EXISTENT PAS : aucune de ces suites de lettres n'est un mot
+# francais valide, donc leur presence est toujours un accent manquant.
+# La liste est un echantillon, pas une grammaire - elle attrape la faute
+# courante, pas toutes les fautes. Elle vaut mieux qu'un controle absent.
+# ======================================================================
+
+#: Formes sans accent qui ne sont jamais des mots francais. Les mots
+#: ambigus sont volontairement exclus : « parait » et « cle » existent
+#: (orthographe de 1990, lie/lier), « arrive » et « oublie » aussi.
+JAMAIS_DES_MOTS = (
+    "ete", "recu", "echeant", "indetermination", "deja", "apres", "tres",
+    "etre", "meme", "numero", "unite", "qualite", "donnees", "methode",
+    "resultat", "reference", "parametre", "operateur", "securite",
+    "precision", "verite", "procede", "declare", "elements", "modele",
+    "detail", "periode", "critere", "categorie", "echantillon",
+)
+
+
+def _prose(texte: str) -> str:
+    """
+    Le texte prive de ce qui n'est pas de la prose.
+
+    Un nom de fichier n'a pas d'accent, et c'est normal :
+    `bulletin_modele.csv` s'ecrit ainsi sur le disque. Sans ce filtrage,
+    le test reclamerait un accent dans un chemin, et la seule facon de
+    le faire taire serait de retirer le mot de la liste - ce qui le
+    rendrait aveugle a la vraie faute, « modele » en pleine phrase.
+    """
+    texte = re.sub(r"[\w.\-/]*[/_][\w.\-/]*", " ", texte)
+    return re.sub(r"\b\w+\.[a-z]{2,4}\b", " ", texte)
+
+
+def test_aucun_texte_francais_ne_perd_ses_accents():
+    """
+    Un accent manquant ne casse rien : la page s'affiche, les tests
+    passent, et seul un lecteur francophone le voit. C'est exactement le
+    genre de defaut qui survit a une relecture et arrive en production.
+    """
+    fautes = []
+    for cle, textes in contenu.TEXTES.items():
+        mots = set(re.findall(r"[a-z]+", _prose(textes["fr"]).lower()))
+        for suspect in JAMAIS_DES_MOTS:
+            if suspect in mots:
+                fautes.append(f"{cle} : « {suspect} » sans accent")
+    assert not fautes, (
+        "accents manquants dans des textes affiches :\n  "
+        + "\n  ".join(fautes))
+
+
+def test_la_liste_des_formes_fautives_est_bien_formee():
+    """
+    Le pendant du test ci-dessus. Une entree en double, accentuee, ou
+    contenant autre chose que des minuscules rendrait la liste muette
+    sans que personne ne s'en apercoive.
+    """
+    assert len(JAMAIS_DES_MOTS) == len(set(JAMAIS_DES_MOTS)), (
+        "doublon dans JAMAIS_DES_MOTS")
+    for forme in JAMAIS_DES_MOTS:
+        assert re.fullmatch(r"[a-z]+", forme), (
+            f"« {forme} » n'est pas une forme sans accent en minuscules")

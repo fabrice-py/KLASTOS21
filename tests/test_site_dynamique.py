@@ -365,3 +365,35 @@ def test_la_page_de_contact_offre_une_issue_sans_logiciel_de_messagerie(site):
         "aucun moyen de recuperer l'adresse sans client de messagerie")
     assert COURRIEL in html.replace(f'data-copier="{COURRIEL}"', ""), (
         "l'adresse n'est plus lisible en dehors du bouton de copie")
+
+
+@pytest.mark.parametrize("page", PAGES)
+def test_chaque_section_recoit_son_rang_de_revelation(site, page):
+    """
+    Le test precedent se contentait d'UN attribut par page, et deux pages
+    en portaient un, ecrit a la main dans leur corps. Il est donc reste
+    vert pendant que `rythmer` ne faisait plus rien du tout : son
+    expression reguliere contenait un caractere de controle a la place de
+    la limite de mot, et ne reconnaissait plus aucune section.
+
+    L'invariant vrai n'est pas « au moins un attribut », c'est « TOUTES
+    les sections sauf celles qui s'en dispensent ». Deux s'en dispensent,
+    et pour des raisons opposees : le hero doit etre lisible a l'instant
+    ou la page s'ouvre, la console se revele d'un seul bloc.
+    """
+    html = _page(site, page)
+    ouvertures = re.findall(r"<section\b[^>]*>", html)
+    assert ouvertures, f"{page} : aucune section"
+
+    muettes = [o for o in ouvertures
+               if "data-reveler" not in o
+               and not any(m in o for m in construire._SANS_REVELATION)]
+    assert not muettes, (
+        f"{page} : {len(muettes)} section(s) sans rang de revelation, "
+        f"dont {muettes[0]}")
+
+    rangs = {o.split('data-reveler="')[1][0]
+             for o in ouvertures if "data-reveler" in o}
+    assert len(rangs) > 1, (
+        f"{page} : un seul rang ({rangs}), les sections se revelent donc "
+        f"toutes au meme instant et le decalage ne se voit pas")
