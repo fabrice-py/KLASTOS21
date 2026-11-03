@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.linalg import null_space as _scipy_null_space
 from scipy.optimize import linprog
+from scipy.special import ndtri as _ndtri
 
 from . import i18n
 from .elements import ELEMENTS
@@ -300,6 +301,228 @@ def _bounds_on_domain(
         lower, upper = upper, lower
     return lower, upper
 
+
+
+# ==========================================================================
+# Enveloppe robuste
+# ==========================================================================
+#
+# POURQUOI CETTE ROUTE EXISTE, ET CE QU'ELLE REMPLACE
+# ---------------------------------------------------
+# L'enveloppe publiee pour une grandeur non identifiable etait l'UNION,
+# sur une soixantaine de tirages du bulletin, des domaines compatibles
+# de chaque tirage. Deux defauts mesures :
+#
+#   - ELLE NE CONVERGE PAS. De 120 a 240 tirages, la largeur mediane
+#     croit encore de 10,5 % et la pire de 120 %. Au reglage de 60,
+#     certaines grandeurs etaient jusqu'a 20 % trop ETROITES - dans la
+#     direction dangereuse. Le chiffre publie dependait donc d'un
+#     reglage, et la docstring promettait une garantie qui n'existait
+#     pas.
+#
+#   - ELLE COUTAIT L'ESSENTIEL DU TEMPS. Deux programmes lineaires par
+#     grandeur ET PAR TIRAGE, soit pres de 1 800 pour un lot.
+#
+# Un min/max sur echantillon n'est pas un estimateur stable : il
+# s'elargit mecaniquement avec le nombre de tirages. Ce module le
+# documentait deja pour les grandeurs fermes, qui retiennent un
+# percentile pour cette raison exacte. L'argument « le domaine est un
+# ensemble mathematique, pas un echantillon » vaut pour le domaine d'UN
+# tirage ; leur UNION sur les tirages reste un extremum d'echantillon.
+#
+# LA FORMULATION
+# --------------
+# On remplace l'union de domaines exacts par UN SEUL polytope, qui dit
+# directement ce que l'enveloppe cherchait a dire :
+#
+#     { x : x >= 0, somme(x) <= 1, | W (A x - b) | <= k }   avec W = 1/sigma
+#
+# soit « tous les melanges de phases dont le bulletin predit tombe a
+# moins de k ecarts-types de celui qu'on a mesure ». Aucun tirage, deux
+# programmes lineaires par grandeur en tout, et un resultat EXACT : deux
+# executions donnent le meme chiffre.
+#
+# Mesure sur un lot NMC811 : 0,10 s contre 5,6 s, 52 programmes lineaires
+# contre 1 800.
+#
+# LE RAYON
+# --------
+# `k` n'est pas un reglage libre : c'est le rayon d'une boite de
+# confiance CONJOINTE sur les elements doses, calcule et non arbitre.
+# Une boite a 90 % par element couvrirait 0,9^10 = 35 % conjointement
+# sur dix elements, ce qui serait bien trop optimiste. On resout donc
+# pour le niveau par element qui donne la couverture conjointe visee.
+#
+#     dix elements    k = 2,56        douze elements   k = 2,62
+#
+# Calibre contre l'ancienne methode poussee a 240 tirages : a k = 2,56
+# le polytope contient 13 des 15 enveloppes echantillonnees, a k = 3 il
+# les contient toutes. La largeur mediane passe de 4,1 a 7,6 points -
+# ce n'est pas un cout de la methode, c'est la taille honnete de
+# l'ensemble compatible, que l'echantillonnage sous-estimait.
+
+#: Couverture CONJOINTE visee par la boite de confiance. Arbitree, et
+#: alignee sur les percentiles 5 / 95 deja retenus ailleurs dans le
+#: projet pour les grandeurs fermes.
+COUVERTURE_ROBUSTE = 0.90
+
+
+def rayon_robuste(n_elements: int, couverture: float = COUVERTURE_ROBUSTE) -> float:
+    """
+    Demi-largeur de la boite de confiance, en ecarts-types.
+
+    CALCULE, JAMAIS CODE EN DUR. Le rayon depend du nombre d'elements
+    doses : un bulletin a dix elements et un bulletin a douze n'ont pas
+    la meme boite pour une meme couverture conjointe. Figer 2,56
+    rendrait le second trop optimiste.
+    """
+    if n_elements <= 0:
+        raise ValueError("Une boite de confiance a besoin d'au moins un element.")
+    if not 0.0 < couverture < 1.0:
+        raise ValueError(f"Couverture hors de ]0 ; 1[ : {couverture}")
+    par_element = couverture ** (1.0 / n_elements)
+    return float(_ndtri(0.5 + par_element / 2.0))
+
+
+def contraintes_robustes(
+    A: np.ndarray,
+    b: np.ndarray,
+    sigma: np.ndarray,
+    k: float,
+    total_mass_cap: float | None = 1.0,
+    extra: tuple[np.ndarray, np.ndarray] | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Inegalites du polytope robuste, en variable x et non en coordonnee nulle.
+
+    POINT DE PASSAGE UNIQUE, au meme titre que `_domain_constraints`.
+    Toute contrainte de domaine robuste entre ici et nulle part ailleurs.
+
+    La contrainte structurale `extra` s'exprime deja en x - elle n'a donc
+    pas besoin d'etre projetee, contrairement a la route par espace nul.
+    """
+    sigma = np.maximum(np.asarray(sigma, dtype=float), 1e-12)
+    W_A = A / sigma[:, None]
+    W_b = np.asarray(b, dtype=float) / sigma
+
+    blocs = [W_A, -W_A]
+    seconds = [W_b + k, -W_b + k]
+
+    if total_mass_cap is not None:
+        blocs.append(np.ones((1, A.shape[1])))
+        seconds.append(np.array([float(total_mass_cap)]))
+
+    if extra is not None:
+        G, h = extra
+        G = np.atleast_2d(np.asarray(G, dtype=float))
+        h = np.asarray(h, dtype=float).ravel()
+        if G.size:
+            if G.shape[1] != A.shape[1] or G.shape[0] != h.shape[0]:
+                raise ValueError(
+                    f"Contraintes supplementaires mal formees : G {G.shape}, "
+                    f"h {h.shape}, {A.shape[1]} phases attendues."
+                )
+            blocs.append(G)
+            seconds.append(h)
+
+    return np.vstack(blocs), np.concatenate(seconds)
+
+
+def rayon_minimal(
+    A: np.ndarray,
+    b: np.ndarray,
+    sigma: np.ndarray,
+    total_mass_cap: float | None = 1.0,
+    extra: tuple[np.ndarray, np.ndarray] | None = None,
+) -> float:
+    """
+    Plus petit rayon qui rende le polytope robuste non vide.
+
+    POURQUOI CETTE FONCTION EXISTE. Le polytope peut etre VIDE : si aucun
+    melange de phases positives ne reproduit le bulletin a k ecarts-types
+    pres, c'est que le modele ne sait pas expliquer ce lot. C'est un
+    resultat, pas une panne - c'est le constat du garde-fou d'adequation,
+    exprime geometriquement - mais il ne doit pas faire echouer le calcul
+    avant que le rapport ait pu refuser proprement.
+
+    Le rayon minimal se lit donc comme une mesure : « il a fallu admettre
+    4,2 ecarts-types d'erreur analytique pour que le modele explique ce
+    bulletin ». Au-dela du rayon vise, la lecture est sans appel.
+
+    Un seul programme lineaire, sur (x, t) :
+
+        minimiser t  sous  | W (A x - b) | <= t,  x >= 0,  somme(x) <= cap
+    """
+    sigma = np.maximum(np.asarray(sigma, dtype=float), 1e-12)
+    W_A = A / sigma[:, None]
+    W_b = np.asarray(b, dtype=float) / sigma
+    n = A.shape[1]
+    m = A.shape[0]
+
+    # Variables : les n phases, puis t.
+    un = np.ones((m, 1))
+    blocs = [np.hstack([W_A, -un]), np.hstack([-W_A, -un])]
+    seconds = [W_b, -W_b]
+
+    if total_mass_cap is not None:
+        blocs.append(np.hstack([np.ones((1, n)), np.zeros((1, 1))]))
+        seconds.append(np.array([float(total_mass_cap)]))
+
+    if extra is not None:
+        G, h = extra
+        G = np.atleast_2d(np.asarray(G, dtype=float))
+        h = np.asarray(h, dtype=float).ravel()
+        if G.size:
+            blocs.append(np.hstack([G, np.zeros((G.shape[0], 1))]))
+            seconds.append(h)
+
+    objectif = np.zeros(n + 1)
+    objectif[-1] = 1.0
+    res = linprog(objectif, A_ub=np.vstack(blocs),
+                  b_ub=np.concatenate(seconds),
+                  bounds=[(0.0, None)] * n + [(0.0, None)])
+    if not res.success:
+        raise UnboundedCompatibleSet(
+            "Aucun melange de phases positives ne reproduit ce bulletin, "
+            f"a quelque tolerance que ce soit : {res.message}"
+        )
+    return float(res.x[-1])
+
+
+def bornes_robustes(
+    A: np.ndarray,
+    b: np.ndarray,
+    sigma: np.ndarray,
+    c: np.ndarray,
+    k: float | None = None,
+    total_mass_cap: float | None = 1.0,
+    extra: tuple[np.ndarray, np.ndarray] | None = None,
+) -> tuple[float, float]:
+    """
+    Bornes de `c @ x` sur le polytope robuste. Deux programmes lineaires.
+
+    Remplace l'enveloppe par tirages pour les grandeurs non
+    identifiables. Le resultat est EXACT et reproductible : il ne depend
+    ni d'une graine, ni d'un nombre de tirages.
+
+    Leve `UnboundedCompatibleSet` si le polytope est vide ou non borne.
+    Un domaine qu'on ne sait pas borner est un bug, pas un resultat - la
+    meme regle que sur la route par espace nul.
+    """
+    if k is None:
+        k = rayon_robuste(A.shape[0])
+    A_ub, b_ub = contraintes_robustes(A, b, sigma, k, total_mass_cap, extra)
+    bornes = [(0.0, None)] * A.shape[1]
+
+    bas = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bornes)
+    haut = linprog(-np.asarray(c, dtype=float), A_ub=A_ub, b_ub=b_ub,
+                   bounds=bornes)
+    if not (bas.success and haut.success):
+        raise UnboundedCompatibleSet(
+            "Le polytope robuste n'a pas pu etre borne : "
+            f"{bas.message if not bas.success else haut.message}"
+        )
+    return float(bas.fun), float(-haut.fun)
 
 def conditional_bounds(
     x0: np.ndarray,
