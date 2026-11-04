@@ -1087,6 +1087,44 @@ TEXTES: dict[str, dict[str, str]] = {
 
     # Accuse de reception. Il ne promet pas de delai que nous ne tenons
     # pas, et il rappelle ce qui manque le plus souvent.
+    # ------------------------------------------------------------------
+    # La page d'erreur. Elle est BILINGUE sur un seul document, parce
+    # qu'elle est servie pour n'importe quelle adresse : impossible de
+    # savoir dans quelle langue était le visiteur.
+    #
+    # Elle traite d'abord le cas qui coûte un client : un envoi de
+    # formulaire qui n'aboutit pas. Netlify répond alors 404, et sa page
+    # générique ne dit ni ce qui s'est passé ni quoi faire.
+    # ------------------------------------------------------------------
+    "err.titre_onglet": {
+        "fr": "Page introuvable | KLASTOS21",
+        "en": "Page not found | KLASTOS21"},
+    "err.description": {
+        "fr": "Cette adresse n'existe pas sur klastos21.fr.",
+        "en": "This address does not exist on klastos21.fr."},
+    "err.h1": {
+        "fr": "Cette adresse n'existe pas.",
+        "en": "This address does not exist."},
+    "err.chapeau": {
+        "fr": "Un lien périmé, une adresse mal recopiée, ou un envoi "
+              "qui n'a pas abouti.",
+        "en": "A stale link, a mistyped address, or a submission that "
+              "did not go through."},
+    "err.envoi.titre": {
+        "fr": "Vous nous envoyiez un bulletin ?",
+        "en": "Were you sending us a bulletin?"},
+    "err.envoi.texte": {
+        "fr": "Votre message n'est pas parti, et nous ne l'avons pas "
+              "reçu. Écrivez-nous directement à l'adresse ci-dessous en "
+              "joignant votre fichier : c'est la voie la plus sûre, et "
+              "elle ne dépend d'aucun formulaire.",
+        "en": "Your message did not leave, and we did not receive it. "
+              "Write to us directly at the address below with your file "
+              "attached: it is the surest route, and it depends on no "
+              "form."},
+    "err.retour": {
+        "fr": "Revenir à l'accueil",
+        "en": "Back to home"},
     "merci.titre_onglet": {
         "fr": "Message reçu | KLASTOS21",
         "en": "Message received | KLASTOS21"},

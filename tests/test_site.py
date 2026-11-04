@@ -338,6 +338,9 @@ def test_la_generation_ecrit_exactement_les_fichiers_attendus(site):
     # arrive que par un envoi, et il n'a sa place ni dans la navigation,
     # ni au plan du site.
     attendus |= {f"{lg}/merci.html" for lg in contenu.LANGUES}
+    # La page d'erreur vit a la RACINE : Netlify ne la sert que
+    # de la. Elle n'appartient a aucune langue.
+    attendus |= {"404.html"}
     presents = {
         str(c.relative_to(site)).replace("\\", "/")
         for c in site.rglob("*")
@@ -1052,3 +1055,82 @@ def test_aucun_selecteur_ne_reste_orphelin():
             courant.append(c)
     assert not suspects, (
         f"du texte hors commentaire sert de selecteur : {suspects}")
+
+
+# ==========================================================================
+# 10. LA PAGE D'ERREUR
+# --------------------------------------------------------------------------
+# Elle a ete ecrite apres un vrai incident : un envoi de formulaire a
+# echoue, et le visiteur - en l'occurrence le proprietaire du site - a
+# recu la page generique de Netlify. Un titre anglais, un paragraphe
+# vague, un lien vers la documentation de l'hebergeur. Rien de ce qu'il
+# fallait faire.
+#
+# Le cas qui coute cher n'est pas le lien mort : c'est l'envoi qui
+# n'aboutit pas. Le prospect repart en pensant que le site est casse.
+# ==========================================================================
+
+def test_la_page_d_erreur_est_a_la_racine(site):
+    """
+    Netlify sert `404.html` depuis la RACINE du dossier publie, pas
+    depuis un dossier de langue. Posee ailleurs, elle ne serait jamais
+    servie et personne ne s'en apercevrait.
+    """
+    assert (site / "404.html").exists(), (
+        "aucune page d'erreur : Netlify servira la sienne, en anglais")
+
+
+def test_toutes_les_adresses_de_la_page_d_erreur_sont_absolues(site):
+    """
+    LA PROPRIETE CRITIQUE DE CE DOCUMENT.
+
+    Il est servi pour n'importe quel chemin, y compris
+    `/a/b/c/inconnu`. Un `href="index.html"` y pointerait vers
+    `/a/b/c/index.html`, et un `../klastos.css` chercherait la feuille
+    de style dans un dossier qui n'existe pas : la page s'afficherait
+    sans style et tous ses liens seraient morts.
+    """
+    html = (site / "404.html").read_text(encoding="utf-8")
+    relatifs = re.findall(
+        r'(?:href|src)="(?!https?:|/|mailto:|#|data:)([^"]+)"', html)
+    assert not relatifs, (
+        f"adresses relatives dans la page d'erreur : {relatifs}")
+
+
+def test_la_page_d_erreur_parle_les_deux_langues(site):
+    """
+    On ne peut pas deviner la langue d'un visiteur a partir d'une
+    adresse qui n'existe pas. Les deux versions coexistent donc sur le
+    meme document.
+    """
+    html = _lisible((site / "404.html").read_text(encoding="utf-8"))
+    for langue in contenu.LANGUES:
+        attendu = contenu.t("err.h1", langue)
+        assert attendu in html, (
+            f"la page d'erreur ne dit rien en {langue}")
+
+
+def test_la_page_d_erreur_nomme_le_remede(site):
+    """
+    La discipline du projet : un refus nomme ce qu'il faut faire. Ici le
+    remede est l'adresse de courriel, qui ne depend d'aucun formulaire
+    ni d'aucun reglage d'hebergeur.
+    """
+    html = _lisible((site / "404.html").read_text(encoding="utf-8"))
+    assert construire.COURRIEL in html, (
+        "la page d'erreur ne donne pas d'adresse ou ecrire")
+    for langue in contenu.LANGUES:
+        assert contenu.t("err.envoi.titre", langue) in html, (
+            f"le cas de l'envoi echoue n'est pas traite en {langue}")
+
+
+def test_la_page_d_erreur_n_est_pas_indexee(site):
+    """Une page d'erreur dans les resultats de recherche est du bruit
+    pour qui cherche KLASTOS21."""
+    html = (site / "404.html").read_text(encoding="utf-8")
+    assert 'content="noindex, follow"' in html
+
+
+def test_la_page_d_erreur_ne_figure_pas_au_plan_du_site(site):
+    plan = (site / "sitemap.xml").read_text(encoding="utf-8")
+    assert "404" not in plan

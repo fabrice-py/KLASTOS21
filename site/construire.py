@@ -900,6 +900,80 @@ def formulaire(langue: str) -> str:
 </section>"""
 
 
+def page_introuvable() -> str:
+    """
+    La page servie pour toute adresse inexistante, dans les deux langues.
+
+    POURQUOI ELLE EXISTE, ET POURQUOI ELLE EST BILINGUE.
+
+    Netlify sert sa propre page d'erreur quand aucune `404.html` n'est
+    publiee : un titre anglais, un paragraphe generique, et un lien vers
+    sa documentation. Un visiteur francophone y lit qu'il a suivi « a
+    broken link », et rien de ce qu'il doit faire.
+
+    Le cas qui coute cher n'est d'ailleurs pas le lien mort : c'est un
+    ENVOI DE FORMULAIRE QUI N'ABOUTIT PAS. Netlify repond alors 404, et
+    le prospect repart en pensant que le site est casse. La page traite
+    donc ce cas en premier, et donne l'adresse de courriel - la voie qui
+    ne depend d'aucun reglage.
+
+    TOUTES LES ADRESSES SONT ABSOLUES. Une page d'erreur est servie pour
+    n'importe quel chemin, y compris `/a/b/c/inconnu` : un lien relatif
+    y pointerait dans le vide, et la feuille de style ne se chargerait
+    pas. C'est le piege propre a ce document, et il justifie qu'il ne
+    passe pas par `page_complete`.
+
+    Elle est bilingue sur un seul document parce qu'on ne peut pas
+    deviner la langue du visiteur a partir d'une adresse qui n'existe
+    pas.
+    """
+    def bloc_langue(langue: str) -> str:
+        return f"""<section class="bande section">
+  <div class="enveloppe mesure">
+    <p class="surtitre">404</p>
+    <h1>{escape(t("err.h1", langue))}</h1>
+    <p class="chapeau">{escape(t("err.chapeau", langue))}</p>
+    <div class="carte" style="margin-top:30px">
+      <p class="carte-titre-mono">{escape(t("err.envoi.titre", langue))}</p>
+      <p>{escape(t("err.envoi.texte", langue))}</p>
+      <p class="adresse"><a href="{escape(lien_courriel(langue))}">{escape(COURRIEL)}</a></p>
+    </div>
+    <p class="boutons" style="margin-top:30px">
+      <a class="bouton" href="/{langue}/index.html">{escape(t("err.retour", langue))}</a>
+    </p>
+  </div>
+</section>"""
+
+    return f"""<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{escape(t("err.titre_onglet", "fr"))}</title>
+<meta name="description" content="{escape(t("err.description", "fr"))}">
+<meta name="robots" content="noindex, follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="{charte.LIEN_POLICES}">
+<link rel="stylesheet" href="/klastos.css">
+<link rel="icon" type="image/png" sizes="32x32" href="/marque/favicon-32.png">
+<link rel="apple-touch-icon" href="/marque/favicon-180.png">
+</head>
+<body>
+<nav class="nav">
+  <div class="enveloppe nav-interieur">
+    <a class="marque" href="/">{logotype("fr")}</a>
+  </div>
+</nav>
+<main>
+{bloc_langue("fr")}
+<div lang="en">{bloc_langue("en")}</div>
+</main>
+</body>
+</html>
+"""
+
+
 def page_merci(langue: str) -> str:
     """L'accuse de reception, ou Netlify renvoie apres l'envoi."""
     return f"""<section class="bande section">
@@ -1129,6 +1203,14 @@ def construire(sortie: pathlib.Path) -> list[pathlib.Path]:
             page_complete("merci", langue, page_merci(langue)),
             encoding="utf-8")
         ecrits.append(merci)
+
+    # LA PAGE D'ERREUR VIT A LA RACINE, et pas dans un dossier de
+    # langue : Netlify la sert pour n'importe quelle adresse inconnue,
+    # y compris celles qui n'ont pas de langue. C'est aussi elle que
+    # voit un visiteur dont l'envoi de formulaire n'aboutit pas.
+    introuvable = sortie / "404.html"
+    introuvable.write_text(page_introuvable(), encoding="utf-8")
+    ecrits.append(introuvable)
     return ecrits
 
 
