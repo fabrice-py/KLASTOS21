@@ -199,6 +199,68 @@ code, .mono {
 .adresse-pied a:hover { color: var(--ink); }
 
 /* ======================================================================
+   ILLUSTRATIONS TECHNIQUES
+   ----------------------------------------------------------------------
+   Elles sont DESSINEES et ne s'en cachent pas. Cinq banques libres ont
+   ete fouillees : les seules images gratuites montraient des piles
+   alcalines ou des batteries au plomb - le mauvais materiau. Un schema
+   juste vaut mieux qu'une photographie approximative.
+
+   La texture de poudre passe par TROIS CLASSES d'opacite et non par un
+   attribut inline : une opacite en dur echapperait au theme comme au
+   changement de palette.
+   ====================================================================== */
+.illustration { width: 100%; height: auto; display: block; }
+
+.ill-cadre { fill: none; stroke: var(--line-strong); stroke-width: 1; }
+.ill-fond { fill: var(--nuit); }
+.ill-filet { stroke: var(--line-strong); stroke-width: 1; }
+
+/* LES GRAINS SONT ARDOISE, PAS BLANCS. Une premiere version les
+   peignait en papier : le champ ressemblait a un ciel etoile.
+   Seuls les agglomerats accrochent la lumiere. */
+.ill-grain-a, .ill-grain-b, .ill-grain-c { stroke: none; }
+/* Les grains se RECOUVRENT : c'est l'empilement qui fait la
+   matiere, pas chaque point pris isolement. D'ou des opacites
+   faibles, qui se somment. */
+/* Troisieme reglage, et le dernier. A .16 / .26 / .34, l'empilement
+   de 2 300 grains eclaircissait tout le champ : on obtenait une
+   poudre GRISE, alors qu'il s'agit de black mass. Les opacites
+   sont divisees par deux - le relief reste, la masse redevient
+   sombre. */
+.ill-grain-a { fill: var(--muted); opacity: .07; }
+.ill-grain-b { fill: var(--muted); opacity: .13; }
+.ill-grain-c { fill: var(--nuit-claire); opacity: .20; }
+
+.ill-titre {
+  font-family: var(--f-mono); font-size: 11px; letter-spacing: .16em;
+  fill: var(--ink);
+}
+.ill-titre-haut { fill: var(--muted); }
+.ill-cle {
+  font-family: var(--f-body); font-size: 12px; fill: var(--muted);
+}
+.ill-val {
+  font-family: var(--f-mono); font-size: 12px; fill: var(--ink);
+}
+
+.ill-piece { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+.ill-cellule { stroke: var(--marque); }
+.ill-amorce { stroke: var(--line-strong); stroke-width: 1; }
+.ill-repere {
+  font-family: var(--f-body); font-size: 11.5px; fill: var(--muted);
+}
+
+.ill-duo {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 46px; align-items: start; max-width: 760px; margin-top: 30px;
+}
+.ill-lecon {
+  border-left: 3px solid var(--marque); padding: 2px 0 2px 18px;
+  margin: 30px 0 0; max-width: 68ch;
+}
+
+/* ======================================================================
    LE SCHEMA DU PROCEDE
    ----------------------------------------------------------------------
    Six etapes, trois zones. La zone est ce qui porte le sens : ce qui se

@@ -61,6 +61,13 @@ IDENTIQUES_ADMISES = {
     "proc.blackmass.nom",
     "proc.bulletin.nom",
     "proc.zone.nous",
+    # Les illustrations. « BLACK MASS » est le nom du materiau, « Lot »
+    # s'ecrit pareil, et les deux dernieres sont des DONNEES - un
+    # numero de lot et une mesure - qui n'ont pas de version anglaise.
+    "ech.titre",
+    "ech.lot",
+    "ech.lot.valeur",
+    "ech.granulo.valeur",
 }
 
 

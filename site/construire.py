@@ -38,6 +38,7 @@ import charte                                           # noqa: E402
 import mouvement                                        # noqa: E402
 import contenu                                          # noqa: E402
 import cotations                                        # noqa: E402
+import illustrations                                    # noqa: E402
 import procede                                          # noqa: E402
 from contenu import PAGES, t                            # noqa: E402
 
@@ -612,6 +613,8 @@ def page_rapport(langue: str) -> str:
 
     return f"""{entete("rapport", langue)}
 
+{bloc_illustrations(langue)}
+
 <section class="bande bande-lavee section">
   <div class="enveloppe">
     <h2>{escape(t("rapport.verdict.titre", langue))}</h2>
@@ -640,6 +643,34 @@ def page_rapport(langue: str) -> str:
         <p>{escape(t("rapport.piege.texte", langue))}</p>
       </div>
     </div>
+  </div>
+</section>"""
+
+
+def bloc_illustrations(langue: str) -> str:
+    """
+    Les deux illustrations techniques : l'echantillon et le module.
+
+    ELLES SONT DESSINEES, ET LE DISENT. Cinq banques libres ont ete
+    fouillees - Unsplash, Pexels, Pixabay, Wikimedia Commons, Openverse.
+    Les seules bonnes images etaient payantes, et les images libres
+    montraient le MAUVAIS MATERIAU : piles alcalines Varta et Philips,
+    batteries de demarrage au plomb, figurines miniatures.
+
+    Une pile alcaline sur un site de black mass, c'est une photo de
+    charbon sur un site de minerai de fer. Sur un produit dont tout
+    l'argument est « ce que le bulletin prouve », c'est le pire endroit
+    ou mentir. Le chapeau de la section l'assume en toutes lettres.
+    """
+    return f"""<section class="bande section" id="illustrations">
+  <div class="enveloppe">
+    <h2>{escape(t("ill.titre", langue))}</h2>
+    <p class="chapeau mesure">{escape(t("ill.chapeau", langue))}</p>
+    <div class="ill-duo">
+      <div>{illustrations.echantillon(langue, t)}</div>
+      <div>{illustrations.module(langue, t)}</div>
+    </div>
+    <p class="ill-lecon">{escape(t("ill.lecon", langue))}</p>
   </div>
 </section>"""
 

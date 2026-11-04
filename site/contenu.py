@@ -908,6 +908,64 @@ TEXTES: dict[str, dict[str, str]] = {
     # exactement, dans cette chaîne ? » La réponse est une frontière —
     # KLASTOS21 ne voit jamais le lot, il entre sur le bulletin.
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Les illustrations techniques. Elles sont DESSINÉES, et elles ne
+    # s'en cachent pas : cinq banques libres ont été fouillées, et les
+    # seules images gratuites montraient des piles alcalines ou des
+    # batteries au plomb — le mauvais matériau.
+    # ------------------------------------------------------------------
+    "ill.titre": {
+        "fr": "Ce que vous nous envoyez",
+        "en": "What you send us"},
+    "ill.chapeau": {
+        "fr": "Une poudre, et le bulletin qui la décrit. Les deux "
+              "illustrations ci-dessous sont dessinées, pas "
+              "photographiées : nous préférons un schéma juste à une "
+              "photographie approximative.",
+        "en": "A powder, and the bulletin that describes it. Both "
+              "illustrations below are drawn, not photographed: we "
+              "prefer an accurate diagram to an approximate "
+              "photograph."},
+
+    "ech.titre": {"fr": "BLACK MASS", "en": "BLACK MASS"},
+    "ech.lot": {"fr": "Lot", "en": "Lot"},
+    "ech.lot.valeur": {"fr": "2026-RA-04871", "en": "2026-RA-04871"},
+    "ech.granulo": {"fr": "Granulométrie", "en": "Particle size"},
+    "ech.granulo.valeur": {"fr": "< 1 mm", "en": "< 1 mm"},
+    "ech.humidite": {"fr": "Humidité", "en": "Moisture"},
+    "ech.humidite.valeur": {"fr": "déclarée", "en": "declared"},
+    "ech.alt": {
+        "fr": "Illustration d'un échantillon de black mass : une poudre "
+              "noire à grains fins, sous une étiquette portant le numéro "
+              "de lot, la granulométrie et l'humidité.",
+        "en": "Illustration of a black mass sample: a fine-grained black "
+              "powder, under a label carrying the lot number, particle "
+              "size and moisture."},
+
+    "mod.titre": {
+        "fr": "MODULE, VUE ÉCLATÉE",
+        "en": "MODULE, EXPLODED VIEW"},
+    "mod.boitier": {"fr": "Boîtier", "en": "Casing"},
+    "mod.boitier2": {"fr": "Boîtier", "en": "Casing"},
+    "mod.collecteur": {"fr": "Collecteur Al", "en": "Al collector"},
+    "mod.collecteur2": {"fr": "Collecteur Cu", "en": "Cu collector"},
+    "mod.cellules": {"fr": "Cellules", "en": "Cells"},
+    "mod.alt": {
+        "fr": "Illustration d'un module de batterie en vue éclatée : "
+              "boîtier, collecteur d'aluminium, empilement de cellules "
+              "souples, collecteur de cuivre, boîtier.",
+        "en": "Illustration of a battery module in exploded view: "
+              "casing, aluminium collector, stack of pouch cells, "
+              "copper collector, casing."},
+    "ill.lecon": {
+        "fr": "Les collecteurs partent avec la poudre, en fines de "
+              "cuivre et d'aluminium. C'est pourquoi le modèle les porte "
+              "comme phases à part entière, et pourquoi leur teneur "
+              "figure dans le rapport.",
+        "en": "The collectors leave with the powder, as copper and "
+              "aluminium fines. That is why the model carries them as "
+              "phases in their own right, and why their grade appears in "
+              "the report."},
     "proc.titre": {
         "fr": "Où nous entrons dans la chaîne",
         "en": "Where we enter the chain"},
