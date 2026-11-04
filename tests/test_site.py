@@ -49,6 +49,11 @@ IDENTIQUES_ADMISES = {
     # les deux langues. Verifie mot a mot, pas suppose.
     "form.message",
     "form.organisation",
+    # Trois noms de metaux qui s'ecrivent de la meme facon dans les
+    # deux langues. Le cuivre, lui, est bien traduit.
+    "cot.lithium",
+    "cot.cobalt",
+    "cot.nickel",
 }
 
 

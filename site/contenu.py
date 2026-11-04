@@ -896,6 +896,57 @@ TEXTES: dict[str, dict[str, str]] = {
     # gestionnaire pointe souvent sur l'application Courrier, retiree du
     # systeme, et le clic n'ouvre rien.
     # ================================================================
+    # ------------------------------------------------------------------
+    # Le graphique des cotations. Il n'illustre pas, il DEMONTRE : le
+    # verrou de sept jours paraît sévère tant qu'on n'a pas vu le
+    # lithium faire 5,4 fois son prix puis redescendre sous son point
+    # de départ.
+    # ------------------------------------------------------------------
+    "cot.titre": {
+        "fr": "Ce que vaut un prix d'il y a un mois",
+        "en": "What a month-old price is worth"},
+    "cot.chapeau": {
+        "fr": "Quatre métaux payables, ramenés à une base 100 en 2021. "
+              "Le carbonate de lithium de qualité batterie est passé de "
+              "11 700 à 63 700 dollars la tonne en un an, puis à 9 000 "
+              "quatre ans plus tard. Pendant ce temps le cuivre bougeait "
+              "de 9 %.",
+        "en": "Four payable metals, rebased to 100 in 2021. Battery-grade "
+              "lithium carbonate went from 11,700 to 63,700 dollars per "
+              "tonne in a year, then down to 9,000 four years later. Over "
+              "the same period copper moved by 9 %."},
+    "cot.lecon": {
+        "fr": "C'est pourquoi KLASTOS21 refuse de valoriser sur une "
+              "cotation de plus de sept jours. Le refus n'est pas une "
+              "prudence d'affichage : sur ce marché, un prix périmé n'est "
+              "pas un prix approximatif, c'est un autre prix.",
+        "en": "This is why KLASTOS21 refuses to value a lot on a quotation "
+              "older than seven days. The refusal is not for show: on this "
+              "market a stale price is not an approximate price, it is a "
+              "different price."},
+    "cot.echelle": {
+        "fr": "Échelle logarithmique : un doublement et une division par "
+              "deux occupent la même hauteur.",
+        "en": "Logarithmic scale: a doubling and a halving take the same "
+              "height."},
+    "cot.source": {
+        "fr": "Source : USGS, Mineral Commodity Summaries 2026, moyennes "
+              "annuelles. Cotations London Metal Exchange, sauf lithium "
+              "(prix réel, qualité batterie). Les quatre métaux sont "
+              "classés minerais critiques 2025.",
+        "en": "Source: USGS, Mineral Commodity Summaries 2026, annual "
+              "averages. London Metal Exchange quotations, except lithium "
+              "(real price, battery grade). All four are listed 2025 "
+              "critical minerals."},
+    "cot.alt": {
+        "fr": "Évolution indexée du lithium, du cobalt, du nickel et du "
+              "cuivre de 2021 à 2025, en base 100.",
+        "en": "Indexed evolution of lithium, cobalt, nickel and copper "
+              "from 2021 to 2025, base 100."},
+    "cot.lithium": {"fr": "Lithium", "en": "Lithium"},
+    "cot.cobalt": {"fr": "Cobalt", "en": "Cobalt"},
+    "cot.nickel": {"fr": "Nickel", "en": "Nickel"},
+    "cot.copper": {"fr": "Cuivre", "en": "Copper"},
     "form.titre": {
         "fr": "Ou envoyez-le depuis cette page",
         "en": "Or send it from this page"},

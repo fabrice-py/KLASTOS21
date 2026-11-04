@@ -199,6 +199,64 @@ code, .mono {
 .adresse-pied a:hover { color: var(--ink); }
 
 /* ======================================================================
+   LE GRAPHIQUE DES COTATIONS
+   ----------------------------------------------------------------------
+   Un SVG pose dans la page, sans bibliotheque ni requete. Les couleurs
+   viennent des jetons : un trace peint en dur serait illisible le jour
+   ou la palette change, et le garde-fou de la charte le refuserait.
+
+   Le trace est FLUIDE : le `viewBox` s'etire a la largeur disponible, et
+   les epaisseurs sont donnees en unites du viewBox pour ne pas maigrir
+   sur un grand ecran.
+   ====================================================================== */
+.cotations { width: 100%; height: auto; display: block; }
+
+.cot-grille { stroke: var(--line); stroke-width: 1; }
+.cot-echelle, .cot-annee {
+  font-family: var(--f-mono); font-size: 11px; fill: var(--muted);
+}
+/* LE SELECTEUR PORTE LE NOM DE LA BALISE, ET CE N'EST PAS DU ZELE.
+   Les classes de couleur ci-dessous posent `fill` pour les pastilles et
+   les etiquettes ; a specificite egale, la derniere declaree gagne, et
+   les courbes se remplissaient en aplats. Un selecteur `polyline.` passe
+   devant sans recourir a `!important`. */
+polyline.cot-trace {
+  fill: none; stroke-width: 2.2;
+  stroke-linejoin: round; stroke-linecap: round;
+}
+.cot-point { stroke: none; }
+/* Le trait qui relie la fin d'une courbe a son etiquette ecartee. */
+line.cot-amorce { fill: none; stroke-width: 1; }
+.cot-nom {
+  font-family: var(--f-body); font-size: 13px; font-weight: 600;
+}
+
+/* Le lithium est le sujet du graphique : il porte l'orange de la marque
+   et un trait plus epais. Les trois autres donnent l'echelle. */
+.cot-marque { stroke: var(--marque); fill: var(--marque); }
+polyline.cot-trace.cot-marque { stroke-width: 3; }
+.cot-cobalt { stroke: var(--cobalt); fill: var(--cobalt); }
+.cot-green  { stroke: var(--green);  fill: var(--green); }
+.cot-muted  { stroke: var(--muted);  fill: var(--muted); }
+
+.cot-cadre { max-width: 900px; }
+.cot-note {
+  font-family: var(--f-mono); font-size: 12px; color: var(--muted);
+  line-height: 1.6; margin: 14px 0 0; max-width: 72ch;
+}
+.cot-lecon {
+  border-left: 3px solid var(--marque); padding: 2px 0 2px 18px;
+  margin: 26px 0 0; max-width: 68ch;
+}
+
+@media (max-width: 640px) {
+  /* Sur un ecran etroit, le viewBox se comprime et le texte du SVG
+     deviendrait minuscule. On l'agrandit en unites du viewBox. */
+  .cot-echelle, .cot-annee { font-size: 15px; }
+  .cot-nom { font-size: 17px; }
+}
+
+/* ======================================================================
    FORMULAIRE
    ----------------------------------------------------------------------
    Il existe parce qu'un lien `mailto:` ne mene nulle part chez une part

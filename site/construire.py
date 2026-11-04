@@ -37,6 +37,7 @@ from klastos import marque                              # noqa: E402
 import charte                                           # noqa: E402
 import mouvement                                        # noqa: E402
 import contenu                                          # noqa: E402
+import cotations                                        # noqa: E402
 from contenu import PAGES, t                            # noqa: E402
 
 #: Hauteur de l'axe des figures, en pourcentage de masse. Les quatre
@@ -640,6 +641,31 @@ def page_rapport(langue: str) -> str:
 </section>"""
 
 
+def bloc_cotations(langue: str) -> str:
+    """
+    Le graphique des cotations, et ce qu'il demontre.
+
+    IL N'ILLUSTRE PAS, IL ARGUMENTE. Le verrou de sept jours du moteur
+    parait severe tant qu'on n'a pas vu le lithium faire 5,4 fois son
+    prix en un an puis redescendre sous son point de depart. Une image
+    de stock aurait decore ; ces quatre courbes viennent de l'extrait
+    USGS que le projet embarque, et portent leur source.
+    """
+    series = cotations.lire_series()
+    return f"""<section class="bande section" id="cotations">
+  <div class="enveloppe">
+    <h2>{escape(t("cot.titre", langue))}</h2>
+    <p class="chapeau mesure">{escape(t("cot.chapeau", langue))}</p>
+    <div class="cot-cadre defilant" style="margin-top:26px">
+      {cotations.graphique(series, langue, t)}
+    </div>
+    <p class="cot-note">{escape(t("cot.echelle", langue))}</p>
+    <p class="cot-note">{escape(t("cot.source", langue))}</p>
+    <p class="cot-lecon">{escape(t("cot.lecon", langue))}</p>
+  </div>
+</section>"""
+
+
 def page_prix(langue: str) -> str:
     sources = f"""<tr>
       <td>World Bank Pink Sheet</td>
@@ -655,6 +681,8 @@ def page_prix(langue: str) -> str:
     </tr>"""
 
     return f"""{entete("prix", langue)}
+
+{bloc_cotations(langue)}
 
 <section class="bande bande-lavee section">
   <div class="enveloppe">
