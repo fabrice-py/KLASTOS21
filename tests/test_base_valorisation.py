@@ -186,3 +186,93 @@ def test_aucune_note_sur_une_grandeur_sans_dosage():
     from klastos.report import _note_dosage
     sans = _resultat(key="C_total", assay_lower=None, assay_upper=None)
     assert _note_dosage(sans, "fr") == ""
+
+
+# ==========================================================================
+# 4. LA TABLE DOCUMENTEE EST VERIFIEE, PAS SEULEMENT RELUE
+# ==========================================================================
+
+#: Ecarts relatifs dosage / reconstruction cites dans le commentaire de
+#: `ECART_DOSAGE_MODELE`, en pourcents. Ils sont la pour etre compares a
+#: la mesure. Une premiere redaction annoncait « de 6 a 23 % » et « un
+#: seuil a 5 % les attrape tous » : les deux etaient faux - la mesure va
+#: de 0,0 a 40,9 % - et aucun test ne les gardait.
+ECARTS_DOCUMENTES = {
+    ("Li2CO3", 0.03): {"Li": 13.8, "Ni": 3.9, "Co": 4.6, "Cu": 0.0},
+    ("Li2CO3", 0.05): {"Li": 22.3, "Ni": 5.7, "Co": 6.8, "Cu": 0.0},
+    ("Li2CO3", 0.10): {"Li": 40.9, "Ni": 8.1, "Co": 9.7, "Cu": 0.0},
+    ("NiO", 0.04): {"Li": 4.3, "Ni": 11.5, "Co": 5.5, "Cu": 0.0},
+    ("NiO", 0.08): {"Li": 7.5, "Ni": 23.2, "Co": 9.6, "Cu": 0.0},
+}
+
+_HORS = {"Li2CO3": {"Li": 2.0, "C": 1.0, "O": 3.0},
+         "NiO": {"Ni": 1.0, "O": 1.0}}
+_SAIN = {"NMC811": .40, "C_total": .33, "Cu_metal": .10, "Al_metal": .07,
+         "PVDF": .05, "LiPF6": .03, "Fe_metal": .02}
+_DOSES = ["Li", "Ni", "Mn", "Co", "Al", "Fe", "P", "Cu", "C", "F"]
+
+
+def _ecarts_mesures(phase, part):
+    """Ecart relatif entre dosage et reconstruction, par element payable."""
+    import numpy as np
+    from klastos.elements import ATOMIC_MASS, ELEMENTS, formula_mass
+    from klastos.phases import PHASES, stoichiometry_matrix
+    from klastos.solver import SolverConfig, solve
+
+    m = dict(_SAIN)
+    m["NMC811"] = round(m["NMC811"] - part, 10)
+    m[phase] = part
+    b = {el: 0.0 for el in ELEMENTS}
+    for ph, fr in m.items():
+        comp = PHASES[ph]["composition"] if ph in PHASES else _HORS[ph]
+        M = formula_mass(comp)
+        for el, n in comp.items():
+            b[el] += fr * ATOMIC_MASS[el] * n / M
+    A, els, _ = stoichiometry_matrix(elements=_DOSES)
+    r = solve({el: b[el] * 100 for el in _DOSES}, elements=_DOSES,
+              config=SolverConfig())
+    rec = A @ r.x
+    return {el: abs(rec[els.index(el)] - b[el]) / b[el] * 100
+            for el in ("Li", "Ni", "Co", "Cu")}
+
+
+@pytest.mark.parametrize("cas", sorted(ECARTS_DOCUMENTES))
+def test_les_ecarts_documentes_sont_les_vrais(cas):
+    """
+    LE COMMENTAIRE D'UN SEUIL EST UNE AFFIRMATION, DONC IL SE VERIFIE.
+
+    C'est sur cette table qu'on juge si le seuil est au bon endroit. Une
+    table fausse fonde un mauvais arbitrage, et elle se cite.
+    """
+    attendus = ECARTS_DOCUMENTES[cas]
+    mesures = _ecarts_mesures(*cas)
+    for el, attendu in attendus.items():
+        assert mesures[el] == pytest.approx(attendu, abs=0.3), (
+            f"{cas[0]} {cas[1]*100:.0f} %, {el} : le commentaire de "
+            f"`valuation.py` annonce {attendu:.1f} %, la mesure donne "
+            f"{mesures[el]:.1f} %. Corriger le COMMENTAIRE.")
+
+
+def test_le_seuil_n_attrape_pas_tout_et_le_commentaire_le_dit():
+    """
+    CE TEST GARDE UN AVEU, PAS UNE REUSSITE.
+
+    Sur les ecarts portant un element reellement affecte, quatre restent
+    sous le seuil de 5 % et ne sont donc pas signales. Le commentaire
+    doit continuer de le dire : c'est la difference entre un seuil
+    honnete et un seuil qui se vante.
+    """
+    sous_le_seuil = 0
+    total = 0
+    for cas in ECARTS_DOCUMENTES:
+        for el, e in _ecarts_mesures(*cas).items():
+            if e < 1e-9:          # element non affecte : ne rien dire est juste
+                continue
+            total += 1
+            sous_le_seuil += int(e < ECART_DOSAGE_MODELE * 100)
+    assert sous_le_seuil > 0, (
+        "le seuil attrape desormais tout : retirer l'aveu du commentaire "
+        "de `valuation.py`, qui serait devenu faux dans l'autre sens")
+    assert sous_le_seuil / total < 0.5, (
+        f"{sous_le_seuil} ecarts sur {total} passent sous le seuil : il "
+        f"ne signale plus grand-chose")

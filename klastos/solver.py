@@ -181,14 +181,18 @@ CLOSURE_THRESHOLDS_VALIDATED = True
 #
 # CE QUE CE GARDE-FOU N'ATTRAPE PAS, ET IL FAUT LE DIRE
 # -----------------------------------------------------
-# Pouvoir de detection a l'alerte, par cas, sur 300 lots bruites :
+# Pouvoir de detection AU SEUIL D'ALERTE, par cas, sur 300 lots bruites.
+# Ces chiffres sont verifies par `test_residu.py` : ils sont recalcules a
+# chaque execution et compares a cette table. Une premiere version les
+# avait recopies d'une colonne mesuree a un autre seuil, et les
+# sous-estimait de 3 a 10 points - une prose qu'aucun test ne gardait.
 #
 #     10 % de Li2CO3                  100 %
-#      8 % de NiO                      92 %
-#      5 % de Li2CO3                   83 %
-#     cathode delithiee                55 %
-#      4 % de NiO                      24 %
-#      3 % de Li2CO3                   35 %
+#      8 % de NiO                      95 %
+#      5 % de Li2CO3                   88 %
+#     cathode delithiee                62 %
+#      3 % de Li2CO3                   42 %
+#      4 % de NiO                      34 %
 #
 # Il attrape les ecarts qui coutent cher et manque les petits. Ce n'est
 # donc PAS une preuve que le modele est juste : c'est un plancher. Un lot

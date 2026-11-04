@@ -446,3 +446,77 @@ def test_le_nombre_de_phases_est_sous_surveillance():
         f"cassait pourtant le controle de plausibilite sur le fluor, "
         f"ainsi que le caractere ferme de « Cathodes totales » avec "
         f"oxygene dose.")
+
+
+# ==========================================================================
+# 6. LA DOCUMENTATION EST VERIFIEE, PAS SEULEMENT RELUE
+# --------------------------------------------------------------------------
+# Les 1 500 tests de ce projet verifient ce que le code FAIT. Aucun ne
+# verifiait ce que les commentaires DISENT qu'il fait - et c'est par ce
+# trou que sont passees deux erreurs :
+#
+#   - le commentaire des seuils citait des taux de detection recopies
+#     d'une colonne mesuree a un AUTRE seuil, et les sous-estimait de 3 a
+#     10 points ;
+#   - celui de `DEPARTAGE_NUMERIQUE` affirmait que le retirer serait
+#     defendable, sur un raisonnement faux.
+#
+# Une prose fausse dans un fichier technique est pire qu'une prose
+# absente : elle se cite, elle se propage, et elle fonde des decisions.
+# Le test ci-dessous recalcule la table documentee et la compare.
+# ==========================================================================
+
+#: Taux de detection cites dans le commentaire des seuils, en pourcents.
+#: ILS SONT LA POUR ETRE COMPARES A LA MESURE, pas pour decorer.
+DETECTION_DOCUMENTEE = {
+    "Li2CO3-10": 100.0,
+    "NiO-8": 95.0,
+    "Li2CO3-5": 88.0,
+    "delithiee": 62.0,
+    "Li2CO3-3": 42.0,
+    "NiO-4": 34.0,
+}
+
+
+def _taux_de_detection(melange, n=300, graine=20261103):
+    """Part des lots bruites qui atteignent le seuil d'ALERTE."""
+    b = np.array([bulletin(melange)[el] / 100.0 for el in DOSES])
+    rng = np.random.default_rng(graine)
+    sigma = DEFAULT_NOISE.sigmas(b, DOSES)
+    atteints = 0
+    for _ in range(n):
+        tire = np.maximum(0.0, b + rng.normal(0.0, 1.0, b.shape) * sigma)
+        r = solve({el: tire[i] * 100.0 for i, el in enumerate(DOSES)},
+                  elements=DOSES, config=SolverConfig())
+        atteints += int(r.residu.reduced >= RESIDU_ALERTE)
+    return atteints / n * 100.0
+
+
+def _cas_documente(cle):
+    if cle == "delithiee":
+        m = {k: v for k, v in SAIN.items() if k != "NMC811"}
+        m["NMC811_delithie"] = 0.40
+        return m
+    phase, part = cle.rsplit("-", 1)
+    return avec(SAIN, phase, int(part) / 100.0)
+
+
+@pytest.mark.parametrize("cle", sorted(DETECTION_DOCUMENTEE))
+def test_les_taux_de_detection_documentes_sont_les_vrais(cle):
+    """
+    LE COMMENTAIRE DES SEUILS EST UNE AFFIRMATION, DONC IL SE VERIFIE.
+
+    Il annonce ce que le garde-fou attrape et ce qu'il manque. C'est sur
+    cette table qu'on decide de faire confiance - ou non - a un lot qui
+    passe. Une table fausse vaut moins qu'une table absente.
+
+    La tolerance est large : ces taux viennent d'un tirage, et quelques
+    points de battement sont normaux. Un ecart de dix points ne l'est
+    pas, et c'est exactement ce qu'avait la premiere redaction.
+    """
+    attendu = DETECTION_DOCUMENTEE[cle]
+    mesure = _taux_de_detection(_cas_documente(cle))
+    assert abs(mesure - attendu) <= 5.0, (
+        f"{cle} : le commentaire de `solver.py` annonce {attendu:.0f} %, "
+        f"la mesure donne {mesure:.1f} %. Corriger le COMMENTAIRE avant "
+        f"d'elargir cette tolerance.")

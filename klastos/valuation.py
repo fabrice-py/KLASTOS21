@@ -37,11 +37,27 @@ from dataclasses import dataclass, field
 #: valorisation retient le dosage dans tous les cas, ce seuil ne change
 #: aucun chiffre.
 #:
-#: Cale sur le garde-fou d'adequation du modele, qui alerte a partir d'une
-#: phase manquante de l'ordre de 5 % : les ecarts de teneur mesures sur
-#: ces lots-la vont de 6 a 23 %. Un seuil a 5 % les attrape tous sans
-#: bavarder sur le bruit, dont l'effet sur le MILIEU de fourchette reste
-#: bien en dessous.
+#: MESURE, sur six lots portant une phase absente du modele, l'ecart
+#: relatif entre dosage et reconstruction pour les elements payables :
+#:
+#:     Li2CO3  3 %    Li 13,8   Ni  3,9   Co  4,6   Cu 0,0
+#:     Li2CO3  5 %    Li 22,3   Ni  5,7   Co  6,8   Cu 0,0
+#:     Li2CO3 10 %    Li 40,9   Ni  8,1   Co  9,7   Cu 0,0
+#:     NiO     4 %    Li  4,3   Ni 11,5   Co  5,5   Cu 0,0
+#:     NiO     8 %    Li  7,5   Ni 23,2   Co  9,6   Cu 0,0
+#:     delithiee      Li 16,3   Ni 13,7   Co  2,0   Cu 0,0
+#:
+#: Un seuil a 5 % signale les ecarts qui portent la valeur - le lithium
+#: dans les cas de carbonate, le nickel dans ceux d'oxyde - et laisse
+#: passer les plus petits. IL N'EN ATTRAPE PAS LA TOTALITE : sur les
+#: dix-huit ecarts portant un element reellement affecte, quatre restent
+#: sous le seuil. Le cuivre, lui, n'est jamais touche, et ne pas le
+#: signaler est juste.
+#:
+#: Une premiere redaction de ce commentaire annoncait « de 6 a 23 % » et
+#: « un seuil a 5 % les attrape tous ». Les deux etaient faux, et aucun
+#: test ne les gardait. `test_base_valorisation.py` verifie desormais
+#: cette table.
 ECART_DOSAGE_MODELE = 0.05
 
 from .market import (LI_FRACTION_IN_LI2CO3, MAX_PRICE_AGE_DAYS,
