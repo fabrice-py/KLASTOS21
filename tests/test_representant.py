@@ -30,10 +30,11 @@ CE QUE CES TESTS GARDENT
   2. que l'honorer ne touche NI l'ajustement NI aucune grandeur
      identifiable ;
   3. que le chemin par defaut n'ait pas bouge d'un bit ;
-  4. l'etat des lieux de `DEPARTAGE_NUMERIQUE` : il ne fait plus que
-     choisir le representant affiche. Sa derniere justification - tenir
-     le domaine ouvert - a disparu quand le plafond de masse a ete
-     retire de la famille ancree.
+  4. le role REEL de `DEPARTAGE_NUMERIQUE` : rendre la solution
+     unique. Sans lui le probleme n'a pas une solution mais un
+     continuum, et NNLS en rend un point choisi par le chemin de son
+     ensemble actif. Le retirer ferait dependre le rapport des
+     internes de scipy.
 """
 
 from __future__ import annotations
@@ -235,50 +236,80 @@ def test_lambda_null_ne_revient_pas():
         "DEPARTAGE_NUMERIQUE.")
 
 
-def test_le_departage_numerique_ne_fait_plus_que_choisir_le_representant():
+def test_sans_le_departage_le_probleme_n_a_pas_une_solution_mais_un_continuum():
     """
-    SA DERNIERE JUSTIFICATION A DISPARU, ET IL FAUT LE DIRE.
+    LE ROLE REEL DU DEPARTAGE, ET LA RAISON POUR LAQUELLE LE RETIRER
+    SERAIT UNE FAUTE.
 
-    Ce bloc a d'abord ete garde parce qu'il ecartait le representant du
-    bord du domaine : sans lui, NNLS atterrissait sur un sommet de masse
-    minimale, et le plafond `max(1, somme(x0))` reduisait alors le
-    domaine a un point.
+    Il a ete mal compris deux fois avant d'etre mesure. On a d'abord cru
+    qu'il tirait vers le prior - faux. Puis qu'il ecartait le
+    representant du bord du domaine - vrai a l'epoque, mais ce motif a
+    disparu quand le plafond de masse a ete retire de la famille ancree.
 
-    Le plafond a ensuite ete retire de la famille ancree - c'etait lui,
-    la source de la dependance a l'ancrage. Le domaine ne depend donc
-    plus du representant du tout, et ce bloc n'a plus d'effet sur lui :
-    mesure, largeurs identiques avec et sans.
+    Son role est ailleurs, et il est fondamental. Le terme de donnees ne
+    voit que la composante de x dans l'espace des lignes de A ; le long
+    du noyau, il est PLAT. L'ensemble des minimiseurs est donc une face,
+    pas un point, et NNLS en rend un, choisi par le chemin de son
+    ensemble actif.
 
-    Il ne fait plus que CHOISIR le representant affiche - somme 101,38 %
-    plutot que 100,00 % sur le lot d'essai - ce qui deplace le detail des
-    phases du rapport et le chiffre du bouclage, sans rien determiner
-    d'autre. Le retirer serait defendable ; ce serait un changement de
-    tous les points estimes, donc un arbitrage, pas un nettoyage.
-
-    Ce test garde l'etat des lieux : le bloc agit sur le representant et
-    sur rien d'autre.
+    Ce test le DEMONTRE : deux resolutions ajustent le bulletin
+    exactement et rendent pourtant des compositions differentes.
     """
-    assert DEPARTAGE_NUMERIQUE > 0
     A, _, cles = stoichiometry_matrix(elements=DOSES)
     N = null_space(A)
-    cath = cathode_indicator(cles)
+    b_vec = np.array([bulletin(CHIMIES["NMC811"])[el] / 100.0
+                      for el in DOSES])
+    w = element_weights(b_vec, DEFAULT_NOISE, 1e-5, elements=DOSES)
+    W = np.diag(w)
 
-    avec = resoudre(CHIMIES["NMC811"])
+    avec = resoudre(CHIMIES["NMC811"]).x
+    nu, _ = nnls(W @ A, W @ b_vec)
+
+    # Les deux ajustent le bulletin : ce sont deux minimiseurs du meme
+    # probleme de donnees.
+    for nom, x in (("avec", avec), ("sans", nu)):
+        assert np.linalg.norm(W @ (A @ x - b_vec)) < 1e-4, nom
+
+    # Et pourtant ils different : le minimiseur n'est pas unique sans le
+    # terme qui rend le probleme strictement convexe.
+    assert float(np.max(np.abs(avec - nu))) > 1e-3, (
+        "les deux resolutions coincident : ce lot ne demontre plus la "
+        "non-unicite, en choisir un autre plutot que retirer le test")
+
+    # Le domaine compatible mesure l'ampleur du continuum.
+    lo, hi = compatible_bounds(avec, N, cathode_indicator(cles))
+    assert hi - lo > 1e-3, (
+        "le domaine est devenu ponctuel : il n'y a plus de continuum a "
+        "departager, et le bloc perdrait alors sa raison d'etre")
+
+
+def test_le_departage_departage_mais_n_optimise_pas():
+    """
+    CE QU'IL NE FAIT PAS, et c'est la clef de tout ce fichier.
+
+    Sa penalite vise ||P_N x|| minimal. Elle ne l'atteint pas : 0,3083
+    sans, 0,3014 avec - les contraintes de positivite dominent de loin.
+    Il departage, il n'optimise pas.
+
+    C'est exactement pour cette raison que le `prior` ne pouvait pas
+    passer par cette voie, et qu'il passe desormais par une projection
+    exacte.
+    """
+    A, _, cles = stoichiometry_matrix(elements=DOSES)
+    N = null_space(A)
+    P = N @ N.T
     b_vec = np.array([bulletin(CHIMIES["NMC811"])[el] / 100.0
                       for el in DOSES])
     w = element_weights(b_vec, DEFAULT_NOISE, 1e-5, elements=DOSES)
     nu, _ = nnls(np.diag(w) @ A, np.diag(w) @ b_vec)
+    avec = resoudre(CHIMIES["NMC811"]).x
 
-    # Il deplace le representant...
-    assert nu.sum() < avec.x.sum() - 1e-4, (
-        "le bloc ne deplace plus le representant : il n'a plus aucun "
-        "effet et peut etre retire")
-
-    # ... et ne touche plus au domaine.
-    assert compatible_bounds(avec.x, N, cath) == pytest.approx(
-        compatible_bounds(nu, N, cath), abs=1e-7), (
-        "le domaine depend de nouveau du representant : le plafond de "
-        "masse est-il revenu dans la famille ancree ?")
+    assert np.linalg.norm(P @ avec) < np.linalg.norm(P @ nu), (
+        "le departage ne reduit meme plus la composante nulle")
+    assert np.linalg.norm(P @ avec) > 0.1, (
+        "la composante nulle est desormais presque annulee : le bloc "
+        "optimise vraiment, et la documentation qui dit le contraire "
+        "doit etre refaite")
 
 
 # ==========================================================================

@@ -279,23 +279,40 @@ MSG_BOUCLAGE = {cle: i18n.t(cle, "fr") for cle in CLES_BOUCLAGE}
 #: LE PRIOR EST DESORMAIS HONORE PAR `representant_proche`, une projection
 #: exacte le long de l'espace nul : aucun reglage, aucun compromis.
 #:
-#: CE QU'IL LUI RESTE, ET CE QUI LUI A ETE RETIRE DEPUIS.
+#: SON ROLE REEL : RENDRE LA SOLUTION UNIQUE.
 #:
-#: Il a d'abord ete garde parce qu'il ecartait le representant du bord du
-#: domaine : sans lui, NNLS atterrit sur un sommet de masse minimale, et
-#: le plafond `max(1, somme(x0))` reduisait alors le domaine a un point.
+#: C'est le point essentiel, et il a ete mal compris deux fois avant
+#: d'etre mesure. Sans ce bloc, le probleme n'a pas UNE solution mais un
+#: CONTINUUM. Mesure sur le lot d'essai : deux resolutions ajustent le
+#: bulletin exactement - residus 3e-06 et 9e-15 - et donnent pourtant des
+#: compositions differentes. Le domaine compatible fait 3,116 points de
+#: large : autant de melanges expliquent le meme bulletin aussi bien.
 #:
-#: Ce plafond a ensuite ete retire de la famille ancree - c'etait lui, la
-#: source de la dependance a l'ancrage. Le domaine ne depend donc plus du
-#: representant, et ce bloc n'a plus d'effet sur lui : largeurs
-#: identiques avec et sans, mesure.
+#: La raison est algebrique. Le terme de donnees ne voit que la
+#: composante de x dans l'espace des lignes de A ; le long du noyau, il
+#: est PLAT. Sa hessienne est donc singuliere, et l'ensemble des
+#: minimiseurs est une face, pas un point. NNLS en rend un, choisi par le
+#: chemin de son ensemble actif.
 #:
-#: Il ne fait plus que CHOISIR le representant affiche - somme 101,38 %
-#: plutot que 100,00 % sur le lot d'essai - ce qui deplace le detail des
-#: phases du rapport et le chiffre du bouclage, sans rien determiner
-#: d'autre. Le retirer serait defendable ; ce serait un changement de
-#: tous les points estimes, donc un arbitrage et non un nettoyage. Il
-#: n'est pas reglable pour autant : il n'y a jamais rien eu a regler.
+#: Ce bloc ajoute `lambda * ||P_N x||^2`, defini positif precisement sur
+#: le noyau. La somme des deux est definie positive partout : le probleme
+#: devient STRICTEMENT CONVEXE, donc son minimiseur est unique. La
+#: reponse de l'outil cesse d'etre un artefact d'implementation.
+#:
+#: LE RETIRER SERAIT UNE FAUTE. Le rapport afficherait un detail des
+#: phases et un bouclage choisis par le chemin interne de scipy, qu'une
+#: mise a jour de la bibliotheque pourrait deplacer sans que rien ne le
+#: signale.
+#:
+#: Ce qu'il ne fait PAS, en revanche : atteindre son propre critere. Il
+#: ramene ||P_N x|| de 0,3083 a 0,3014 seulement - les contraintes de
+#: positivite dominent de loin. Il departage, il n'optimise pas. C'est
+#: exactement pour cette raison que le `prior` ne pouvait pas marcher
+#: par cette voie, et qu'il passe desormais par `representant_proche`.
+#:
+#: Il n'est pas reglable : il n'y a rien a regler. Toute valeur
+#: strictement positive assez petite pour ne pas abimer l'ajustement
+#: rend le meme service.
 DEPARTAGE_NUMERIQUE = 1e-4
 
 
