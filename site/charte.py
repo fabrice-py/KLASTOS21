@@ -735,7 +735,7 @@ polyline.cot-trace.cot-marque { stroke-width: 3; }
    sans JavaScript ou un bloqueur laissaient une page VIDE : le contenu
    etait a opacite nulle et plus rien ne venait le reveler. Un site qui
    vend la prudence ne peut pas disparaitre en silence. */
-.js /* ======================================================================
+/* ======================================================================
    L'ENTREE DU HERO
    ----------------------------------------------------------------------
    La revelation au defilement ne suffisait pas, et la mesure le disait :
@@ -746,7 +746,7 @@ polyline.cot-trace.cot-marque { stroke-width: 3; }
    L'entree se declenche donc au CHARGEMENT, pas au defilement, et elle
    est echelonnee : le surtitre, le titre, le chapeau, les boutons, puis
    le bandeau de preuve.
-   ====================================================================== */
+
    AUCUN `opacity: 0` AU REPOS. C'est la faute deja commise une fois sur
    les revelations, refaite ici sous une autre forme : poser l'invisible
    comme etat de repos et compter sur une animation pour le lever, c'est
@@ -957,6 +957,49 @@ polyline.cot-trace.cot-marque { stroke-width: 3; }
 @media (max-width: 640px) {
   .hero { padding: 62px 0 56px; }
   .phases { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+/* ======================================================================
+   ECRANS ETROITS
+   ----------------------------------------------------------------------
+   DEFAUT MESURE, puis corrige. En dessous d'environ 420 pixels, la
+   barre de navigation debordait : « Prix et sources » etait coupe, et
+   comme elle elargissait le corps de page, les TITRES ET LE TEXTE de
+   toutes les pages l'etaient aussi. Un iPhone SE fait 375 pixels.
+
+   La cause tient a la facon dont une boite flexible imbriquee se
+   dimensionne : `.nav-liens` est elle-meme en `flex-wrap`, et elle se
+   posait a sa largeur de contenu plutot qu'a celle de son conteneur.
+   Baisser la taille de police, resserrer les ecarts, poser
+   `width: 100%`, `min-width: 0` ou `margin-left: 0` - rien n'y faisait,
+   chaque variante a ete essayee et photographiee.
+
+   LA GRILLE, ELLE, EST CONTRAINTE PAR CONSTRUCTION. Deux colonnes en
+   `1fr` ne peuvent pas depasser leur conteneur, quel que soit le
+   contenu. C'est une garantie de la mise en page, pas un reglage a
+   ajuster au jugé.
+
+   Le seuil est a 480 pixels : la navigation en ligne tient jusqu'a 420,
+   et cette marge evite de jouer sur le fil.
+   ====================================================================== */
+@media (max-width: 480px) {
+  .enveloppe { padding: 0 18px; }
+
+  .nav-interieur { gap: 14px; min-height: 58px; }
+  .nav-liens {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 9px 14px; margin-left: 0; width: 100%;
+  }
+  .nav-liens a { font-size: 14px; }
+
+  /* Le selecteur de langue passe a la ligne avec le reste plutot que
+     de disputer sa place a la grille. */
+  .langues { margin-left: 0; }
+
+  /* Un titre de hero cale sur 19ch devient illisible sur 340 pixels
+     utiles : on lui rend sa pleine largeur. */
+  h1 { font-size: clamp(30px, 8.5vw, 40px); }
+  .section { padding: 48px 0; }
 }
 """
 

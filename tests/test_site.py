@@ -953,3 +953,102 @@ def test_la_liste_des_formes_fautives_est_bien_formee():
     for forme in JAMAIS_DES_MOTS:
         assert re.fullmatch(r"[a-z]+", forme), (
             f"« {forme} » n'est pas une forme sans accent en minuscules")
+
+
+# ==========================================================================
+# 9. LA FEUILLE DE STYLE EST SYNTAXIQUEMENT SAINE
+# --------------------------------------------------------------------------
+# Un defaut reel est passe ici sans etre vu pendant plusieurs sessions :
+# un commentaire se fermait AVANT son dernier paragraphe, qui se
+# retrouvait en CSS invalide, suivi d'une fermeture orpheline. Et un
+# selecteur `.js` trainait, orphelin, devant une banniere de
+# commentaire.
+#
+# Le navigateur ne dit rien : il jette la regle fautive et continue. La
+# page reste donc presentable, et le defaut survit - celui-ci a ete
+# publie en production.
+#
+# Aucun test ne lisait la feuille comme un document a part entiere. Les
+# deux ci-dessous le font.
+# ==========================================================================
+
+def test_les_commentaires_de_la_feuille_sont_tous_fermes():
+    """
+    UN COMMENTAIRE QUI SE FERME TROP TOT EST INVISIBLE A L'OEIL.
+
+    Le texte qui suit devient du CSS, le navigateur le jette avec la
+    regle qui l'entoure, et rien ne le signale. Mesure du defaut trouve :
+    56 ouvertures pour 57 fermetures.
+    """
+    f = charte.feuille()
+    i, dans, ouvert_a = 0, False, None
+    while i < len(f) - 1:
+        if not dans and f[i:i + 2] == "/*":
+            dans, ouvert_a = True, i
+            i += 2
+            continue
+        if dans and f[i:i + 2] == "*/":
+            dans = False
+            i += 2
+            continue
+        if not dans and f[i:i + 2] == "*/":
+            extrait = f[max(0, i - 120):i + 2].replace("\n", " ")
+            pytest.fail(
+                f"fermeture de commentaire orpheline : ...{extrait}")
+        i += 1
+    assert not dans, (
+        f"commentaire ouvert a la position {ouvert_a} et jamais ferme : "
+        f"tout le reste de la feuille est avale")
+
+
+def test_aucun_selecteur_ne_reste_orphelin():
+    """
+    UN SELECTEUR SANS BLOC avale ce qui le suit.
+
+    `.js` trainait devant une banniere de commentaire ; le navigateur
+    cherchait alors une accolade et consommait l'`@keyframes` suivant
+    pour en faire le corps de la regle. L'animation du hero disparaissait
+    sans un mot.
+
+    On retire les commentaires, puis on verifie que chaque fragment
+    entre blocs ressemble bien a un selecteur et non a de la prose.
+
+    LE CRITERE A ETE CORRIGE. Une premiere version comptait les mots et
+    declarait suspect tout fragment de plus de douze : une liste de cinq
+    selecteurs sur cinq lignes la faisait echouer a tort. On cherche
+    desormais ce qu'un selecteur ne contient JAMAIS - apostrophe,
+    guillemet, contre-apostrophe, lettre accentuee - et qui abonde dans
+    une phrase francaise.
+    """
+    import re
+    sans = re.sub(r"/\*.*?\*/", "", charte.feuille(), flags=re.S)
+    interdits = "`'" + chr(171) + chr(187)
+    profondeur, courant, suspects = 0, [], []
+    for c in sans:
+        if c == "{":
+            if profondeur == 0:
+                fragment = "".join(courant).strip()
+                marques = [k for k in fragment
+                           if k in interdits or ord(k) > 127]
+                if marques:
+                    suspects.append(
+                        f"{fragment[:70]!r} contient {marques[:4]}")
+                # UNE AT-REGLE NE SE PRECEDE PAS D'UN SELECTEUR. Si un
+                # `@media` ou un `@keyframes` traine derriere autre
+                # chose, c'est qu'un selecteur orphelin l'a avale - le
+                # cas exact du `.js` reste devant la banniere du hero.
+                elif "@" in fragment and not fragment.startswith("@"):
+                    avant = fragment[:fragment.index("@")].strip()
+                    if avant:
+                        suspects.append(
+                            f"{avant[:50]!r} precede l'at-regle "
+                            f"{fragment[fragment.index('@'):][:30]!r}")
+                courant = []
+            profondeur += 1
+        elif c == "}":
+            profondeur -= 1
+            courant = []
+        elif profondeur == 0:
+            courant.append(c)
+    assert not suspects, (
+        f"du texte hors commentaire sert de selecteur : {suspects}")
