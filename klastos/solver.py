@@ -279,13 +279,23 @@ MSG_BOUCLAGE = {cle: i18n.t(cle, "fr") for cle in CLES_BOUCLAGE}
 #: LE PRIOR EST DESORMAIS HONORE PAR `representant_proche`, une projection
 #: exacte le long de l'espace nul : aucun reglage, aucun compromis.
 #:
-#: Ce bloc garde un role, mais ce n'est pas celui qu'on lui pretait. Sans
-#: lui, NNLS atterrit volontiers sur un sommet de MASSE MINIMALE ; et
-#: comme `_domain_constraints` plafonne la masse a max(1, somme(x0)), le
-#: domaine compatible parametre depuis ce point devient de LARGEUR NULLE
-#: - « NMC 111 entre 0,000 et 0,000 ». Toute la trichotomie du rapport
-#: s'effondrerait. Il est donc conserve, sous son effet reel, et il n'est
-#: plus reglable : il n'y avait rien a regler.
+#: CE QU'IL LUI RESTE, ET CE QUI LUI A ETE RETIRE DEPUIS.
+#:
+#: Il a d'abord ete garde parce qu'il ecartait le representant du bord du
+#: domaine : sans lui, NNLS atterrit sur un sommet de masse minimale, et
+#: le plafond `max(1, somme(x0))` reduisait alors le domaine a un point.
+#:
+#: Ce plafond a ensuite ete retire de la famille ancree - c'etait lui, la
+#: source de la dependance a l'ancrage. Le domaine ne depend donc plus du
+#: representant, et ce bloc n'a plus d'effet sur lui : largeurs
+#: identiques avec et sans, mesure.
+#:
+#: Il ne fait plus que CHOISIR le representant affiche - somme 101,38 %
+#: plutot que 100,00 % sur le lot d'essai - ce qui deplace le detail des
+#: phases du rapport et le chiffre du bouclage, sans rien determiner
+#: d'autre. Le retirer serait defendable ; ce serait un changement de
+#: tous les points estimes, donc un arbitrage et non un nettoyage. Il
+#: n'est pas reglable pour autant : il n'y a jamais rien eu a regler.
 DEPARTAGE_NUMERIQUE = 1e-4
 
 

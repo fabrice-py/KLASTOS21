@@ -30,9 +30,10 @@ CE QUE CES TESTS GARDENT
   2. que l'honorer ne touche NI l'ajustement NI aucune grandeur
      identifiable ;
   3. que le chemin par defaut n'ait pas bouge d'un bit ;
-  4. que `DEPARTAGE_NUMERIQUE` reste en place, parce que son retrait
-     fait s'effondrer le domaine compatible - c'est son vrai role, et il
-     n'a jamais eu l'autre.
+  4. l'etat des lieux de `DEPARTAGE_NUMERIQUE` : il ne fait plus que
+     choisir le representant affiche. Sa derniere justification - tenir
+     le domaine ouvert - a disparu quand le plafond de masse a ete
+     retire de la famille ancree.
 """
 
 from __future__ import annotations
@@ -234,25 +235,28 @@ def test_lambda_null_ne_revient_pas():
         "DEPARTAGE_NUMERIQUE.")
 
 
-def test_le_departage_numerique_garde_le_domaine_ouvert():
+def test_le_departage_numerique_ne_fait_plus_que_choisir_le_representant():
     """
-    SON VRAI ROLE, ET LA RAISON POUR LAQUELLE IL EST CONSERVE.
+    SA DERNIERE JUSTIFICATION A DISPARU, ET IL FAUT LE DIRE.
 
-    Sans ce bloc, NNLS atterrit volontiers sur un sommet de masse
-    minimale. Or `_domain_constraints` plafonne la masse a
-    max(1, somme(x0)) : depuis un tel point, le domaine compatible
-    devient de largeur nulle et toute la trichotomie du rapport
-    s'effondre.
+    Ce bloc a d'abord ete garde parce qu'il ecartait le representant du
+    bord du domaine : sans lui, NNLS atterrissait sur un sommet de masse
+    minimale, et le plafond `max(1, somme(x0))` reduisait alors le
+    domaine a un point.
 
-    Le test MONTRE le mecanisme au lieu de l'affirmer : il resout une
-    seconde fois sans le bloc, et compare. Mesure :
+    Le plafond a ensuite ete retire de la famille ancree - c'etait lui,
+    la source de la dependance a l'ancrage. Le domaine ne depend donc
+    plus du representant du tout, et ce bloc n'a plus d'effet sur lui :
+    mesure, largeurs identiques avec et sans.
 
-        avec departage    somme 101,38 %   cathodes 3,116 pt de large
-        sans departage    somme 100,00 %   cathodes 0,000 pt - effondre
+    Il ne fait plus que CHOISIR le representant affiche - somme 101,38 %
+    plutot que 100,00 % sur le lot d'essai - ce qui deplace le detail des
+    phases du rapport et le chiffre du bouclage, sans rien determiner
+    d'autre. Le retirer serait defendable ; ce serait un changement de
+    tous les points estimes, donc un arbitrage, pas un nettoyage.
 
-    Une grandeur AGREGEE est choisie a dessein. Les grades NMC
-    individuels sont pinces par d'autres contraintes et restent de
-    largeur nulle dans les deux cas : ils ne montreraient rien.
+    Ce test garde l'etat des lieux : le bloc agit sur le representant et
+    sur rien d'autre.
     """
     assert DEPARTAGE_NUMERIQUE > 0
     A, _, cles = stoichiometry_matrix(elements=DOSES)
@@ -260,25 +264,21 @@ def test_le_departage_numerique_garde_le_domaine_ouvert():
     cath = cathode_indicator(cles)
 
     avec = resoudre(CHIMIES["NMC811"])
-    lo, hi = compatible_bounds(avec.x, N, cath)
-    assert hi - lo > 1e-3, (
-        f"le domaine des cathodes fait {(hi - lo) * 100:.4f} point depuis "
-        f"le representant par defaut (somme {avec.x.sum() * 100:.3f} %). "
-        f"Le departage numerique ne l'ecarte plus du bord.")
-
-    # Le meme calcul SANS le bloc, pour montrer ce qu'il evite.
     b_vec = np.array([bulletin(CHIMIES["NMC811"])[el] / 100.0
                       for el in DOSES])
     w = element_weights(b_vec, DEFAULT_NOISE, 1e-5, elements=DOSES)
     nu, _ = nnls(np.diag(w) @ A, np.diag(w) @ b_vec)
-    lo_nu, hi_nu = compatible_bounds(nu, N, cath)
-    assert hi_nu - lo_nu < 1e-6, (
-        "sans le departage, le domaine des cathodes n'est plus effondre. "
-        "Le bloc a peut-etre cesse d'etre necessaire - le verifier avant "
-        "de le retirer.")
-    assert nu.sum() < avec.x.sum(), (
-        "sans le departage, la somme n'est plus plus basse : le mecanisme "
-        "decrit n'est plus celui qui opere.")
+
+    # Il deplace le representant...
+    assert nu.sum() < avec.x.sum() - 1e-4, (
+        "le bloc ne deplace plus le representant : il n'a plus aucun "
+        "effet et peut etre retire")
+
+    # ... et ne touche plus au domaine.
+    assert compatible_bounds(avec.x, N, cath) == pytest.approx(
+        compatible_bounds(nu, N, cath), abs=1e-7), (
+        "le domaine depend de nouveau du representant : le plafond de "
+        "masse est-il revenu dans la famille ancree ?")
 
 
 # ==========================================================================

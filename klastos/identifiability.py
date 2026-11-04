@@ -166,12 +166,42 @@ def compatible_bounds(
     x0: np.ndarray,
     N: np.ndarray,
     c: np.ndarray,
-    total_mass_cap: float | None = 1.0,
+    total_mass_cap: float | None = None,
     tol: float = 1e-12,
     extra: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> tuple[float, float]:
     """
-    Bornes de c @ x sur { x = x0 + N t, x >= 0, somme(x) <= total_mass_cap }.
+    Bornes de c @ x sur { x = x0 + N t, x >= 0 }.
+
+    LE PLAFOND DE MASSE N'EST PLUS DEMANDE PAR DEFAUT, et c'est un
+    correctif.
+
+    Les phases ne peuvent pas peser plus que l'echantillon, d'ou un
+    plafond a 1. Mais le representant retenu par le solveur peut, lui,
+    depasser 1 - c'est le sur-bouclage. Le plafond se relevait donc a
+    max(1, somme(x0)) « pour ne jamais exclure x0 lui-meme », et le
+    domaine PUBLIE se mettait a dependre du sommet ou NNLS avait atterri.
+    Mesure sur deux representants egalement valides du meme bulletin :
+
+        somme 101,3833 %   « Cathodes totales » [40,000 ; 43,116]
+        somme 100,0000 %   « Cathodes totales » [40,000 ; 40,000]
+
+    Meme analyse, deux reponses.
+
+    Le relever a la masse minimale atteignable rendait bien le domaine
+    invariant, mais au prix d'un plafond DUR a 1 : combine a un
+    ajustement exact, il sur-determine le systeme, reduit le domaine a un
+    point sur tout lot qui boucle bien, et rend infaisables les scenarios
+    de conseil. Essaye, mesure, abandonne.
+
+    La contrainte physique n'a pas disparu pour autant : elle est portee
+    par le POLYTOPE ROBUSTE, qui produit l'intervalle publie et n'a aucun
+    ancrage. Ici, ou l'on decrit l'indetermination a bulletin donne, la
+    retirer rend le domaine invariant SANS le degenerer - et la largeur
+    obtenue est celle que l'outil rendait deja dans le cas courant.
+
+    Un appelant peut toujours en poser un ; il accepte alors que le
+    domaine puisse devenir infaisable.
 
     Deux programmes lineaires en t. Retourne (min, max).
 
@@ -221,10 +251,16 @@ def _domain_constraints(
     if total_mass_cap is not None:
         row = N.sum(axis=0)
         if float(np.max(np.abs(row))) > tol:
-            # le plafond ne doit jamais exclure x0 lui-meme
-            cap = max(float(total_mass_cap), float(np.sum(x0)))
+            # LE PLAFOND EST DUR. Il se relevait autrefois a
+            # max(1, somme(x0)), « pour ne jamais exclure x0 lui-meme » -
+            # et c'est ce qui rendait le domaine dependant du SOMMET ou
+            # NNLS avait atterri.
+            #
+            # Il n'est plus demande par defaut : voir le commentaire de
+            # `compatible_bounds`. Un appelant qui en pose un accepte que
+            # le domaine puisse devenir infaisable, ce qui se signale.
             A_ub.append(row.reshape(1, k))
-            b_ub.append(np.array([cap - float(np.sum(x0))]))
+            b_ub.append(np.array([float(total_mass_cap) - float(np.sum(x0))]))
 
     if extra is not None:
         G, h = extra
@@ -530,7 +566,7 @@ def conditional_bounds(
     c: np.ndarray,
     c_cond: np.ndarray,
     value: float,
-    total_mass_cap: float | None = 1.0,
+    total_mass_cap: float | None = None,
     tol: float = 1e-12,
     extra: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> tuple[float, float]:
@@ -696,7 +732,7 @@ def evaluate(
     x0: np.ndarray,
     A: np.ndarray,
     functionals: list[Functional],
-    total_mass_cap: float | None = 1.0,
+    total_mass_cap: float | None = None,
     tol: float = TOL_ORTHO,
     extra: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> list[FunctionalResult]:
@@ -959,7 +995,7 @@ def element_scenario(
     functionals: list[Functional],
     c_element: np.ndarray,
     element: str,
-    total_mass_cap: float | None = 1.0,
+    total_mass_cap: float | None = None,
     extra: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> ElementScenario | None:
     """
@@ -1131,7 +1167,7 @@ def conseil_quantification(
     A: np.ndarray,
     phase_keys: list[str],
     uncertainty: float = CONSEIL_U_DEFAUT,
-    total_mass_cap: float | None = 1.0,
+    total_mass_cap: float | None = None,
     extra: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> ConseilQuantification:
     """
@@ -1239,7 +1275,7 @@ def representant_proche(
     x0: np.ndarray,
     N: np.ndarray,
     prior: np.ndarray,
-    total_mass_cap: float | None = 1.0,
+    total_mass_cap: float | None = None,
     tol: float = 1e-12,
 ) -> np.ndarray:
     """
@@ -1337,7 +1373,7 @@ def projeter_dans_domaine(
     x0: np.ndarray,
     N: np.ndarray,
     extra: tuple[np.ndarray, np.ndarray],
-    total_mass_cap: float | None = 1.0,
+    total_mass_cap: float | None = None,
     tol: float = 1e-12,
 ) -> np.ndarray:
     """
