@@ -781,21 +781,6 @@ TEXTES: dict[str, dict[str, str]] = {
               "across the interface, the report and this site. Three drifts "
               "had already been caught that way."},
 
-    "missions.quatre.titre": {
-        "fr": "Deux langues dès l'origine",
-        "en": "Two languages from the outset"},
-    "missions.quatre.texte": {
-        "fr": "Le français et l'anglais sont au même niveau, dans "
-              "l'interface, dans la ligne de commande, dans les journaux de "
-              "lecture et dans le rapport. Un rapport peut être produit en "
-              "anglais pour un destinataire étranger pendant que le "
-              "protocole interne reste en français.",
-        "en": "French and English stand at the same level, in the "
-              "interface, in the command line, in the reading logs and in "
-              "the report. A report can be produced in English for a "
-              "foreign recipient while the internal protocol stays in "
-              "French."},
-
     # ================================================================
     # Contact
     # ================================================================

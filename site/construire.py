@@ -784,14 +784,12 @@ def page_missions(langue: str) -> str:
               "mal"),
         carte("missions.trois.titre", "missions.trois.texte", langue,
               "domaine"),
-        carte("missions.quatre.titre", "missions.quatre.texte", langue,
-              "ok"),
     ])
     return f"""{entete("missions", langue)}
 
 <section class="bande bande-lavee section">
   <div class="enveloppe">
-    <div class="grille grille-2">{blocs}</div>
+    <div class="grille grille-3">{blocs}</div>
   </div>
 </section>"""
 
