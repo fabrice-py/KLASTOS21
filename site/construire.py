@@ -38,6 +38,7 @@ import charte                                           # noqa: E402
 import mouvement                                        # noqa: E402
 import contenu                                          # noqa: E402
 import cotations                                        # noqa: E402
+import procede                                          # noqa: E402
 from contenu import PAGES, t                            # noqa: E402
 
 #: Hauteur de l'axe des figures, en pourcentage de masse. Les quatre
@@ -568,7 +569,9 @@ def page_methode(langue: str) -> str:
     ])
     return f"""{entete("methode", langue)}
 
-<section class="bande bande-lavee section">
+{bloc_procede(langue)}
+
+<section class="bande section">
   <div class="enveloppe">
     <div class="grille grille-3">{etapes}</div>
   </div>
@@ -637,6 +640,31 @@ def page_rapport(langue: str) -> str:
         <p>{escape(t("rapport.piege.texte", langue))}</p>
       </div>
     </div>
+  </div>
+</section>"""
+
+
+def bloc_procede(langue: str) -> str:
+    """
+    Le schema du procede : ou KLASTOS21 entre dans la chaine.
+
+    IL REPOND A LA QUESTION QU'ON POSE TOUJOURS, au bout de deux minutes
+    - « vous faites quoi, exactement ? » La reponse est une frontiere :
+    l'outil ne broie pas, ne dose pas, ne raffine pas. Il entre apres le
+    laboratoire, sur un bulletin.
+
+    Et cette frontiere explique le reste du site : la provenance qu'il
+    faut declarer, l'indetermination, la fourchette a la place d'un
+    prix.
+    """
+    return f"""<section class="bande bande-lavee section" id="procede">
+  <div class="enveloppe">
+    <h2>{escape(t("proc.titre", langue))}</h2>
+    <p class="chapeau mesure">{escape(t("proc.chapeau", langue))}</p>
+    <div class="defilant" style="margin-top:28px">
+      {procede.schema(langue, t)}
+    </div>
+    <p class="proc-lecon">{escape(t("proc.lecon", langue))}</p>
   </div>
 </section>"""
 

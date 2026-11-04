@@ -54,6 +54,13 @@ IDENTIQUES_ADMISES = {
     "cot.lithium",
     "cot.cobalt",
     "cot.nickel",
+    # Le schema du procede. « Black mass » est un terme anglais passe
+    # tel quel en francais ; les trois autres sont des coincidences
+    # ou le nom de la marque.
+    "proc.batterie.nom",
+    "proc.blackmass.nom",
+    "proc.bulletin.nom",
+    "proc.zone.nous",
 }
 
 

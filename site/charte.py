@@ -199,6 +199,68 @@ code, .mono {
 .adresse-pied a:hover { color: var(--ink); }
 
 /* ======================================================================
+   LE SCHEMA DU PROCEDE
+   ----------------------------------------------------------------------
+   Six etapes, trois zones. La zone est ce qui porte le sens : ce qui se
+   passe AVANT nous, ce que fait le laboratoire, ce que nous faisons.
+   Elle est donc ce que la couleur distingue.
+
+   Comme le graphique des cotations : un SVG fluide, aucune couleur en
+   dur, tout passe par les jetons.
+   ====================================================================== */
+.procede { width: 100%; height: auto; display: block; min-width: 760px; }
+
+.proc-cadre { fill: none; stroke: var(--line); stroke-width: 1; }
+.proc-bande { stroke: none; }
+.proc-zone {
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .14em;
+}
+.proc-nom {
+  font-family: var(--f-body); font-size: 14px; font-weight: 600;
+  fill: var(--ink);
+}
+.proc-detail {
+  font-family: var(--f-body); font-size: 11.5px; fill: var(--muted);
+}
+
+/* Les glyphes sont des traits, pas des aplats : la charte n'a ni
+   degrade ni ombre, et un pictogramme plein jurerait avec le cube du
+   logo, qui est un fil de fer. `proc-plein` est l'exception nommee. */
+.proc-glyphe {
+  fill: none; stroke-width: 1.6; stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.proc-glyphe.proc-plein { stroke: none; }
+.proc-glyphe.proc-fort { stroke-width: 2.4; }
+
+/* LES TROIS ZONES. Le lot et le laboratoire sont en retrait - ils ne
+   sont pas notre travail. Nos deux etapes portent l'orange de la
+   marque. C'est la frontiere que le schema existe pour montrer. */
+.proc-zone.proc-lot,  .proc-glyphe.proc-lot  { stroke: var(--muted); }
+.proc-zone.proc-labo, .proc-glyphe.proc-labo { stroke: var(--ink); }
+.proc-zone.proc-nous, .proc-glyphe.proc-nous { stroke: var(--marque); }
+.proc-zone.proc-lot  { fill: var(--muted); stroke: none; }
+.proc-zone.proc-labo { fill: var(--ink); stroke: none; }
+.proc-zone.proc-nous { fill: var(--marque); stroke: none; }
+.proc-glyphe.proc-plein.proc-lot  { fill: var(--muted); }
+.proc-glyphe.proc-plein.proc-labo { fill: var(--ink); }
+.proc-glyphe.proc-plein.proc-nous { fill: var(--marque); }
+.proc-bande.proc-lot  { fill: var(--line-strong); }
+.proc-bande.proc-labo { fill: var(--ink); }
+.proc-bande.proc-nous { fill: var(--marque); }
+.proc-cadre.proc-nous { stroke: var(--marque); }
+
+.proc-fleche {
+  fill: none; stroke: var(--line-strong); stroke-width: 1.4;
+  stroke-linejoin: round; stroke-linecap: round;
+}
+
+.proc-lecon {
+  border-left: 3px solid var(--marque); padding: 2px 0 2px 18px;
+  margin: 26px 0 0; max-width: 70ch;
+}
+
+/* ======================================================================
    LE GRAPHIQUE DES COTATIONS
    ----------------------------------------------------------------------
    Un SVG pose dans la page, sans bibliotheque ni requete. Les couleurs

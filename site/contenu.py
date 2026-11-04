@@ -902,6 +902,74 @@ TEXTES: dict[str, dict[str, str]] = {
     # lithium faire 5,4 fois son prix puis redescendre sous son point
     # de départ.
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Le schéma du procédé. Il répond à la question que pose tout
+    # interlocuteur au bout de deux minutes : « vous faites quoi,
+    # exactement, dans cette chaîne ? » La réponse est une frontière —
+    # KLASTOS21 ne voit jamais le lot, il entre sur le bulletin.
+    # ------------------------------------------------------------------
+    "proc.titre": {
+        "fr": "Où nous entrons dans la chaîne",
+        "en": "Where we enter the chain"},
+    "proc.chapeau": {
+        "fr": "KLASTOS21 ne broie pas, ne dose pas, ne raffine pas. Sa "
+              "matière première est un tableau de chiffres : le bulletin "
+              "que votre laboratoire a rendu.",
+        "en": "KLASTOS21 does not shred, assay or refine. Its raw material "
+              "is a table of figures: the bulletin your laboratory "
+              "produced."},
+    "proc.lecon": {
+        "fr": "Cette frontière explique tout le reste. L'outil ne peut pas "
+              "regarder la poudre pour savoir d'où elle vient, d'où "
+              "l'attestation de provenance. Un bulletin donne des "
+              "éléments quand un acheteur paie des phases, et plusieurs "
+              "mélanges de phases donnent le même bulletin : d'où "
+              "l'indétermination, et d'où une fourchette là où vous "
+              "attendiez un prix.",
+        "en": "This boundary explains everything else. The tool cannot "
+              "look at the powder to learn where it came from, hence the "
+              "provenance attestation. A bulletin gives elements where a "
+              "buyer pays for phases, and several phase mixtures produce "
+              "the same bulletin: hence the indeterminacy, and hence a "
+              "range where you expected a price."},
+    "proc.alt": {
+        "fr": "Schéma du procédé en six étapes : batteries en fin de vie, "
+              "broyage, black mass, bulletin d'analyse, déconvolution, "
+              "valeur payable. Les trois premières relèvent du lot, la "
+              "quatrième du laboratoire, les deux dernières de KLASTOS21.",
+        "en": "Six-step process diagram: end-of-life batteries, shredding, "
+              "black mass, assay bulletin, deconvolution, payable value. "
+              "The first three belong to the lot, the fourth to the "
+              "laboratory, the last two to KLASTOS21."},
+
+    "proc.zone.lot": {"fr": "LE LOT", "en": "THE LOT"},
+    "proc.zone.labo": {"fr": "LE LABORATOIRE", "en": "THE LABORATORY"},
+    "proc.zone.nous": {"fr": "KLASTOS21", "en": "KLASTOS21"},
+
+    "proc.batterie.nom": {"fr": "Batteries", "en": "Batteries"},
+    "proc.batterie.detail": {
+        "fr": "Fin de vie, chutes de production",
+        "en": "End of life, production scrap"},
+    "proc.broyage.nom": {"fr": "Broyage", "en": "Shredding"},
+    "proc.broyage.detail": {
+        "fr": "Décharge, démantèlement, séparation",
+        "en": "Discharge, dismantling, separation"},
+    "proc.blackmass.nom": {"fr": "Black mass", "en": "Black mass"},
+    "proc.blackmass.detail": {
+        "fr": "La poudre que vous achetez ou vendez",
+        "en": "The powder you buy or sell"},
+    "proc.bulletin.nom": {"fr": "Bulletin", "en": "Bulletin"},
+    "proc.bulletin.detail": {
+        "fr": "Des éléments dosés, pas des phases",
+        "en": "Assayed elements, not phases"},
+    "proc.deconvolution.nom": {"fr": "Déconvolution", "en": "Deconvolution"},
+    "proc.deconvolution.detail": {
+        "fr": "Ce que la donnée porte, et ce qu'elle ne porte pas",
+        "en": "What the data carries, and what it does not"},
+    "proc.valeur.nom": {"fr": "Valeur payable", "en": "Payable value"},
+    "proc.valeur.detail": {
+        "fr": "Une fourchette opposable, jamais un point",
+        "en": "A defensible range, never a point"},
     "cot.titre": {
         "fr": "Ce que vaut un prix d'il y a un mois",
         "en": "What a month-old price is worth"},
