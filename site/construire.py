@@ -847,7 +847,14 @@ def formulaire(langue: str) -> str:
       n'arrive pas ;
     - `form-name` en champ cache, qui nomme le formulaire dans le tableau
       de bord. Netlify l'ajoute lui-meme sur un formulaire statique, mais
-      l'ecrire coute une ligne et evite d'en dependre.
+      l'ecrire coute une ligne et evite d'en dependre ;
+    - `action` en chemin ABSOLU. Mesure a l'appui : avec
+      `action="merci.html"`, Netlify enregistre bien l'envoi mais sert
+      SA page de remerciement generique au lieu de la notre. Il reecrit
+      d'ailleurs l'attribut a la construction - `action='merci'`, sans
+      extension - et ne sait pas resoudre un chemin relatif comme page
+      de retour. Un visiteur voyait donc « Thank you! » en anglais, sans
+      rappel de ce qu'il devait joindre.
 
     Le champ `bot-field` est un piege a robots : hors de l'ecran par la
     CSS, hors du parcours au clavier par `tabindex`, et hors de la lecture
@@ -878,7 +885,7 @@ def formulaire(langue: str) -> str:
 
     <form name="contact" method="POST" data-netlify="true"
           netlify-honeypot="bot-field" enctype="multipart/form-data"
-          action="merci.html" class="formulaire">
+          action="/{langue}/merci.html" class="formulaire">
       <input type="hidden" name="form-name" value="contact">
       <p class="piege" aria-hidden="true">
         <label>{escape(t("form.nom", langue))}

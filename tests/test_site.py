@@ -812,6 +812,35 @@ def test_le_formulaire_porte_les_attributs_que_netlify_exige(site, langue):
         assert attendu in f, f"{langue}/contact : {attendu} absent du formulaire"
 
 
+def test_l_action_du_formulaire_est_un_chemin_absolu(site):
+    """
+    MESURE SUR LE SITE EN LIGNE, apres un envoi reel.
+
+    Avec `action="merci.html"`, Netlify enregistrait bien l'envoi mais
+    servait SA page de remerciement generique - « Thank you! », en
+    anglais, sans rappel de ce que le visiteur devait joindre. Il
+    reecrit d'ailleurs l'attribut a la construction, en
+    `action='merci'`, et ne sait pas resoudre un chemin relatif comme
+    page de retour.
+
+    La page d'accuse que porte ce depot ne servait donc jamais.
+    """
+    for langue in contenu.LANGUES:
+        html = (site / langue / "contact.html").read_text(encoding="utf-8")
+        action = re.search(r'<form[^>]*action="([^"]+)"', html)
+        assert action, f"{langue}/contact : le formulaire n'a pas d'action"
+        chemin = action.group(1)
+        assert chemin.startswith("/"), (
+            f"{langue}/contact : action {chemin!r} relative. Netlify "
+            f"servira sa page generique a la place de la notre.")
+        assert chemin == f"/{langue}/merci.html", (
+            f"{langue}/contact : action {chemin!r}, attendu "
+            f"/{langue}/merci.html")
+        cible = site / langue / "merci.html"
+        assert cible.exists(), (
+            f"l'action pointe vers {chemin}, qui n'est pas publie")
+
+
 @pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
 def test_le_piege_a_robots_est_declare_et_inatteignable(site, langue):
     """
@@ -866,8 +895,10 @@ def test_l_accuse_de_reception_est_atteignable_mais_hors_du_plan(site, langue):
     assert merci.exists(), f"{langue}/merci.html : absent, l'envoi finira en 404"
 
     f = _formulaire(site, langue)
-    assert 'action="merci.html"' in f, (
-        f"{langue}/contact : le formulaire ne renvoie pas vers l'accuse")
+    assert f'action="/{langue}/merci.html"' in f, (
+        f"{langue}/contact : le formulaire ne renvoie pas vers l'accuse. "
+        f"Le chemin doit etre ABSOLU : voir "
+        f"test_l_action_du_formulaire_est_un_chemin_absolu.")
 
     plan = (site / "sitemap.xml").read_text(encoding="utf-8")
     assert "merci" not in plan, "l'accuse de reception figure au plan du site"
