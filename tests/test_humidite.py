@@ -29,6 +29,16 @@ from klastos.report import (LIGNE_BOUCLAGE_SEC, LIGNE_PAYABLE,
 from klastos.service import (BASE_HUMIDE, BASE_SEC, Demande, HumiditeInvalide,
                              analyser, facteur_sec)
 
+#: La date de cotation des prix de test, ET la date d'emission des
+#: analyses qu'ils servent. LES DEUX DOIVENT ETRE LA MEME.
+#:
+#: POURQUOI `emis_le=AUJ` FIGURE DANS `BASE` CI-DESSOUS. La
+#: fraicheur des prix se mesure contre la date d'emission du rapport,
+#: qui vaut AUJOURD'HUI par defaut. Une fixture datee en dur et une
+#: date d'emission laissee flottante font un fichier de test qui
+#: PERIME SEPT JOURS APRES SON ECRITURE : les onze tests qui valorisent
+#: un lot se sont mis a echouer tout seuls sur `StalePriceError`, sans
+#: qu'une ligne de code ait change.
 AUJ = dt.date(2026, 10, 28)
 BULLETIN = "data/exemples/bulletin_coherent.csv"
 OREAS = "data/exemples/bulletin_reel_OREAS_brut.csv"
@@ -44,16 +54,45 @@ TERMES = PayableTerms(market="EXW Europe", payables={"Ni": 0.72, "Co": 0.72},
                       as_of=AUJ, source="contrat client", validated=True)
 
 
+#: Les arguments communs a toutes les analyses de ce fichier. SORTIS EN
+#: CONSTANTE pour que la garde ci-dessous porte sur ce que `_analyse`
+#: utilise vraiment, et non sur une copie qu'elle se serait faite.
+BASE = dict(bulletin=BULLETIN, provenance="vehicule_electrique",
+            attestee=True, tirages=30, prix=PRIX, termes=TERMES,
+            emis_le=AUJ)
+
+
 def _analyse(**kw):
-    base = dict(bulletin=BULLETIN, provenance="vehicule_electrique",
-                attestee=True, tirages=30, prix=PRIX, termes=TERMES)
-    base.update(kw)
-    return analyser(Demande(**base))
+    return analyser(Demande(**{**BASE, **kw}))
 
 
 # --------------------------------------------------------------------------
 # Le facteur lui-meme
 # --------------------------------------------------------------------------
+
+def test_ce_fichier_de_test_ne_perime_pas():
+    """
+    LA GARDE DE L'EPINGLAGE, ET POURQUOI ELLE EXISTE.
+
+    Onze tests de ce fichier se sont mis a echouer tout seuls, huit
+    jours apres leur ecriture, sur `StalePriceError` : les prix de la
+    fixture etaient dates en dur, mais la date d'emission des analyses
+    etait laissee a sa valeur par defaut, c'est-a-dire AUJOURD'HUI. Le
+    fichier avait une date de peremption.
+
+    Ce test echoue si quelqu'un retire `emis_le` de `_analyse`, et il
+    echoue TOUT DE SUITE, pas une semaine plus tard.
+    """
+    demande = Demande(**BASE)
+    assert demande.emis_le is not None, (
+        "la date d'emission doit etre epinglee, sinon la fraicheur des "
+        "prix se mesure contre l'horloge reelle")
+    for metal, prix in PRIX.prices.items():
+        age = (demande.emis_le - prix.as_of).days
+        assert 0 <= age <= 7, (
+            f"le prix {metal} de la fixture a {age} jours a la date "
+            f"d'emission : ce fichier de test perimera")
+
 
 def test_sans_humidite_le_facteur_vaut_un():
     assert facteur_sec(None) == 1.0
