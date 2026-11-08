@@ -107,9 +107,15 @@ TEXTES: dict[str, dict[str, str]] = {
     "index.preuve.degen.cle": {
         "fr": "directions de composition que les mesures ne séparent pas",
         "en": "composition directions the measurements do not separate"},
-    "index.preuve.tests.cle": {
-        "fr": "tests tiennent les engagements du protocole",
-        "en": "tests hold the protocol's commitments"},
+    # Le troisieme chiffre etait le nombre de tests. Il parle au
+    # developpeur, pas a l'acheteur : `docs/mails_prospection.md` interdit
+    # deja de le citer dans un premier courriel. Le delai de rendu, lui,
+    # est un engagement que le visiteur peut tenir contre nous.
+    "index.preuve.delai.cle": {
+        "fr": "heures ouvrées pour rendre le verdict d'un bulletin",
+        # « 48 working hours » se lirait six jours de huit heures.
+        "en": "hours, two working days, to return the verdict on a "
+              "bulletin"},
 
     # ================================================================
     # Console d'identifiabilite. Le visiteur coche les elements doses et
@@ -1085,8 +1091,9 @@ TEXTES: dict[str, dict[str, str]] = {
     "form.envoyer": {"fr": "Envoyer", "en": "Send"},
     "form.obligatoire": {"fr": "obligatoire", "en": "required"},
 
-    # Accuse de reception. Il ne promet pas de delai que nous ne tenons
-    # pas, et il rappelle ce qui manque le plus souvent.
+    # Accuse de reception. Il redit le delai de 48 h ouvrees, engagement
+    # pris sur l'accueil et la page Contact, et rappelle ce qui manque le
+    # plus souvent.
     # ------------------------------------------------------------------
     # La page d'erreur. Elle est BILINGUE sur un seul document, parce
     # qu'elle est servie pour n'importe quelle adresse : impossible de
@@ -1136,10 +1143,12 @@ TEXTES: dict[str, dict[str, str]] = {
         "fr": "C'est bien arrivé.",
         "en": "It got through."},
     "merci.chapeau": {
-        "fr": "Nous revenons vers vous avec le rapport, et le cas échéant "
-              "avec la liste des dosages qui lèveraient l'indétermination.",
-        "en": "We will come back with the report and, where relevant, the "
-              "list of assays that would lift the indeterminacy."},
+        "fr": "Nous revenons vers vous sous 48 h ouvrées avec le rapport, "
+              "et le cas échéant avec la liste des dosages qui lèveraient "
+              "l'indétermination.",
+        "en": "We will come back within two working days with the report "
+              "and, where relevant, the list of assays that would lift the "
+              "indeterminacy."},
     "merci.oubli.titre": {
         "fr": "Si vous avez oublié le bulletin",
         "en": "If you forgot the bulletin"},
@@ -1162,6 +1171,196 @@ TEXTES: dict[str, dict[str, str]] = {
               "template accepted by the tool ships with the project, at "
               "data/exemples/bulletin_modele.csv. It avoids the two "
               "commonest formatting traps."},
+
+    # ================================================================
+    # Pour qui. Les sites de la filiere (cylib, tozero, Primobius)
+    # orientent le visiteur par profil des l'accueil ; le notre parlait
+    # de methode sans dire a qui elle sert. Chaque carte reprend
+    # l'argument du segment dans `docs/mails_prospection.md`.
+    # ================================================================
+    "index.pourqui.surtitre": {
+        "fr": "Pour qui",
+        "en": "Who it is for"},
+    "index.pourqui.titre": {
+        "fr": "Le même bulletin ne pose pas la même question à tout le "
+              "monde.",
+        "en": "The same bulletin does not ask everyone the same "
+              "question."},
+    "index.pourqui.vendeur.titre": {
+        "fr": "Vous vendez de la black mass",
+        "en": "You sell black mass"},
+    "index.pourqui.vendeur.texte": {
+        "fr": "Sachez avant l'acheteur quelles teneurs sont inattaquables, "
+              "et quel dosage commander pour clore le débat sur les autres.",
+        "en": "Know before the buyer does which grades cannot be "
+              "challenged, and which assay to order to settle the rest."},
+    "index.pourqui.acheteur.titre": {
+        "fr": "Vous en achetez",
+        "en": "You buy it"},
+    "index.pourqui.acheteur.texte": {
+        "fr": "Séparez ce que le bulletin du vendeur détermine de ce qu'il "
+              "laisse ouvert. Sur vos volumes, un écart de lecture se "
+              "compte à l'année, pas au lot.",
+        "en": "Separate what the seller's bulletin determines from what it "
+              "leaves open. On your volumes, a reading error adds up over "
+              "the year, not per lot."},
+    "index.pourqui.negociant.titre": {
+        "fr": "Vous la négociez",
+        "en": "You trade it"},
+    "index.pourqui.negociant.texte": {
+        "fr": "Votre marge tient dans l'écart entre le prix payé et le "
+              "contenu réel. KLASTOS21 mesure la part de cet écart qui "
+              "vient de l'incertitude analytique.",
+        "en": "Your margin lies in the gap between the price paid and the "
+              "real content. KLASTOS21 measures the share of that gap that "
+              "comes from analytical uncertainty."},
+    "index.pourqui.labo.titre": {
+        "fr": "Vous l'analysez",
+        "en": "You analyse it"},
+    "index.pourqui.labo.texte": {
+        "fr": "Vos clients tirent de vos bulletins des conclusions que la "
+              "mesure ne porte pas toujours. L'outil désigne, chiffres à "
+              "l'appui, le dosage complémentaire qui les justifierait.",
+        "en": "Your clients draw conclusions from your bulletins that the "
+              "measurement does not always support. The tool names, with "
+              "figures, the extra assay that would justify them."},
+    "index.pourqui.lien": {
+        "fr": "Envoyer un bulletin",
+        "en": "Send a bulletin"},
+
+    # ================================================================
+    # L'offre, en bandeau de fin d'accueil. La page se terminait sur les
+    # attestations, sans rien proposer de faire. Les trois engagements
+    # (gratuite, 48 h ouvrees, confidentialite) sont repris a l'identique
+    # sur la page Contact et dans l'accuse de reception.
+    # ================================================================
+    "index.offre.surtitre": {
+        "fr": "Première analyse offerte",
+        "en": "First analysis free"},
+    "index.offre.titre": {
+        "fr": "Envoyez un bulletin. Le verdict revient sous 48 h ouvrées.",
+        "en": "Send a bulletin. The verdict comes back within two working "
+              "days."},
+    "index.offre.texte": {
+        "fr": "Un bulletin anonymisé suffit. Vous recevez le rapport "
+              "complet, y compris s'il conclut que vos données ne suffisent "
+              "pas, et vous en faites ce que vous voulez.",
+        "en": "An anonymised bulletin is enough. You receive the full "
+              "report, including when it concludes that your data fall "
+              "short, and you do what you like with it."},
+    "index.offre.f1": {
+        "fr": "<b>Gratuit</b> pour le premier bulletin, sans engagement",
+        "en": "<b>Free</b> for the first bulletin, no commitment"},
+    "index.offre.f2": {
+        "fr": "<b>48 h ouvrées</b> pour rendre le rapport",
+        "en": "<b>Two working days</b> to return the report"},
+    "index.offre.f3": {
+        "fr": "<b>Confidentiel</b> : accord de confidentialité sur demande, "
+              "données supprimées 30 jours après le rendu",
+        "en": "<b>Confidential</b>: non-disclosure agreement on request, "
+              "data deleted 30 days after delivery"},
+    "index.offre.bouton": {
+        "fr": "Envoyer un bulletin",
+        "en": "Send a bulletin"},
+
+    # Apercu dessine de la premiere page du rapport. C'est la « photo
+    # produit » du site : les concurrents montrent leurs usines, nous
+    # montrons le document, et la legende dit qu'il est dessine.
+    "apercu.alt": {
+        "fr": "Aperçu dessiné de la première page d'un rapport KLASTOS21 : "
+              "un verdict, puis quatre grandeurs sur la même échelle, deux "
+              "en trait fin parce que déterminées, deux en bande parce que "
+              "seulement compatibles.",
+        "en": "Drawn preview of the first page of a KLASTOS21 report: a "
+              "verdict, then four quantities on the same scale, two as thin "
+              "lines because they are determined, two as bands because they "
+              "are only compatible."},
+    "apercu.titre": {
+        "fr": "Rapport d'analyse",
+        "en": "Analysis report"},
+    "apercu.verdict": {
+        "fr": "Verdict",
+        "en": "Verdict"},
+    "apercu.verdict.texte": {
+        "fr": "Bouclage conforme",
+        "en": "Mass balance accepted"},
+    "apercu.legende": {
+        "fr": "Dessin de la première page. Le document réel est sur la "
+              "page Rapport.",
+        "en": "Drawing of the first page. The real document is on the "
+              "Report page."},
+
+    # ================================================================
+    # Ce que nous garantissons, page Contact. Le frein principal a
+    # l'envoi d'un bulletin est la confidentialite : un concurrent qui
+    # ACHETE de la matiere n'a pas besoin d'en parler, nous qui DEMANDONS
+    # une donnee sensible, si.
+    #
+    # La cinquieme ligne n'est pas une precaution oratoire : le
+    # formulaire transite par l'hebergeur du site. Promettre un
+    # traitement local tout en recevant le fichier par un tiers serait
+    # faux, on le dit donc.
+    # ================================================================
+    "contact.confiance.titre": {
+        "fr": "Ce que nous vous garantissons",
+        "en": "What we guarantee"},
+    "contact.confiance.f1": {
+        "fr": "<b>La première analyse est gratuite</b>, sans engagement.",
+        "en": "<b>The first analysis is free</b>, with no commitment."},
+    "contact.confiance.f2": {
+        "fr": "<b>Le rapport revient sous 48 h ouvrées</b> après réception "
+              "d'un bulletin complet.",
+        "en": "<b>The report comes back within two working days</b> of "
+              "receiving a complete bulletin."},
+    "contact.confiance.f3": {
+        "fr": "<b>Un accord de confidentialité</b> est signé sur simple "
+              "demande, avant tout envoi.",
+        "en": "<b>A non-disclosure agreement</b> is signed on request, "
+              "before anything is sent."},
+    "contact.confiance.f4": {
+        "fr": "<b>L'analyse tourne sur notre machine</b>, jamais sur un "
+              "service en ligne, et le bulletin est <b>supprimé 30 jours</b> "
+              "après le rendu du rapport.",
+        "en": "<b>The analysis runs on our own machine</b>, never on an "
+              "online service, and the bulletin is <b>deleted 30 days</b> "
+              "after the report is delivered."},
+    "contact.confiance.f5": {
+        "fr": "<b>Pour un lot sensible</b>, ne joignez rien au formulaire : "
+              "demandez d'abord l'accord de confidentialité, le bulletin "
+              "suivra.",
+        "en": "<b>For a sensitive lot</b>, attach nothing to the form: ask "
+              "for the non-disclosure agreement first, the bulletin can "
+              "follow."},
+
+    # Image de partage (Open Graph). Son texte est dessine dans le PNG par
+    # `site/partage.py` a partir de `index.h1` et `partage.sous_titre` ;
+    # la description ci-dessous le redit pour qui ne voit pas l'image.
+    "partage.sous_titre": {
+        "fr": "Analyse prédictive de bulletins de black mass",
+        "en": "Predictive analysis of black mass assay bulletins"},
+    "partage.alt": {
+        "fr": "KLASTOS21. Un chiffre que vous pouvez opposer, ou rien. "
+              "Quatre grandeurs d'un bulletin de black mass : deux traits "
+              "fins déterminés, deux bandes larges seulement compatibles.",
+        "en": "KLASTOS21. A figure you can stand behind, or nothing at all. "
+              "Four "
+              "quantities from a black mass bulletin: two thin determined "
+              "lines, two wide bands that are only compatible."},
+
+    # Le profil du visiteur, dans le formulaire. Il trie les demandes
+    # comme le fait le menu « You are » de cylib, et il n'est pas
+    # obligatoire : mieux vaut un envoi sans profil qu'aucun envoi.
+    "form.profil": {"fr": "Vous êtes", "en": "You are"},
+    "form.profil.choisir": {"fr": "Choisir", "en": "Choose"},
+    "form.profil.vendeur": {
+        "fr": "Vendeur de black mass (prétraiteur, recycleur)",
+        "en": "Black mass seller (pre-processor, recycler)"},
+    "form.profil.acheteur": {
+        "fr": "Acheteur (affineur, recycleur)",
+        "en": "Buyer (refiner, recycler)"},
+    "form.profil.negociant": {"fr": "Négociant", "en": "Trader"},
+    "form.profil.labo": {"fr": "Laboratoire", "en": "Laboratory"},
+    "form.profil.autre": {"fr": "Autre", "en": "Other"},
 }
 
 

@@ -22,6 +22,18 @@ Un autre dossier de sortie :
 python site/construire.py --sortie chemin/vers/dossier
 ```
 
+## L'image de partage
+
+```
+python site/partage.py
+```
+
+Écrit `site/marque/partage-fr.png` et `partage-en.png`, citées par les
+balises Open Graph de chaque page. Le script demande Pillow, qui n'est pas
+une dépendance de la construction : les PNG sont donc versionnés, et un
+test vérifie qu'ils existent à la bonne taille. À relancer quand le titre
+de l'accueil ou la palette change.
+
 ## Les trois modules
 
 | Module | Rôle |

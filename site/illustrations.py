@@ -234,3 +234,113 @@ def module(langue: str, textes) -> str:
         f'{"".join(pieces)}{"".join(reperes)}'
         f'</svg>'
     )
+
+
+# --------------------------------------------------------------------------
+# L'apercu du rapport
+# --------------------------------------------------------------------------
+#: Proportions d'une page A4 (1 : 1,414), a l'echelle du site.
+APE_L, APE_H = 300, 424
+
+#: Bord gauche et droit du contenu de la page.
+APE_MARGE = 22
+
+#: Fin de l'axe des grandeurs, en pourcentage de masse. LA MEME que celle
+#: de la figure d'accueil (`construire.AXE_MAX`) : les quatre grandeurs
+#: s'y lisent sur une echelle commune, c'est toute la demonstration.
+APE_AXE = 50.0
+
+#: Les quatre grandeurs de la figure d'accueil. C'EST LEUR SEULE SOURCE :
+#: la figure (`construire.page_index`), l'apercu ci-dessous et l'image de
+#: partage (`site/partage.py`) les lisent ici. Trois copies finiraient par
+#: dire trois choses sur la meme page.
+APE_GRANDEURS: tuple[tuple[str, float, float, str], ...] = (
+    ("index.figure.ni", 12.4, 12.4, "determine"),
+    ("index.figure.co", 8.1, 8.1, "determine"),
+    ("index.figure.nmc", 18.0, 46.0, "mal"),
+    ("index.figure.lfp", 0.0, 31.0, "domaine"),
+)
+
+
+def pourcent(bas: float, haut: float, langue: str) -> str:
+    """Une valeur ou une plage, a la typographie de la langue."""
+    def nombre(v: float) -> str:
+        texte = f"{v:g}"
+        return texte.replace(".", ",") if langue == "fr" else texte
+    corps = nombre(bas) if bas == haut else f"{nombre(bas)} – {nombre(haut)}"
+    return f"{corps} %" if langue == "fr" else f"{corps}%"
+
+
+def apercu(langue: str, textes) -> str:
+    """
+    La premiere page d'un rapport, dessinee.
+
+    C'EST LA PHOTO PRODUIT DU SITE. Les sites de la filiere montrent leurs
+    usines ; nous n'en avons pas, et une photo d'usine empruntee mentirait
+    sur ce que nous vendons. Ce que nous vendons est ce document : on le
+    montre donc, en dessin assume, avec les grandeurs de la figure
+    d'accueil. Les lignes grises tiennent lieu de texte courant, elles ne
+    pretendent pas en contenir.
+    """
+    g = APE_MARGE
+    largeur = APE_L - 2 * g
+    morceaux = [
+        f'<rect class="ape-page" x="0.5" y="0.5" width="{APE_L - 1}" '
+        f'height="{APE_H - 1}" rx="3"></rect>',
+        f'<text class="ape-marque" x="{g}" y="34">KLASTOS21</text>',
+        f'<text class="ape-lot" x="{APE_L - g}" y="34" text-anchor="end">'
+        f'{textes("ech.lot.valeur", langue)}</text>',
+        f'<line class="ape-filet" x1="{g}" y1="46" x2="{APE_L - g}" '
+        f'y2="46"></line>',
+        f'<text class="ape-titre" x="{g}" y="76">'
+        f'{textes("apercu.titre", langue)}</text>',
+        # Le verdict, en bandeau a filet vert : la couleur du bouclage
+        # accepte, et d'elle seule.
+        f'<rect class="ape-verdict" x="{g}" y="94" width="{largeur}" '
+        f'height="40"></rect>',
+        f'<line class="ape-verdict-filet" x1="{g + 1.5}" y1="94" '
+        f'x2="{g + 1.5}" y2="134"></line>',
+        f'<text class="ape-cle" x="{g + 14}" y="110">'
+        f'{textes("apercu.verdict", langue)}</text>',
+        f'<text class="ape-verdict-texte" x="{g + 14}" y="125">'
+        f'{textes("apercu.verdict.texte", langue)}</text>',
+    ]
+
+    # Les quatre grandeurs. Le nom au-dessus, la piste en dessous : sur
+    # une page de 300 de large, nom et piste cote a cote ne tiennent pas.
+    y = 166.0
+    for cle, bas, haut, statut in APE_GRANDEURS:
+        x_bas = g + largeur * bas / APE_AXE
+        x_haut = g + largeur * haut / APE_AXE
+        morceaux.append(
+            f'<text class="ape-nom" x="{g}" y="{y:.0f}">'
+            f'{textes(cle, langue)}</text>'
+            f'<text class="ape-val" x="{APE_L - g}" y="{y:.0f}" '
+            f'text-anchor="end">{pourcent(bas, haut, langue)}</text>'
+            f'<line class="ape-piste" x1="{g}" y1="{y + 11:.0f}" '
+            f'x2="{APE_L - g}" y2="{y + 11:.0f}"></line>')
+        if statut == "determine":
+            morceaux.append(
+                f'<rect class="ape-trait ape-{statut}" x="{x_bas - 1:.1f}" '
+                f'y="{y + 4:.0f}" width="2" height="14"></rect>')
+        else:
+            morceaux.append(
+                f'<rect class="ape-bande ape-{statut}" x="{x_bas:.1f}" '
+                f'y="{y + 5:.0f}" width="{x_haut - x_bas:.1f}" '
+                f'height="12"></rect>')
+        y += 40.0
+
+    # Le texte courant, en lignes grises de longueurs variees. Longueurs
+    # FIXES : un tirage au sort ferait changer le site a chaque
+    # construction, pour la meme raison que la graine des grains.
+    for k, part in enumerate((1.0, 0.92, 0.97, 0.6, 1.0, 0.84, 0.45)):
+        morceaux.append(
+            f'<rect class="ape-ligne" x="{g}" y="{y + 6 + k * 13:.0f}" '
+            f'width="{largeur * part:.0f}" height="5" rx="1"></rect>')
+
+    return (
+        f'<svg class="illustration ill-apercu" viewBox="0 0 {APE_L} {APE_H}" '
+        f'role="img" aria-label="{textes("apercu.alt", langue)}">'
+        f'{"".join(morceaux)}'
+        f'</svg>'
+    )

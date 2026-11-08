@@ -400,14 +400,14 @@ polyline.cot-trace.cot-marque { stroke-width: 3; }
   display: block; font-size: 14px; color: var(--muted); margin-bottom: 9px;
   line-height: 1.45;
 }
-.champ input, .champ textarea {
+.champ input, .champ textarea, .champ select {
   width: 100%; font-family: var(--f-body); font-size: 16px;
   color: var(--ink); background: var(--bg);
   border: 1px solid var(--line-strong); border-radius: 5px;
   padding: 11px 13px; transition: border-color .18s;
 }
 .champ textarea { resize: vertical; line-height: 1.5; }
-.champ input:focus, .champ textarea:focus {
+.champ input:focus, .champ textarea:focus, .champ select:focus {
   border-color: var(--ink);
   outline: 2px solid var(--ink); outline-offset: 2px;
 }
@@ -492,12 +492,23 @@ polyline.cot-trace.cot-marque { stroke-width: 3; }
 .grille { display: grid; gap: 18px; }
 .grille-2 { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
 .grille-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grille-4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 .carte {
   background: var(--bg); border: 1px solid var(--line);
   border-radius: 6px; padding: 22px 24px;
 }
 .carte h3 { margin-bottom: 10px; }
 .carte p { font-size: 15.5px; color: var(--muted); }
+/* Carte de profil : le lien se cale en bas, pour que les quatre liens
+   d'une rangee s'alignent quelle que soit la longueur du texte. */
+.carte-profil { display: flex; flex-direction: column; }
+.carte-profil p { flex: 1; }
+.lien-fleche {
+  display: inline-block; margin-top: 16px; font-size: 15px;
+  font-weight: 500; text-underline-offset: 3px;
+}
+/* La fleche est du TEXTE, pas une icone : elle dit ou mene le lien. */
+.lien-fleche::after { content: " \\2192"; }
 .carte-titre-mono {
   font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
@@ -597,6 +608,51 @@ polyline.cot-trace.cot-marque { stroke-width: 3; }
 .faits li:last-child { border-bottom: 1px solid var(--line); }
 .faits b { font-weight: 600; }
 
+/* ---------- L'offre, en fin d'accueil ----------
+   Le texte a gauche, l'apercu du rapport a droite. L'apercu est un
+   dessin : sa legende le dit, sous lui. */
+.offre {
+  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 56px; align-items: center;
+}
+.offre-apercu { margin: 0; max-width: 330px; justify-self: end; width: 100%; }
+.offre-apercu figcaption {
+  font-size: 13px; color: var(--muted); margin-top: 10px;
+}
+
+/* L'apercu du rapport. Memes jetons que le rapport imprime : cobalt pour
+   le determine, ambre et rouille pour les bandes, vert pour le verdict. */
+.ape-page { fill: var(--bg); stroke: var(--line-strong); stroke-width: 1; }
+.ape-marque {
+  font-family: var(--f-display); font-size: 13px; font-weight: 700;
+  letter-spacing: .04em; fill: var(--ink);
+}
+.ape-lot, .ape-val {
+  font-family: var(--f-mono); font-size: 10.5px; fill: var(--muted);
+}
+.ape-filet, .ape-piste { stroke: var(--line); stroke-width: 1; }
+.ape-titre {
+  font-family: var(--f-display); font-size: 20px; font-weight: 600;
+  fill: var(--ink);
+}
+.ape-verdict { fill: var(--green-soft); stroke: none; }
+.ape-verdict-filet { stroke: var(--green); stroke-width: 3; }
+.ape-cle {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .12em;
+  fill: var(--muted);
+}
+.ape-verdict-texte {
+  font-family: var(--f-body); font-size: 12px; font-weight: 600;
+  fill: var(--green);
+}
+.ape-nom { font-family: var(--f-body); font-size: 11.5px; fill: var(--ink); }
+.ape-trait, .ape-bande { stroke: none; }
+.ape-bande { opacity: .32; }
+.ape-determine { fill: var(--cobalt); }
+.ape-mal { fill: var(--amber); }
+.ape-domaine { fill: var(--rust); }
+.ape-ligne { fill: var(--line); }
+
 /* ---------- Pied ---------- */
 .pied { border-top: 1px solid var(--line); background: var(--paper); }
 .pied-interieur {
@@ -623,6 +679,8 @@ polyline.cot-trace.cot-marque { stroke-width: 3; }
   .regle-ligne { grid-template-columns: 112px 1fr; }
   .regle-valeur { grid-column: 1 / -1; text-align: left; }
   .nav-liens { gap: 16px; }
+  .offre { grid-template-columns: 1fr; gap: 34px; }
+  .offre-apercu { justify-self: start; max-width: 280px; }
 }
 
 

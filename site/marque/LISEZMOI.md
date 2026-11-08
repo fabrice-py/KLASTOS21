@@ -10,6 +10,7 @@
 | `klastos21_marque.png` | Le cube seul, 512 px de haut. |
 | `favicon-32.png` | Onglet de navigateur. |
 | `favicon-180.png` | Icône d'écran d'accueil, et onglet de l'interface Streamlit. |
+| `partage-fr.png`, `partage-en.png` | Vignette de partage (LinkedIn, Open Graph), 1200 x 630. **Produites** par `python site/partage.py`, à relancer si le titre de l'accueil ou la palette change. |
 
 ## Le cube est vectoriel dans le produit
 

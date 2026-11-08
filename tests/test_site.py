@@ -68,6 +68,9 @@ IDENTIQUES_ADMISES = {
     "ech.lot",
     "ech.lot.valeur",
     "ech.granulo.valeur",
+    # L'apercu du rapport : « Verdict » s'ecrit pareil dans les deux
+    # langues. Verifie, pas suppose.
+    "apercu.verdict",
 }
 
 
@@ -876,7 +879,7 @@ def test_chaque_champ_visible_porte_une_etiquette_liee(site, langue):
     """
     f = _formulaire(site, langue)
     visible = f[f.index("</p>", f.index('class="piege"')):]
-    noms = re.findall(r'<(?:input|textarea) id="([a-z]+)"', visible)
+    noms = re.findall(r'<(?:input|textarea|select) id="([a-z]+)"', visible)
     assert noms, f"{langue}/contact : aucun champ visible trouve"
     for nom in noms:
         assert f'<label for="{nom}">' in visible, (
@@ -1165,3 +1168,103 @@ def test_la_page_d_erreur_n_est_pas_indexee(site):
 def test_la_page_d_erreur_ne_figure_pas_au_plan_du_site(site):
     plan = (site / "sitemap.xml").read_text(encoding="utf-8")
     assert "404" not in plan
+
+
+# ==========================================================================
+# 11. CE QUE LES SITES DE LA FILIERE NOUS ONT APPRIS
+# --------------------------------------------------------------------------
+# Comparaison faite avec cylib, tozero et Primobius : orienter le visiteur
+# par profil, fermer l'accueil sur une offre, soigner la vignette de
+# partage. Les engagements affiches (gratuite, 48 h ouvrees,
+# confidentialite) sont des PROMESSES : ils doivent dire la meme chose
+# partout ou ils paraissent.
+# ==========================================================================
+
+def test_l_accueil_oriente_les_quatre_profils_vers_le_formulaire(site):
+    from construire import PROFILS
+    for langue in contenu.LANGUES:
+        html = (site / langue / "index.html").read_text(encoding="utf-8")
+        for profil in PROFILS:
+            assert contenu.t(f"index.pourqui.{profil}.titre", langue) in \
+                _lisible(html), f"{langue} : profil {profil} absent"
+        assert html.count('href="contact.html#formulaire"') > len(PROFILS)
+
+
+def test_l_accueil_ne_cite_plus_le_nombre_de_tests(site):
+    """
+    Le nombre de tests parle au developpeur. `docs/mails_prospection.md`
+    interdit deja de le citer a un prospect ; l'accueil ne le fait plus.
+    """
+    for langue in contenu.LANGUES:
+        html = (site / langue / "index.html").read_text(encoding="utf-8")
+        i = html.index('class="preuves"')
+        bandeau = html[i:html.index('class="vers-console"', i)]
+        assert "test" not in _lisible(bandeau).lower()
+        assert 'data-compteur="48"' in bandeau
+
+
+@pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
+def test_le_delai_promis_est_le_meme_partout(langue):
+    """
+    Un delai de 48 h sur l'accueil et de trois jours dans l'accuse de
+    reception serait une promesse rompue des le premier envoi.
+    """
+    marque = "48 h" if langue == "fr" else "two working days"
+    # Le bandeau du hero porte le 48 en compteur, hors du texte : il est
+    # garde par `test_l_accueil_ne_cite_plus_le_nombre_de_tests`.
+    for cle in ("index.offre.titre", "index.offre.f2",
+                "contact.confiance.f2", "merci.chapeau"):
+        assert marque in contenu.t(cle, langue).lower(), cle
+
+
+def test_la_garantie_precede_le_formulaire(site):
+    """C'est avant d'envoyer un bulletin qu'on lit ce qu'il deviendra."""
+    for langue in contenu.LANGUES:
+        html = _lisible((site / langue / "contact.html")
+                        .read_text(encoding="utf-8"))
+        garantie = html.find(contenu.t("contact.confiance.titre", langue))
+        assert garantie != -1, f"{langue} : garantie absente"
+        assert garantie < html.index(contenu.t("form.titre", langue))
+
+
+@pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
+def test_le_profil_du_formulaire_est_facultatif(site, langue):
+    f = _formulaire(site, langue)
+    m = re.search(r'<select id="profil" name="profil"([^>]*)>(.*?)</select>',
+                  f, re.S)
+    assert m, f"{langue} : menu de profil absent"
+    assert "required" not in m.group(1)
+    assert m.group(2).startswith('<option value="">')
+
+
+def test_chaque_page_porte_ses_balises_de_partage(site):
+    """
+    Sans Open Graph, un lien poste sur LinkedIn s'affiche sans image ni
+    description choisie. Les adresses sont absolues : un robot de reseau
+    social ne resout pas un chemin relatif.
+    """
+    for langue, page, html in _pages(site):
+        for propriete in ("og:title", "og:description", "og:url",
+                          "og:image", "og:image:alt"):
+            assert f'property="{propriete}"' in html, f"{langue}/{page}"
+        image = re.search(r'property="og:image" content="([^"]+)"', html)
+        assert image.group(1) == (
+            f"https://klastos21.fr/marque/partage-{langue}.png")
+        assert 'name="twitter:card" content="summary_large_image"' in html
+
+
+@pytest.mark.parametrize("langue", sorted(contenu.LANGUES))
+def test_l_image_de_partage_existe_a_la_bonne_taille(site, langue):
+    """
+    Les PNG sont produits par `site/partage.py`, hors construction, parce
+    que Pillow n'est pas une dependance du site. On verifie donc qu'ils
+    existent, qu'ils sont copies, et qu'ils ont la taille declaree dans
+    les balises, en lisant l'en-tete PNG sans bibliotheque.
+    """
+    import struct
+    from construire import PARTAGE_TAILLE
+    chemin = site / "marque" / f"partage-{langue}.png"
+    assert chemin.is_file(), "lancer : python site/partage.py"
+    entete = chemin.read_bytes()[:24]
+    assert entete[:8] == b"\x89PNG\r\n\x1a\n"
+    assert struct.unpack(">II", entete[16:24]) == PARTAGE_TAILLE

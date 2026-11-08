@@ -161,7 +161,8 @@ def test_les_cellules_sont_le_seul_empilement():
 def dessins(request):
     langue = request.param
     return (illustrations.echantillon(langue, contenu.t),
-            illustrations.module(langue, contenu.t))
+            illustrations.module(langue, contenu.t),
+            illustrations.apercu(langue, contenu.t))
 
 
 def test_les_illustrations_ne_sortent_chercher_aucune_ressource(dessins):
@@ -195,13 +196,14 @@ def test_aucune_couleur_ni_opacite_en_dur(dessins):
 
 @pytest.mark.parametrize("langue", LANGUES)
 def test_chaque_illustration_porte_une_description(langue):
-    for fabrique in (illustrations.echantillon, illustrations.module):
+    for fabrique in (illustrations.echantillon, illustrations.module,
+                     illustrations.apercu):
         svg = fabrique(langue, contenu.t)
         assert 'role="img"' in svg
         label = re.search(r'aria-label="([^"]+)"', svg)
         assert label and len(label.group(1)) > 50, (
             f"{fabrique.__name__} : description absente ou trop courte")
-        assert not label.group(1).startswith(("ech.", "mod."))
+        assert not label.group(1).startswith(("ech.", "mod.", "apercu."))
 
 
 def test_le_poids_transfere_reste_raisonnable():
@@ -229,3 +231,26 @@ def test_le_masque_porte_un_identifiant_unique():
     for identifiant in ids:
         assert f'url(#{identifiant})' in svg, (
             f"le masque {identifiant} est defini mais jamais utilise")
+
+
+def test_l_apercu_partage_l_echelle_de_la_figure_d_accueil():
+    """
+    L'apercu resume la figure d'accueil, sur la meme page. Les valeurs
+    sont communes par construction (`APE_GRANDEURS`) ; l'echelle aussi
+    doit l'etre, sinon le meme 12,4 % tomberait a deux endroits.
+    """
+    import construire
+    assert illustrations.APE_AXE == construire.AXE_MAX
+
+
+@pytest.mark.parametrize("langue", LANGUES)
+def test_les_bandes_de_l_apercu_tiennent_dans_la_page(langue):
+    svg = illustrations.apercu(langue, contenu.t)
+    reperes = re.findall(
+        r'class="ape-(?:bande|trait)[^"]*" x="([\d.]+)" y="[\d.]+" '
+        r'width="([\d.]+)"', svg)
+    assert len(reperes) == len(illustrations.APE_GRANDEURS)
+    for x, largeur in reperes:
+        assert illustrations.APE_MARGE - 1 <= float(x)
+        assert float(x) + float(largeur) <= (
+            illustrations.APE_L - illustrations.APE_MARGE + 1)

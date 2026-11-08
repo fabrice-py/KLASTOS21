@@ -231,6 +231,42 @@ def alternatives(page: str, langue: str) -> str:
 _HORS_MOTEURS = ("merci",)
 
 
+#: Locale Open Graph de chaque langue.
+_LOCALE_OG = {"fr": "fr_FR", "en": "en_GB"}
+
+#: Taille de l'image de partage, celle que LinkedIn recommande.
+PARTAGE_TAILLE = (1200, 630)
+
+
+def partage(page: str, langue: str) -> str:
+    """
+    Les balises de partage : Open Graph, et la carte Twitter.
+
+    ELLES MANQUAIENT, et la prospection en a besoin. Un lien vers le site
+    poste sur LinkedIn s'affichait sans image ni description choisie :
+    le reseau devinait. L'image est un PNG pose dans `site/marque`, donc
+    copie par la construction comme les favicons ; elle est produite par
+    `site/partage.py`. Les adresses sont ABSOLUES : un robot de reseau
+    social ne resout pas un chemin relatif.
+    """
+    largeur, hauteur = PARTAGE_TAILLE
+    titre = escape(t(f"{page}.titre_onglet", langue))
+    description = escape(t(f"{page}.description", langue))
+    return "\n".join([
+        '<meta property="og:type" content="website">',
+        f'<meta property="og:site_name" content="{escape(t("marque.nom", langue))}">',
+        f'<meta property="og:title" content="{titre}">',
+        f'<meta property="og:description" content="{description}">',
+        f'<meta property="og:url" content="https://{DOMAINE}/{langue}/{page}.html">',
+        f'<meta property="og:locale" content="{_LOCALE_OG[langue]}">',
+        f'<meta property="og:image" content="https://{DOMAINE}/marque/partage-{langue}.png">',
+        f'<meta property="og:image:width" content="{largeur}">',
+        f'<meta property="og:image:height" content="{hauteur}">',
+        f'<meta property="og:image:alt" content="{escape(t("partage.alt", langue))}">',
+        '<meta name="twitter:card" content="summary_large_image">',
+    ])
+
+
 def page_complete(page: str, langue: str, corps: str) -> str:
     """Enveloppe une page : en-tete, navigation, corps, pied."""
     corps = rythmer(corps)
@@ -252,6 +288,7 @@ def page_complete(page: str, langue: str, corps: str) -> str:
       href="../marque/favicon-32.png">
 <link rel="apple-touch-icon" href="../marque/favicon-180.png">
 {alternatives(page, langue)}
+{partage(page, langue)}
 </head>
 <body>
 {nav(page, langue)}
@@ -327,14 +364,16 @@ def ligne_regle(nom_cle: str, langue: str, bas: float, haut: float,
 
 def preuves(langue: str) -> str:
     """
-    Trois chiffres sous le hero. Ils ne sont PAS decoratifs : ils viennent
-    du lot XRF reel analyse pendant la mise au point, et du depot. Un
-    chiffre invente ici contredirait tout ce que la page affirme.
+    Trois chiffres sous le hero. Ils ne sont PAS decoratifs : les deux
+    premiers viennent du lot XRF reel analyse pendant la mise au point, le
+    troisieme est le delai de rendu, un engagement repris sur la page
+    Contact. Un chiffre invente ici contredirait tout ce que la page
+    affirme.
     """
     lignes = [
         ("1", 0, "", "index.preuve.phases.cle"),
         ("5", 0, "", "index.preuve.degen.cle"),
-        ("1356", 0, "", "index.preuve.tests.cle"),
+        ("48", 0, "", "index.preuve.delai.cle"),
     ]
     cartes = []
     for valeur, dec, suffixe, cle in lignes:
@@ -462,16 +501,13 @@ def page_index(langue: str) -> str:
 {escape(t("index.bouton_rapport", langue))}</a>
     </div>"""
 
-    regle = "".join([
-        ligne_regle("index.figure.ni", langue, 12.4, 12.4,
-                    "determine", "12,4 %" if langue == "fr" else "12.4%"),
-        ligne_regle("index.figure.co", langue, 8.1, 8.1,
-                    "determine", "8,1 %" if langue == "fr" else "8.1%"),
-        ligne_regle("index.figure.nmc", langue, 18.0, 46.0,
-                    "mal", "18 – 46 %" if langue == "fr" else "18 – 46%"),
-        ligne_regle("index.figure.lfp", langue, 0.0, 31.0,
-                    "domaine", "0 – 31 %" if langue == "fr" else "0 – 31%"),
-    ])
+    # Les valeurs vivent dans `illustrations.APE_GRANDEURS`, une fois :
+    # l'apercu du rapport et l'image de partage les dessinent aussi, et
+    # trois copies finiraient par dire trois choses.
+    regle = "".join(
+        ligne_regle(cle, langue, bas, haut, statut,
+                    illustrations.pourcent(bas, haut, langue))
+        for cle, bas, haut, statut in illustrations.APE_GRANDEURS)
 
     tri = "".join([
         f"""<div class="carte statut statut-determine">
@@ -506,6 +542,8 @@ def page_index(langue: str) -> str:
 </section>
 
 {console(langue)}
+
+{bloc_pour_qui(langue)}
 
 <section class="bande bande-lavee section">
   <div class="enveloppe">
@@ -558,6 +596,72 @@ def page_index(langue: str) -> str:
     <p class="surtitre">{escape(t("index.attest.surtitre", langue))}</p>
     <h2>{escape(t("index.attest.titre", langue))}</h2>
     <p class="chapeau">{escape(t("index.attest.texte", langue))}</p>
+  </div>
+</section>
+
+{bloc_offre(langue)}"""
+
+
+#: Les quatre profils de la section « Pour qui ». L'ordre suit la chaine :
+#: celui qui vend le lot, celui qui l'achete, celui qui s'interpose, celui
+#: qui le mesure.
+PROFILS: tuple[str, ...] = ("vendeur", "acheteur", "negociant", "labo")
+
+
+def bloc_pour_qui(langue: str) -> str:
+    """
+    Quatre cartes, une par profil de visiteur.
+
+    EMPRUNT ASSUME a cylib (« Recycle with us ») et a tozero (« Become a
+    partner ») : un visiteur doit savoir en dix secondes si la page le
+    concerne. Chaque carte mene au formulaire, pas a une page de plus.
+    """
+    cartes = "".join(
+        f"""<div class="carte carte-profil">
+      <h3>{escape(t(f"index.pourqui.{p}.titre", langue))}</h3>
+      <p>{escape(t(f"index.pourqui.{p}.texte", langue))}</p>
+      <a class="lien-fleche" href="contact.html#formulaire">\
+{escape(t("index.pourqui.lien", langue))}</a>
+    </div>""" for p in PROFILS)
+    return f"""<section class="bande section">
+  <div class="enveloppe">
+    <p class="surtitre">{escape(t("index.pourqui.surtitre", langue))}</p>
+    <h2 class="mesure">{escape(t("index.pourqui.titre", langue))}</h2>
+    <div class="grille grille-4" style="margin-top:34px">{cartes}</div>
+  </div>
+</section>"""
+
+
+def bloc_offre(langue: str) -> str:
+    """
+    Le bandeau de fin d'accueil : l'offre, et l'apercu du document.
+
+    La page se terminait sur les attestations, sans rien proposer de
+    faire. Les sites de la filiere ferment tous sur un appel ; le notre
+    ferme sur ce que le visiteur recoit, dessine, et sur les trois
+    engagements que la page Contact repete mot pour mot.
+    """
+    return f"""<section class="bande bande-lavee section">
+  <div class="enveloppe">
+    <div class="offre">
+      <div>
+        <p class="surtitre">{escape(t("index.offre.surtitre", langue))}</p>
+        <h2>{escape(t("index.offre.titre", langue))}</h2>
+        <p class="chapeau" style="margin-bottom:26px">\
+{escape(t("index.offre.texte", langue))}</p>
+        {faits(["index.offre.f1", "index.offre.f2", "index.offre.f3"], langue)}
+        <div class="boutons">
+          <a class="bouton" href="contact.html#formulaire">\
+{escape(t("index.offre.bouton", langue))}</a>
+          <a class="bouton bouton-creux" href="rapport.html">\
+{escape(t("index.bouton_rapport", langue))}</a>
+        </div>
+      </div>
+      <figure class="offre-apercu">
+        {illustrations.apercu(langue, t)}
+        <figcaption>{escape(t("apercu.legende", langue))}</figcaption>
+      </figure>
+    </div>
   </div>
 </section>"""
 
@@ -877,6 +981,17 @@ def formulaire(langue: str) -> str:
         return (f'<p class="champ"><label for="{nom}">'
                 f'{escape(t(cle, langue))}{marque}</label>{aide}{saisie}</p>')
 
+    # Le profil du visiteur. Facultatif : la valeur vide est la premiere,
+    # et un envoi sans profil vaut mieux qu'un envoi abandonne.
+    options = "".join(
+        f'<option value="{p}">{escape(t(f"form.profil.{p}", langue))}'
+        f'</option>' for p in PROFILS + ("autre",))
+    profil = (f'<p class="champ"><label for="profil">'
+              f'{escape(t("form.profil", langue))}</label>'
+              f'<select id="profil" name="profil">'
+              f'<option value="">{escape(t("form.profil.choisir", langue))}'
+              f'</option>{options}</select></p>')
+
     return f"""<section class="bande bande-lavee section" id="formulaire">
   <div class="enveloppe mesure">
     <h2>{escape(t("form.titre", langue))}</h2>
@@ -893,6 +1008,7 @@ def formulaire(langue: str) -> str:
       </p>
       {champ("nom", "form.nom", requis=True)}
       {champ("organisation", "form.organisation")}
+      {profil}
       {champ("courriel", "form.courriel", type_="email", requis=True)}
       {champ("message", "form.message", type_="textarea", requis=True,
              indice="form.message.indice")}
@@ -1037,6 +1153,17 @@ def page_contact(langue: str) -> str:
 {escape(t("contact.modele.titre", langue))}</p>
         <p>{escape(t("contact.modele.texte", langue))}</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="bande section">
+  <div class="enveloppe">
+    <h2>{escape(t("contact.confiance.titre", langue))}</h2>
+    <div style="margin-top:26px;max-width:72ch">
+    {faits(["contact.confiance.f1", "contact.confiance.f2",
+            "contact.confiance.f3", "contact.confiance.f4",
+            "contact.confiance.f5"], langue)}
     </div>
   </div>
 </section>
